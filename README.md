@@ -15,6 +15,10 @@ This repo contains the local scripts that:
 4) (optional) fetch and parse labeled Gmail receipts
 
 ## Local directory layout (expected)
+
+Configuration is stored in a separate private repo (recommended).
+Clone it into `~/HisabKitab/refs`.
+
 The scripts assume a local data folder (not committed):
 
 ```
