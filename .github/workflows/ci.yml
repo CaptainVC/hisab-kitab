@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install
+        run: npm ci
+
+      - name: Syntax check
+        run: |
+          node -c src/cli/hk.js
+          node -c src/core/normalize.js
+          node -c src/core/categorize.js
+          node -c src/dashboard/build_dashboard.js
+          node -c src/excel/export_pretty_excel.js
+          node -c src/gmail/gmail_fetch.js
+          node -c src/gmail/gmail_parse_orders.js
+          node -c src/gmail/gmail_receipts_status.js
