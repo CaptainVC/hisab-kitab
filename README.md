@@ -70,3 +70,4 @@ See: `docs/gmail.md`
 MIT
 
 <!-- ci check: 2026-01-30T15:43:52Z -->
+<!-- ci recheck: 2026-01-30T15:48:46Z -->
