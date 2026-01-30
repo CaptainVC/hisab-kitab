@@ -1,0 +1,20 @@
+# dependencies
+node_modules/
+
+# local data
+HisabKitab/
+*.xlsx
+*.json
+!package.json
+!package-lock.json
+
+# secrets
+credentials.json
+gmail_token.json
+
+# logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
