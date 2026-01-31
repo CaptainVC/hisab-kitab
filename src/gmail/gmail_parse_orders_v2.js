@@ -155,8 +155,9 @@ function buildGmailQueryForMerchant(key, mc){
     for(const t of toks) subjectTokens.push(t);
   }
   if(subjectTokens.length) {
-    const ors = [...new Set(subjectTokens)].map(t => `subject:${t}`);
-    parts.push('(' + ors.join(' OR ') + ')');
+    const uniq = [...new Set(subjectTokens)];
+    // Use AND semantics to reduce false positives (e.g. ZEPTO should match both 'zepto' AND 'invoice').
+    parts.push(uniq.map(t => `subject:${t}`).join(' '));
   } else {
     // fallback: search merchant key itself
     parts.push(key.toLowerCase());
