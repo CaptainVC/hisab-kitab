@@ -138,11 +138,11 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
     body{margin:0;background:radial-gradient(1200px 600px at 10% 0%, rgba(124,92,255,.25), transparent 60%),
                  radial-gradient(1200px 600px at 90% 20%, rgba(34,197,94,.18), transparent 55%),
                  var(--bg);
-         color:var(--text); font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;}
+         color:var(--text); font:15px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;}
     header{padding:18px 18px 10px; border-bottom:1px solid var(--border); position:sticky; top:0; backdrop-filter: blur(10px);
            background:rgba(11,16,32,.65); z-index:10;}
     h1{margin:0 0 6px 0; font-size:18px; letter-spacing:.2px;}
-    .muted{color:var(--muted)}
+    .muted{color:rgba(220,226,240,.72)}
     .wrap{max-width:1200px; margin:0 auto; padding:16px;}
     .grid{display:grid; grid-template-columns: 1.6fr .4fr; gap:12px; align-items:start;}
     .panel{background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01)); border:1px solid var(--border); border-radius:14px; padding:12px;}
@@ -174,9 +174,9 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
     #cMerch{max-height:240px}
     #cDaily{max-height:240px}
 
-    table{width:100%; border-collapse:collapse; font-size:13px;}
+    table{width:100%; border-collapse:collapse; font-size:14px;}
     th, td{padding:10px 8px; border-bottom:1px solid rgba(255,255,255,.06);}
-    th{color:var(--muted); font-weight:600; text-align:left; position:sticky; top:0; background:rgba(17,26,46,.9)}
+    th{color:rgba(230,234,242,.78); font-weight:650; text-align:left; position:sticky; top:0; background:rgba(17,26,46,.9)}
     /* Transactions table: JS will size it to match the right sidebar height */
     .grid{align-items:start;}
     .tablewrap{overflow:auto; border-radius:12px; border:1px solid var(--border)}
@@ -293,6 +293,14 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
         <div id="insights" style="display:flex; flex-direction:column; gap:10px"></div>
       </div>
 
+      <div class="panel" id="foodPanel">
+        <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:8px">
+          <div style="font-weight:650">Food insights</div>
+          <div class="pill" id="foodPill">—</div>
+        </div>
+        <div id="foodInsights" style="display:flex; flex-direction:column; gap:10px"></div>
+      </div>
+
       <div class="panel">
         <div style="font-weight:650; margin-bottom:6px">Needs review</div>
         <div class="muted" id="uncatList">—</div>
@@ -307,6 +315,8 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
 Chart.defaults.color = '#e6eaf2';
 Chart.defaults.borderColor = 'rgba(255,255,255,.08)';
 Chart.defaults.font.family = 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
+Chart.defaults.plugins.legend.labels.color = 'rgba(230,234,242,.9)';
+Chart.defaults.plugins.legend.labels.font = { size: 13, weight: '600' };
 
 // Default tooltip formatting: show INR for numeric values
 // (Be defensive: if the callback throws, Chart.js can suppress tooltips.)
@@ -547,29 +557,65 @@ function render(rows){
     addBlock('Top 3 category mix', s, 'share of expense');
   }
 
-  // Food subcategory insights
+  // Food subcategory insights (render in separate panel)
   const food = expense.filter(r=>r.category==='FOOD_DINING');
-  if(food.length){
-    const foodTotal = food.reduce((s,r)=>s+(Number(r.amount)||0),0);
-    const byFoodSub = groupSum(food, r=>r.subcategory||'(uncategorized)').slice(0,6);
-    const topFoodSub = byFoodSub[0];
+  const foodEl = document.getElementById('foodInsights');
+  const foodPill = document.getElementById('foodPill');
+  if (foodEl) {
+    if (!food.length) {
+      foodEl.innerHTML = '<div class="muted">—</div>';
+      if (foodPill) foodPill.textContent = '—';
+    } else {
+      const foodTotal = food.reduce((s,r)=>s+(Number(r.amount)||0),0);
+      const byFoodSub = groupSum(food, r=>r.subcategory||'(uncategorized)');
+      const topFoodSub = byFoodSub[0];
+      const deliveryTotal = food.filter(r=>r.subcategory==='FOOD_ONLINE_DELIVERY').reduce((s,r)=>s+(Number(r.amount)||0),0);
+      const snacksTotal = food.filter(r=>r.subcategory==='FOOD_SNACKS').reduce((s,r)=>s+(Number(r.amount)||0),0);
+      const dineinTotal = food.filter(r=>r.subcategory==='FOOD_DINEIN').reduce((s,r)=>s+(Number(r.amount)||0),0);
 
-    const deliveryTotal = food.filter(r=>r.subcategory==='FOOD_ONLINE_DELIVERY').reduce((s,r)=>s+(Number(r.amount)||0),0);
-    const snacksTotal = food.filter(r=>r.subcategory==='FOOD_SNACKS').reduce((s,r)=>s+(Number(r.amount)||0),0);
+      // merchants inside food
+      const foodMerch = groupSum(food, r=>r.merchant_code||'(unknown)').slice(0,5);
 
-    const breakdown = byFoodSub.map(([sc,a])=>{
-      const pct = foodTotal ? Math.round((a/foodTotal)*100) : 0;
-      return (nameSub(sc) + ': ' + fmtINR(a) + ' (' + pct + '%)');
-    }).join('<br/>');
+      // day peaks for food
+      const foodDays = groupSum(food, r=>r.date).sort((a,b)=>b[1]-a[1]);
+      const topFoodDay = foodDays[0];
 
-    addBlock('Food spend (total)', fmtINR(foodTotal), (food.length + ' txns'));
-    if(topFoodSub) addBlock('Top food subcategory', nameSub(topFoodSub[0]), fmtINR(topFoodSub[1]));
-    if(foodTotal) addBlock(
-      'Food split: Delivery vs Snacks',
-      ((Math.round((deliveryTotal/foodTotal)*100)||0) + '% delivery · ' + (Math.round((snacksTotal/foodTotal)*100)||0) + '% snacks'),
-      (fmtINR(deliveryTotal) + ' vs ' + fmtINR(snacksTotal))
-    );
-    addBlock('Food subcategory breakdown (top)', breakdown, '');
+      const pct = (a, base) => base ? Math.round((a/base)*100) : 0;
+
+      const blocks = [];
+      const add = (t, v, s) => {
+        blocks.push(
+          '<div>'+
+            '<div class="muted" style="font-size:12px">'+t+'</div>'+
+            '<div style="font-weight:750">'+v+'</div>'+
+            (s ? '<div class="muted" style="margin-top:2px">'+s+'</div>' : '')+
+          '</div>'
+        );
+      };
+
+      add('Total food spend', fmtINR(foodTotal), food.length + ' txns');
+      if (topFoodSub) add('Top food subcategory', nameSub(topFoodSub[0]), fmtINR(topFoodSub[1]));
+      add('Food mix',
+        (pct(deliveryTotal, foodTotal) + '% delivery · ' + pct(snacksTotal, foodTotal) + '% snacks · ' + pct(dineinTotal, foodTotal) + '% dine-in'),
+        (fmtINR(deliveryTotal) + ' · ' + fmtINR(snacksTotal) + ' · ' + fmtINR(dineinTotal))
+      );
+
+      // Food subcategory breakdown list
+      const topSubs = byFoodSub.slice(0,6).map(([sc,a])=>{
+        return '• <b>' + nameSub(sc) + '</b> — ' + fmtINR(a) + ' (' + pct(a, foodTotal) + '%)';
+      }).join('<br/>');
+      add('Top subcategories', topSubs, '');
+
+      const topMerchHtml = foodMerch.map(([m,a])=>{
+        return '• <b>' + nameMerch(m) + '</b> — ' + fmtINR(a);
+      }).join('<br/>');
+      add('Top food merchants', topMerchHtml, '');
+
+      if (topFoodDay) add('Highest food day', topFoodDay[0], fmtINR(topFoodDay[1]));
+
+      foodEl.innerHTML = blocks.join('');
+      if (foodPill) foodPill.textContent = fmtINR(foodTotal);
+    }
   }
 
   const insightsEl = document.getElementById('insights');
