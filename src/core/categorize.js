@@ -78,7 +78,7 @@ function keywordCategorize(row) {
   // Transportation
   if (text.includes('petrol')) return setCatSub(row, 'TRANSPORT', 'TRANSPORT_PETROL');
   if (text.includes('parking')) return setCatSub(row, 'TRANSPORT', 'TRANSPORT_PARKING');
-  if (text.includes('bus')) return setCatSub(row, 'TRANSPORT', 'TRANSPORT_BUS');
+  if (/\bbus\b/.test(text)) return setCatSub(row, 'TRANSPORT', 'TRANSPORT_BUS');
   if (text.includes('uber') || text.includes('cab')) return setCatSub(row, 'TRANSPORT', 'TRANSPORT_CAB');
   if (text.includes('auto')) return setCatSub(row, 'TRANSPORT', 'TRANSPORT_AUTO');
   if (text.includes('policy') || text.includes('insurance')) return setCatSub(row, 'TRANSPORT', 'TRANSPORT_INSURANCE');

@@ -59,14 +59,16 @@ def main():
     date = extract_first([r'Date\s*:\s*([0-9]{2}-[0-9]{2}-[0-9]{4})'], text)
 
     # Totals section (Zepto often prints these inline on one line)
+    money = r'([0-9]+(?:\.[0-9]{1,2})?)'
+
     item_total = fnum(extract_first([
-        r'\bItem\s+Total\b\s*([0-9]+\.[0-9]{2})',
+        rf'\bItem\s+Total\b\s*{money}',
     ], text, flags=re.IGNORECASE))
     handling_fee = fnum(extract_first([
-        r'Handling\s+Fee[^\n]*?\s([0-9]+\.[0-9]{2})',
+        rf'Handling\s+Fee[^\n]*?\s{money}',
     ], text, flags=re.IGNORECASE))
     invoice_value = fnum(extract_first([
-        r'\bInvoice\s+Value\b\s*([0-9]+\.[0-9]{2})',
+        rf'\bInvoice\s+Value\b\s*{money}',
     ], text, flags=re.IGNORECASE))
 
     # Parse item lines from the extracted text (items are usually in a single line per item)
