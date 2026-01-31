@@ -67,6 +67,11 @@ function setCatSub(row, category, subcategory) {
   if (!row.subcategory) row.subcategory = subcategory;
 }
 
+function forceCatSub(row, category, subcategory) {
+  row.category = category;
+  row.subcategory = subcategory;
+}
+
 function keywordCategorize(row) {
   const text = `${row.raw_text || ''} ${row.notes || ''}`.toLowerCase();
 
@@ -98,7 +103,47 @@ function keywordCategorize(row) {
     return setCatSub(row, 'RECHARGES', 'RECHARGE_MOBILE');
   }
 
-  // Food clues
+  // Grocery / quick-commerce item rules (Zepto/Blinkit/etc.)
+  // These are applied on *items* (raw_text often equals product name).
+  if (row.merchant_code === 'ZEPTO' || row.merchant_code === 'BLINKIT') {
+    // For quick-commerce *item rows*, we intentionally override merchant defaults.
+
+    // toiletries / household
+    if (text.includes('dettol') || text.includes('soap') || text.includes('shampoo') || text.includes('toothpaste') || text.includes('tooth brush') || text.includes('sanitizer')) {
+      forceCatSub(row, 'SHOPPING', 'SHOP_TOILETRIES');
+      return row;
+    }
+
+    // dairy
+    if (text.includes('milk') || text.includes('dahi') || text.includes('curd') || text.includes('paneer')) {
+      forceCatSub(row, 'FOOD_DINING', 'FOOD_MILK');
+      return row;
+    }
+
+    // fruits
+    if (text.includes('mango') || text.includes('banana') || text.includes('apple') || text.includes('orange') || text.includes('grapes')) {
+      forceCatSub(row, 'FOOD_DINING', 'FOOD_FRUITS');
+      return row;
+    }
+
+    // water
+    if (text.includes('bisleri') || text.includes('kinley') || text.includes('water')) {
+      forceCatSub(row, 'FOOD_DINING', 'FOOD_WATER');
+      return row;
+    }
+
+    // snacks
+    if (text.includes('chips') || text.includes('namkeen') || text.includes('bhel') || text.includes('cookies') || text.includes('biscuit') || text.includes('cake')) {
+      forceCatSub(row, 'FOOD_DINING', 'FOOD_SNACKS');
+      return row;
+    }
+
+    // fallback for quick-commerce items
+    forceCatSub(row, 'SHOPPING', 'SHOP_GROCERIES');
+    return row;
+  }
+
+  // Food clues (eating out)
   if (text.includes('poha') || text.includes('momos') || text.includes('paratha') || text.includes('dosa') || text.includes('chai')) {
     // if Zomato/Swiggy or looks like ordering out
     if (text.includes('zomato') || text.includes('swiggy')) return setCatSub(row, 'FOOD_DINING', 'FOOD_ONLINE_DELIVERY');
@@ -152,8 +197,11 @@ function run(filePath, baseDir) {
     // Merchant defaults
     applyMerchantDefaults(r, refs);
 
-    // Keyword categorization only if still missing
-    if (!r.category || !r.subcategory) keywordCategorize(r);
+    // Keyword categorization:
+    // - For Zepto/Blinkit item-level rows we *always* run (it may override merchant defaults).
+    // - Otherwise, only if still missing.
+    if (r.merchant_code === 'ZEPTO' || r.merchant_code === 'BLINKIT') keywordCategorize(r);
+    else if (!r.category || !r.subcategory) keywordCategorize(r);
 
     // Tags
     applyTagsFromText(r);
