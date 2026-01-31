@@ -37,7 +37,8 @@ function parseArgs(argv){
   return {
     baseDir: expandHome(get('--base-dir') || '~/HisabKitab'),
     label: get('--label') || 'HisabKitab',
-    max: Number(get('--max') || 200)
+    max: Number(get('--max') || 200),
+    merchant: get('--merchant') || ''
   };
 }
 
@@ -133,11 +134,30 @@ async function savePdfAttachments(gmail, baseDir, merchantKey, msgId, pdfParts){
   return saved;
 }
 
+function buildGmailQueryForMerchant(key, mc){
+  // Build a simple Gmail query to reduce scanning.
+  // We keep this intentionally conservative.
+  const parts = [];
+  const froms = mc?.match?.fromContains || [];
+  const subs = mc?.match?.subjectContains || [];
+  if(froms.length) parts.push('(' + froms.map(s => `from:${JSON.stringify(String(s))}`).join(' OR ') + ')');
+  if(subs.length) parts.push('(' + subs.map(s => `subject:${JSON.stringify(String(s))}`).join(' OR ') + ')');
+  // If it's a PDF parser, likely has attachment.
+  if(mc?.parser?.type === 'pdf') parts.push('has:attachment');
+  // keyword fallback to merchant key
+  if(!parts.length) parts.push(key);
+  return parts.join(' ');
+}
+
 async function main(){
-  const { baseDir, label, max } = parseArgs(process.argv);
+  const { baseDir, label, max, merchant } = parseArgs(process.argv);
   const cfgPath = path.join(baseDir, 'refs', 'email_merchants.json');
   if(!fs.existsSync(cfgPath)) throw new Error('Missing config: ' + cfgPath);
   const cfg = readJson(cfgPath);
+
+  if(merchant && !cfg[merchant]) {
+    throw new Error(`Unknown merchant '${merchant}'. Valid: ${Object.keys(cfg).join(', ')}`);
+  }
 
   const authClient = await auth(baseDir);
   const gmail = google.gmail({ version: 'v1', auth: authClient });
@@ -146,7 +166,15 @@ async function main(){
   const lbl = (labelsRes.data.labels || []).find(l => l.name === label);
   if(!lbl) throw new Error(`Label '${label}' not found`);
 
-  const listRes = await gmail.users.messages.list({ userId: 'me', labelIds: [lbl.id], maxResults: max });
+  // If a merchant is specified, use a targeted Gmail query to avoid scanning the whole label.
+  let q = null;
+  if(merchant){
+    const mc = cfg[merchant];
+    if(!mc) throw new Error(`Unknown merchant key '${merchant}' in email_merchants.json`);
+    q = buildGmailQueryForMerchant(merchant, mc);
+  }
+
+  const listRes = await gmail.users.messages.list({ userId: 'me', labelIds: [lbl.id], q: q || undefined, maxResults: max });
   const msgs = listRes.data.messages || [];
 
   const outEvents = [];
@@ -169,13 +197,22 @@ async function main(){
     // find matching merchant config
     let matchedKey = null;
     let matchedCfg = null;
-    for(const [k, mc] of Object.entries(cfg)){
-      if(!mc?.enabled) continue;
-      const match = mc.match || {};
-      if(!matchesRule(from, subject, match)) continue;
-      matchedKey = k;
-      matchedCfg = mc;
-      break;
+
+    if(merchant){
+      const mc = cfg[merchant];
+      if(mc?.enabled && matchesRule(from, subject, mc.match || {})){
+        matchedKey = merchant;
+        matchedCfg = mc;
+      }
+    } else {
+      for(const [k, mc] of Object.entries(cfg)){
+        if(!mc?.enabled) continue;
+        const match = mc.match || {};
+        if(!matchesRule(from, subject, match)) continue;
+        matchedKey = k;
+        matchedCfg = mc;
+        break;
+      }
     }
 
     if(!matchedKey){
