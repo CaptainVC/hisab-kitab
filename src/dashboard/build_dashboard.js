@@ -551,7 +551,7 @@ function render(rows){
     type: 'doughnut',
     data: { labels: cat.map(x=>x[0]), datasets: [{ data: cat.map(x=>x[1]) }] },
     options: {
-      plugins:{ legend:{ position:'bottom' } },
+      plugins:{ legend:{ position:'right' } },
       cutout:'60%',
       onClick: (evt, elements) => {
         if(!elements || !elements.length) return;
@@ -609,7 +609,7 @@ function render(rows){
     type: 'pie',
     data: { labels: src.map(x=>x[0]), datasets: [{ data: src.map(x=>x[1]) }] },
     options: {
-      plugins:{ legend:{ position:'bottom' } },
+      plugins:{ legend:{ position:'right' } },
       onClick: (evt, elements) => {
         if(!elements || !elements.length) return;
         const idx = elements[0].index;
