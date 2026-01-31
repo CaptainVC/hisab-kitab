@@ -144,7 +144,8 @@ function keywordCategorize(row) {
     }
 
     // toiletries / household
-    if (itemText.includes('dettol') || itemText.includes('soap') || itemText.includes('shampoo') || itemText.includes('toothpaste') || itemText.includes('tooth brush') || itemText.includes('sanitizer')) {
+    if (itemText.includes('dettol') || itemText.includes('soap') || itemText.includes('shampoo') || itemText.includes('toothpaste') || itemText.includes('tooth brush') || itemText.includes('sanitizer')
+        || itemText.includes('loofah') || itemText.includes('body sponge') || itemText.includes('scrubber')) {
       forceCatSub(row, 'SHOPPING', 'SHOP_TOILETRIES');
       return row;
     }
@@ -173,8 +174,10 @@ function keywordCategorize(row) {
       return row;
     }
 
-    // snacks
-    if (itemText.includes('chips') || itemText.includes('namkeen') || itemText.includes('bhel') || itemText.includes('cookies') || itemText.includes('biscuit') || itemText.includes('cake')) {
+    // snacks / beverages / desserts
+    if (itemText.includes('chips') || itemText.includes('namkeen') || itemText.includes('bhel') || itemText.includes('cookies') || itemText.includes('biscuit') || itemText.includes('cake')
+        || itemText.includes('coca-cola') || itemText.includes('coke') || itemText.includes('sprite') || itemText.includes('soft drink') || itemText.includes('soda')
+        || itemText.includes('ice cream') || itemText.includes('havmor')) {
       forceCatSub(row, 'FOOD_DINING', 'FOOD_SNACKS');
       return row;
     }
