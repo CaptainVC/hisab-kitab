@@ -1,0 +1,14 @@
+{
+  "FOOD_DINING": { "name": "Food & Dining" },
+  "TRANSPORT": { "name": "Transportation" },
+  "TRAVEL": { "name": "Travel" },
+  "HOUSING_UTILITIES": { "name": "Housing & Utilities" },
+  "ENTERTAINMENT": { "name": "Entertainment" },
+  "EDUCATION": { "name": "Education" },
+  "RECHARGES": { "name": "Recharges & Subscriptions" },
+  "SHOPPING": { "name": "Online Shopping" },
+  "HEALTHCARE": { "name": "Healthcare" },
+  "SPORTS": { "name": "Sports" },
+  "OTHERS": { "name": "Others" },
+  "PERSONAL_CARE": { "name": "Personal Care" }
+}

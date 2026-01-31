@@ -1,0 +1,66 @@
+{
+  "FOOD_ONLINE_DELIVERY": { "name": "Online Delivery", "category": "FOOD_DINING" },
+  "FOOD_FRUITS": { "name": "Fruits", "category": "FOOD_DINING" },
+  "FOOD_MILK": { "name": "Milk", "category": "FOOD_DINING" },
+  "FOOD_WATER": { "name": "Water", "category": "FOOD_DINING" },
+  "FOOD_SNACKS": { "name": "Snacks", "category": "FOOD_DINING" },
+  "FOOD_PROTEIN": { "name": "Protein", "category": "FOOD_DINING" },
+  "FOOD_DINEIN": { "name": "Restaurant Dine-in", "category": "FOOD_DINING" },
+  "FOOD_CAFE": { "name": "Cafe / Snacks", "category": "FOOD_DINING" },
+
+  "TRANSPORT_PETROL": { "name": "Petrol", "category": "TRANSPORT" },
+  "TRANSPORT_METRO": { "name": "Metro", "category": "TRANSPORT" },
+  "TRANSPORT_BUS": { "name": "Bus", "category": "TRANSPORT" },
+  "TRANSPORT_CAB": { "name": "Cab", "category": "TRANSPORT" },
+  "TRANSPORT_AUTO": { "name": "Auto", "category": "TRANSPORT" },
+  "TRANSPORT_PARKING": { "name": "Parking", "category": "TRANSPORT" },
+  "TRANSPORT_INSURANCE": { "name": "Insurance", "category": "TRANSPORT" },
+
+  "TRAVEL_HOTELS": { "name": "Hotels", "category": "TRAVEL" },
+  "TRAVEL_FLIGHTS": { "name": "Flights", "category": "TRAVEL" },
+  "TRAVEL_TOURS": { "name": "Tours", "category": "TRAVEL" },
+  "TRAVEL_VISA": { "name": "Visa", "category": "TRAVEL" },
+  "TRAVEL_RAILWAYS": { "name": "Railways", "category": "TRAVEL" },
+
+  "HOME_RENT": { "name": "Rent", "category": "HOUSING_UTILITIES" },
+  "HOME_LAUNDRY": { "name": "Laundry", "category": "HOUSING_UTILITIES" },
+  "HOME_UTILITIES": { "name": "Utilities", "category": "HOUSING_UTILITIES" },
+
+  "ENT_MOVIES": { "name": "Movies", "category": "ENTERTAINMENT" },
+  "ENT_GAMING": { "name": "Gaming", "category": "ENTERTAINMENT" },
+  "ENT_BOOKS": { "name": "Books", "category": "ENTERTAINMENT" },
+  "ENT_EVENTS": { "name": "Events", "category": "ENTERTAINMENT" },
+
+  "EDU_COURSES": { "name": "Courses", "category": "EDUCATION" },
+  "EDU_UPSKILLING": { "name": "Upskilling", "category": "EDUCATION" },
+
+  "RECHARGE_MOBILE": { "name": "Mobile Recharge", "category": "RECHARGES" },
+  "RECHARGE_DATA": { "name": "Data Recharge", "category": "RECHARGES" },
+  "RECHARGE_SUBSCRIPTIONS": { "name": "Subscriptions", "category": "RECHARGES" },
+
+  "SHOP_CLOTHES": { "name": "Clothes Shopping", "category": "SHOPPING" },
+  "SHOP_ELECTRONICS": { "name": "Electronics Shopping", "category": "SHOPPING" },
+  "SHOP_GROCERIES": { "name": "Groceries Shopping", "category": "SHOPPING" },
+  "SHOP_TOILETRIES": { "name": "Toiletries Shopping", "category": "SHOPPING" },
+  "SHOP_STATIONERY": { "name": "Stationery Shopping", "category": "SHOPPING" },
+  "SHOP_TOYS": { "name": "Toys Shopping", "category": "SHOPPING" },
+  "SHOP_HOME_APPLIANCES": { "name": "Home Appliances Shopping", "category": "SHOPPING" },
+  "SHOP_MISC": { "name": "Misc Shopping", "category": "SHOPPING" },
+
+  "HEALTH_DOCTOR": { "name": "Doctor Visits", "category": "HEALTHCARE" },
+  "HEALTH_MEDICINES": { "name": "Medicines", "category": "HEALTHCARE" },
+  "HEALTH_TESTS": { "name": "Medical Tests", "category": "HEALTHCARE" },
+  "HEALTH_INSURANCE": { "name": "Insurance", "category": "HEALTHCARE" },
+
+  "SPORTS_BADMINTON_BOOKING": { "name": "Sports Badminton Booking", "category": "SPORTS" },
+  "SPORTS_CRICKET_BOOKING": { "name": "Sports Cricket Booking", "category": "SPORTS" },
+  "SPORTS_SNOOKER_BOOKING": { "name": "Sports Snooker/Pool Booking", "category": "SPORTS" },
+  "SPORTS_GYM": { "name": "Gym", "category": "SPORTS" },
+  "SPORTS_EQUIPMENT": { "name": "Sports Equipment", "category": "SPORTS" },
+
+  "OTH_MISC": { "name": "Misc", "category": "OTHERS" },
+
+  "TRANSPORT_FUEL": { "name": "Fuel", "category": "TRANSPORT" },
+
+  "PERSONAL_HAIRCUT": { "name": "Haircut / Salon", "category": "PERSONAL_CARE" }
+}
