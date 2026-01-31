@@ -131,7 +131,19 @@ async function main(){
   const lbl = (labelsRes.data.labels || []).find(l => l.name === label);
   if(!lbl) throw new Error(`Label '${label}' not found`);
 
-  const listRes = await gmail.users.messages.list({ userId: 'me', labelIds: [lbl.id], maxResults: max });
+  // Build a Gmail query to reduce scanning.
+  // We keep it broad: match by known sender domains/addresses.
+  const qParts = [];
+  for (const cfg of Object.values(paymentsCfg.sources || {})) {
+    const froms = cfg?.match?.fromContains || [];
+    for (const f of froms) {
+      // handle either full address or domain-ish token
+      qParts.push(`from:${String(f).replace(/\s+/g,'')}`);
+    }
+  }
+  const q = qParts.length ? '(' + Array.from(new Set(qParts)).join(' OR ') + ')' : undefined;
+
+  const listRes = await gmail.users.messages.list({ userId: 'me', labelIds: [lbl.id], q, maxResults: max });
   const msgs = listRes.data.messages || [];
 
   const payments = [];
