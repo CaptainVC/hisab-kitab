@@ -177,10 +177,9 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
     table{width:100%; border-collapse:collapse; font-size:13px;}
     th, td{padding:10px 8px; border-bottom:1px solid rgba(255,255,255,.06);}
     th{color:var(--muted); font-weight:600; text-align:left; position:sticky; top:0; background:rgba(17,26,46,.9)}
-    /* Make the table fill the left column height better (align with the right sidebar cards) */
-    .grid{align-items:stretch;}
-    .grid > .panel:first-child{display:flex; flex-direction:column;}
-    .tablewrap{flex:1; min-height:640px; overflow:auto; border-radius:12px; border:1px solid var(--border)}
+    /* Transactions table: JS will size it to match the right sidebar height */
+    .grid{align-items:start;}
+    .tablewrap{overflow:auto; border-radius:12px; border:1px solid var(--border)}
     .pill{display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted); font-size:12px}
     .pill.ok{border-color:rgba(34,197,94,.35); color:#bff0d2}
     .pill.bad{border-color:rgba(239,68,68,.35); color:#fecaca}
@@ -452,6 +451,25 @@ function groupSum(rows, keyFn){
 
 function destroyChart(name){ if(charts[name]){ charts[name].destroy(); delete charts[name]; } }
 
+function syncTableHeight(){
+  // Goal: transactions table should be at least as tall as the right sidebar stack
+  // (Insights + Needs review), then scroll within the table.
+  try {
+    const right = document.querySelector('.rightcol');
+    const tw = document.querySelector('.tablewrap');
+    if(!right || !tw) return;
+
+    const twTop = tw.getBoundingClientRect().top;
+    const rightBottom = right.getBoundingClientRect().bottom;
+    const h = Math.max(320, Math.floor(rightBottom - twTop));
+
+    tw.style.height = h + 'px';
+    tw.style.maxHeight = h + 'px';
+  } catch (e) {
+    // ignore
+  }
+}
+
 function render(rows){
   const filtered = applyFilters(rows);
 
@@ -563,6 +581,9 @@ function render(rows){
       '<td class="muted">' + ((r.raw_text||'').slice(0,80)) + '</td>';
     tbody.appendChild(tr);
   }
+
+  // After we update DOM content, re-sync table height to match sidebar
+  syncTableHeight();
 
   // Charts
   // Daily spend line (click a point to jump to that day's transactions)
@@ -797,6 +818,9 @@ document.getElementById('fileInput').addEventListener('change', async (ev)=>{
   wireEvents(DATA.rows);
   render(DATA.rows);
 });
+
+// keep table height aligned to sidebar
+window.addEventListener('resize', ()=>{ if(DATA) syncTableHeight(); });
 
 // attempt auto-load once
 tryFetch();
