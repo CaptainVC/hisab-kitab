@@ -94,6 +94,7 @@ function forceCatSub(row, category, subcategory) {
 
 function keywordCategorize(row) {
   const text = `${row.raw_text || ''} ${row.notes || ''}`.toLowerCase();
+  const itemText = `${row.raw_text || ''}`.toLowerCase();
 
   // Transportation
   if (text.includes('petrol') || text.includes('diesel') || text.includes('fuel')) return setCatSub(row, 'TRANSPORT', 'TRANSPORT_FUEL');
@@ -133,33 +134,47 @@ function keywordCategorize(row) {
   // These are applied on *items* (raw_text often equals product name).
   if (row.merchant_code === 'ZEPTO' || row.merchant_code === 'BLINKIT') {
     // For quick-commerce *item rows*, we intentionally override merchant defaults.
+    // IMPORTANT: use *itemText* (raw_text) only, not notes, otherwise
+    // items get polluted by the original order description.
+
+    // fees/charges should be Misc (per user)
+    if (itemText.includes('handling charge') || itemText.includes('delivery charge') || itemText.includes('delivery charges')) {
+      forceCatSub(row, 'OTHERS', 'OTH_MISC');
+      return row;
+    }
 
     // toiletries / household
-    if (text.includes('dettol') || text.includes('soap') || text.includes('shampoo') || text.includes('toothpaste') || text.includes('tooth brush') || text.includes('sanitizer')) {
+    if (itemText.includes('dettol') || itemText.includes('soap') || itemText.includes('shampoo') || itemText.includes('toothpaste') || itemText.includes('tooth brush') || itemText.includes('sanitizer')) {
       forceCatSub(row, 'SHOPPING', 'SHOP_TOILETRIES');
       return row;
     }
 
+    // protein / supplements
+    if (itemText.includes('protein') || itemText.includes('ritebite') || itemText.includes('whey')) {
+      forceCatSub(row, 'FOOD_DINING', 'FOOD_PROTEIN');
+      return row;
+    }
+
     // dairy
-    if (text.includes('milk') || text.includes('dahi') || text.includes('curd') || text.includes('paneer')) {
+    if (itemText.includes('milk') || itemText.includes('dahi') || itemText.includes('curd') || itemText.includes('paneer')) {
       forceCatSub(row, 'FOOD_DINING', 'FOOD_MILK');
       return row;
     }
 
     // fruits
-    if (text.includes('mango') || text.includes('banana') || text.includes('apple') || text.includes('orange') || text.includes('grapes')) {
+    if (itemText.includes('mango') || itemText.includes('banana') || itemText.includes('apple') || itemText.includes('orange') || itemText.includes('grapes')) {
       forceCatSub(row, 'FOOD_DINING', 'FOOD_FRUITS');
       return row;
     }
 
     // water
-    if (text.includes('bisleri') || text.includes('kinley') || text.includes('water')) {
+    if (itemText.includes('bisleri') || itemText.includes('kinley') || itemText.includes('water')) {
       forceCatSub(row, 'FOOD_DINING', 'FOOD_WATER');
       return row;
     }
 
     // snacks
-    if (text.includes('chips') || text.includes('namkeen') || text.includes('bhel') || text.includes('cookies') || text.includes('biscuit') || text.includes('cake')) {
+    if (itemText.includes('chips') || itemText.includes('namkeen') || itemText.includes('bhel') || itemText.includes('cookies') || itemText.includes('biscuit') || itemText.includes('cake')) {
       forceCatSub(row, 'FOOD_DINING', 'FOOD_SNACKS');
       return row;
     }
