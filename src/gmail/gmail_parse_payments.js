@@ -107,54 +107,14 @@ function normalizeAmt(s){
   return Number.isFinite(v) ? v : null;
 }
 
-function parsePayment(sourceKey, msg, parsedText, cfg){
-  const subject = msg.subject;
-  const from = msg.from;
-  const out = {
-    source: sourceKey,
-    messageId: msg.messageId,
-    threadId: msg.threadId,
-    internalDateMs: msg.internalDateMs,
-    from,
-    subject,
-    direction: '',
-    amount: null,
-    cardLast4: null,
-    txnId: null,
-    counterparty: null,
-    raw: parsedText.slice(0, 2000)
-  };
+const { getParser } = require('../parsers');
 
-  if(sourceKey === 'HDFC_INSTA_ALERT'){
-    const debit = cfg.parse?.direction?.debitSubjectContains || [];
-    const credit = cfg.parse?.direction?.creditSubjectContains || [];
-    const s = (subject||'').toLowerCase();
-    if(debit.some(x => s.includes(String(x).toLowerCase()))) out.direction = 'DEBIT';
-    if(credit.some(x => s.includes(String(x).toLowerCase()))) out.direction = 'CREDIT';
-
-    const amtStr = applyRegex(subject + '\n' + parsedText, cfg.parse?.amount?.regex, 1);
-    out.amount = normalizeAmt(amtStr);
-
-    const last4 = applyRegex(subject + '\n' + parsedText, cfg.parse?.cardLast4?.regex, 1);
-    out.cardLast4 = last4 || null;
-  }
-
-  if(sourceKey === 'MOBIKWIK'){
-    const t = (subject + '\n' + parsedText);
-    const amtStr = applyRegex(t, cfg.parse?.amount?.regex, 2) || applyRegex(t, cfg.parse?.amount?.regex, 1);
-    out.amount = normalizeAmt(amtStr);
-
-    const debitC = cfg.parse?.direction?.debitBodyContains || [];
-    const creditC = cfg.parse?.direction?.creditBodyContains || [];
-    const tl = t.toLowerCase();
-    if(debitC.some(x => tl.includes(String(x).toLowerCase()))) out.direction = 'DEBIT';
-    if(creditC.some(x => tl.includes(String(x).toLowerCase()))) out.direction = 'CREDIT';
-
-    out.txnId = applyRegex(t, cfg.parse?.txnId?.regex, 1);
-    out.counterparty = applyRegex(t, cfg.parse?.counterparty?.regex, 1);
-  }
-
-  return out;
+function parseWithParser(msgMeta, plainText, sourceCfg){
+  const parserId = sourceCfg?.parser?.id;
+  if(!parserId) throw new Error('Missing parser.id in email_payments.json for a source');
+  const parser = getParser(parserId);
+  const events = parser.parse({ msg: msgMeta, text: plainText, cfg: sourceCfg });
+  return Array.isArray(events) ? events : [];
 }
 
 async function main(){
@@ -203,8 +163,9 @@ async function main(){
     for(const [srcKey, cfg] of Object.entries(paymentsCfg.sources || {})){
       if(!cfg.enabled) continue;
       if(!matchesRule(from, subject, cfg.match || {})) continue;
-      const p = parsePayment(srcKey, msgMeta, plain, cfg);
-      payments.push(p);
+      // parse via configured parser
+      const events = parseWithParser(msgMeta, plain, cfg);
+      for(const e of events) payments.push(e);
       matched = true;
       break;
     }
