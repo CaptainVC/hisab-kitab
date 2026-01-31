@@ -1073,7 +1073,15 @@ document.getElementById('fileInput').addEventListener('change', async (ev)=>{
     if (!data || !Array.isArray(data.rows)) throw new Error('Invalid JSON: expected {rows:[...]}');
 
     DATA = data;
-    document.getElementById('loadHint').style.display='none';
+
+    // Visible confirmation that the file change handler fired
+    const hint = document.getElementById('loadHint');
+    if (hint) {
+      hint.style.display = 'block';
+      hint.innerHTML = '<b>Loaded:</b> ' + (data.rows.length || 0) + ' rows';
+      setTimeout(()=>{ try{ hint.style.display='none'; }catch{} }, 1500);
+    }
+
     setupFilters(DATA.rows);
     wireEvents(DATA.rows);
     render(DATA.rows);
