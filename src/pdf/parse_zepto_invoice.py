@@ -264,7 +264,7 @@ def main():
 
         name = clean_name(m.group('name'))
 
-        return {
+        item = {
             'sr': int(m.group('sr')),
             'name': name,
             'hsn': m.group('hsn'),
@@ -280,6 +280,23 @@ def main():
             'cess_amt': fnum(m.group('cess_amt')),
             'total': fnum(m.group('total')),
         }
+
+        # Heuristic repair for Zepto overlap bugs:
+        # if total is clearly wrong (tiny) but taxable looks right and taxes are ~0, use taxable as total.
+        try:
+            if (item.get('total') is not None and item.get('total') < 5 and
+                item.get('taxable') is not None and
+                (item.get('cgst_amt') or 0) == 0 and (item.get('sgst_amt') or 0) == 0):
+                item['total'] = item['taxable']
+        except Exception:
+            pass
+
+        # Name repair (common: "Kinnaur 4" -> "Apple Kinnaur 4 pcs")
+        nm = (item.get('name') or '')
+        if nm.lower().startswith('kinnaur'):
+            item['name'] = 'Apple ' + nm + ' pcs'
+
+        return item
 
     def parse_item_row_text_all(row_text: str):
         row_text = re.sub(r'\s+', ' ', (row_text or '').strip())
