@@ -223,5 +223,15 @@
     "name": "Ease My Trip",
     "possibleCategories": ["TRAVEL"],
     "default": { "category": "TRAVEL", "subcategory": "TRAVEL_HOTELS" }
+  },
+  "WELLFED": {
+    "name": "WellFed",
+    "possibleCategories": ["FOOD_DINING"],
+    "default": { "category": "FOOD_DINING", "subcategory": "FOOD_ONLINE_DELIVERY" }
+  },
+  "BISLERI": {
+    "name": "Bisleri",
+    "possibleCategories": ["FOOD_DINING", "RECHARGES"],
+    "default": { "category": "FOOD_DINING", "subcategory": "FOOD_WATER", "tags": ["recharge"] }
   }
 }

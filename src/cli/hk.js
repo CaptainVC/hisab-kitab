@@ -356,11 +356,12 @@ function parseHisabText(text, refs) {
     }
     const swTotal = sw.reduce((s,x)=>s+(Number(x.amount)||0),0);
 
-    // Splitwise shorthand: sw-Name (means: entire txn is on Name; treat as expense but tag + counterparty)
+    // Splitwise shorthand: sw-Name (means: pass-through txn for someone else)
     // Example: (mk, sw-Rishika)
     for (const t of tokens) {
       const m = t.match(/^sw\s*[-:]\s*(.+)$/i);
       if (m && m[1]) {
+        base.type = 'SPLITWISE';
         base.counterparty = String(m[1]).trim();
         base.tags = (base.tags ? base.tags + ',' : '') + 'splitwise,for_someone_else';
       }
