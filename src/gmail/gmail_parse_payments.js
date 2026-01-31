@@ -176,9 +176,19 @@ async function main(){
   }
 
   const outPath = path.join(baseDir, 'payments_parsed.json');
-  fs.writeFileSync(outPath, JSON.stringify({ ok: true, label, count: payments.length, payments, unknown }, null, 2));
 
-  process.stdout.write(JSON.stringify({ ok: true, count: payments.length, saved: outPath, unknown: unknown.length }, null, 2) + '\n');
+  const existing = readJsonSafe(outPath, { payments: [], unknown: [] });
+  const byKey = new Map();
+  const keyOf = (p) => p.messageId || JSON.stringify(p).slice(0, 200);
+  for (const p of (existing.payments || [])) byKey.set(keyOf(p), p);
+  for (const p of payments) byKey.set(keyOf(p), p);
+
+  const mergedPayments = Array.from(byKey.values());
+  const mergedUnknown = (existing.unknown || []).concat(unknown || []);
+
+  fs.writeFileSync(outPath, JSON.stringify({ ok: true, label, count: mergedPayments.length, payments: mergedPayments, unknown: mergedUnknown }, null, 2));
+
+  process.stdout.write(JSON.stringify({ ok: true, count: payments.length, saved: outPath, unknown: unknown.length, total: mergedPayments.length }, null, 2) + '\n');
 }
 
 main().catch(err => { console.error(err); process.exit(1); });

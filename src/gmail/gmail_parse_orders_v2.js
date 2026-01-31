@@ -275,9 +275,27 @@ async function main(){
   }
 
   const outPath = path.join(baseDir, 'orders_parsed.json');
-  fs.writeFileSync(outPath, JSON.stringify({ ok: true, label, count: outEvents.length, orders: outEvents, unknown }, null, 2));
 
-  process.stdout.write(JSON.stringify({ ok: true, count: outEvents.length, saved: outPath, unknown: unknown.length }, null, 2) + '\n');
+  // Merge with existing (append/update by stable key).
+  const existing = readJsonSafe(outPath, { orders: [], unknown: [] });
+  const byKey = new Map();
+  const keyOf = (o) => {
+    // Prefer messageId + pdfPath (unique per attachment) else messageId.
+    if (o.messageId && o.pdfPath) return o.messageId + '::' + o.pdfPath;
+    if (o.messageId && o.invoice_number) return o.messageId + '::' + o.invoice_number;
+    if (o.messageId) return o.messageId;
+    return JSON.stringify(o).slice(0, 200);
+  };
+
+  for (const o of (existing.orders || [])) byKey.set(keyOf(o), o);
+  for (const o of outEvents) byKey.set(keyOf(o), o);
+
+  const mergedOrders = Array.from(byKey.values());
+  const mergedUnknown = (existing.unknown || []).concat(unknown || []);
+
+  fs.writeFileSync(outPath, JSON.stringify({ ok: true, label, count: mergedOrders.length, orders: mergedOrders, unknown: mergedUnknown }, null, 2));
+
+  process.stdout.write(JSON.stringify({ ok: true, count: outEvents.length, saved: outPath, unknown: unknown.length, total: mergedOrders.length }, null, 2) + '\n');
 }
 
 main().catch(err => { console.error(err); process.exit(1); });
