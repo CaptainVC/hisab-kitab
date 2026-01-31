@@ -146,12 +146,15 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
     .wrap{max-width:1200px; margin:0 auto; padding:16px;}
     .grid{display:grid; grid-template-columns: 1.4fr .6fr; gap:12px; align-items:start;}
     .panel{background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01)); border:1px solid var(--border); border-radius:14px; padding:12px;}
-    .filters{display:grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap:10px;}
+    .filters{display:grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap:10px;}
     .filters .panel{padding:10px}
     label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px}
     input, select{width:100%; background:rgba(255,255,255,.03); border:1px solid var(--border); color:var(--text);
                   border-radius:10px; padding:8px; outline:none;}
-    select[multiple]{height:96px}
+    input::placeholder{color:rgba(154,164,178,.75)}
+    select[multiple]{height:120px; padding:6px}
+    select[multiple] option{padding:6px; border-radius:8px}
+    select[multiple] option:checked{background:rgba(124,92,255,.25)}
     .btnrow{display:flex; gap:8px; flex-wrap:wrap}
     button{background:rgba(124,92,255,.18); border:1px solid rgba(124,92,255,.35); color:var(--text);
            border-radius:10px; padding:8px 10px; cursor:pointer;}
@@ -211,18 +214,32 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
     </div>
     <div class="panel">
       <label>Type</label>
+      <input id="typeSearch" placeholder="Search…" />
+      <div class="muted" id="typeCount" style="margin:6px 0 6px">Selected: 0</div>
       <select id="typeSel" multiple></select>
     </div>
     <div class="panel">
       <label>Category</label>
+      <input id="catSearch" placeholder="Search…" />
+      <div class="muted" id="catCount" style="margin:6px 0 6px">Selected: 0</div>
       <select id="catSel" multiple></select>
     </div>
     <div class="panel">
       <label>Merchant</label>
+      <input id="merchSearch" placeholder="Search…" />
+      <div class="muted" id="merchCount" style="margin:6px 0 6px">Selected: 0</div>
       <select id="merchSel" multiple></select>
     </div>
     <div class="panel">
+      <label>Source</label>
+      <input id="sourceSearch" placeholder="Search…" />
+      <div class="muted" id="sourceCount" style="margin:6px 0 6px">Selected: 0</div>
+      <select id="sourceSel" multiple></select>
+    </div>
+    <div class="panel">
       <label>Tags</label>
+      <input id="tagSearch" placeholder="Search…" />
+      <div class="muted" id="tagCount" style="margin:6px 0 6px">Selected: 0</div>
       <select id="tagSel" multiple></select>
     </div>
   </div>
@@ -283,6 +300,7 @@ Chart.defaults.font.family = 'system-ui, -apple-system, Segoe UI, Roboto, Arial,
 
 let DATA = null;
 let charts = {};
+let ALL_OPTS = { type: [], category: [], merchant: [], source: [], tag: [] };
 
 function fmtINR(n){
   try { return '₹' + (Number(n)||0).toLocaleString('en-IN'); } catch { return '₹' + n; }
@@ -306,12 +324,70 @@ function setOptions(sel, values, labelMap){
   }
 }
 
+function setOnlySelected(sel, value){
+  let has=false;
+  for(const o of sel.options){
+    const on = (o.value === value);
+    o.selected = on;
+    if(on) has=true;
+  }
+  return has;
+}
+
+function toggleSelected(sel, value){
+  for(const o of sel.options){
+    if(o.value === value){ o.selected = !o.selected; return true; }
+  }
+  return false;
+}
+
+function clearSelected(sel){
+  for(const o of sel.options) o.selected=false;
+}
+
+function updateCounts(){
+  const map=[['typeSel','typeCount'],['catSel','catCount'],['merchSel','merchCount'],['sourceSel','sourceCount'],['tagSel','tagCount']];
+  for(const [sid,cid] of map){
+    const s=document.getElementById(sid);
+    const c=document.getElementById(cid);
+    if(!s||!c) continue;
+    c.textContent = 'Selected: ' + readMulti(s).length;
+  }
+}
+
+function refreshFilteredOptions(){
+  const typeQ=(document.getElementById('typeSearch')?.value||'').toLowerCase();
+  const catQ=(document.getElementById('catSearch')?.value||'').toLowerCase();
+  const merchQ=(document.getElementById('merchSearch')?.value||'').toLowerCase();
+  const sourceQ=(document.getElementById('sourceSearch')?.value||'').toLowerCase();
+  const tagQ=(document.getElementById('tagSearch')?.value||'').toLowerCase();
+
+  const prettyCode = (s) => String(s||'')
+    .replace(/_/g,' ')
+    .toLowerCase()
+    .replace(/\b\w/g, c => c.toUpperCase());
+
+  const lmType = Object.fromEntries((ALL_OPTS.type||[]).map(x=>[x, prettyCode(x)]));
+  const lmCat = Object.fromEntries((ALL_OPTS.category||[]).map(x=>[x, DATA?.refs?.categories?.[x]?.name || prettyCode(x)]));
+  const lmMerch = Object.fromEntries((ALL_OPTS.merchant||[]).map(x=>[x, DATA?.refs?.merchants?.[x]?.name || prettyCode(x)]));
+  const lmSource = Object.fromEntries((ALL_OPTS.source||[]).map(x=>[x, DATA?.refs?.sources?.[x]?.display || prettyCode(x)]));
+  const lmTag = Object.fromEntries((ALL_OPTS.tag||[]).map(x=>[x, prettyCode(x)]));
+
+  setOptions(document.getElementById('typeSel'), ALL_OPTS.type.filter(x=>String(lmType[x]||x).toLowerCase().includes(typeQ) || String(x).toLowerCase().includes(typeQ)), lmType);
+  setOptions(document.getElementById('catSel'), ALL_OPTS.category.filter(x=>String(lmCat[x]||x).toLowerCase().includes(catQ) || String(x).toLowerCase().includes(catQ)), lmCat);
+  setOptions(document.getElementById('merchSel'), ALL_OPTS.merchant.filter(x=>String(lmMerch[x]||x).toLowerCase().includes(merchQ) || String(x).toLowerCase().includes(merchQ)), lmMerch);
+  setOptions(document.getElementById('sourceSel'), ALL_OPTS.source.filter(x=>String(lmSource[x]||x).toLowerCase().includes(sourceQ) || String(x).toLowerCase().includes(sourceQ)), lmSource);
+  setOptions(document.getElementById('tagSel'), ALL_OPTS.tag.filter(x=>String(lmTag[x]||x).toLowerCase().includes(tagQ) || String(x).toLowerCase().includes(tagQ)), lmTag);
+  updateCounts();
+}
+
 function applyFilters(rows){
   const from=document.getElementById('dateFrom').value;
   const to=document.getElementById('dateTo').value;
   const types=new Set(readMulti(document.getElementById('typeSel')));
   const cats=new Set(readMulti(document.getElementById('catSel')));
   const merch=new Set(readMulti(document.getElementById('merchSel')));
+  const sources=new Set(readMulti(document.getElementById('sourceSel')));
   const tags=new Set(readMulti(document.getElementById('tagSel')));
 
   return rows.filter(r=>{
@@ -320,6 +396,7 @@ function applyFilters(rows){
     if(types.size && !types.has(r.type)) return false;
     if(cats.size && !cats.has(r.category)) return false;
     if(merch.size && !merch.has(r.merchant_code)) return false;
+    if(sources.size && !sources.has(r.source)) return false;
     if(tags.size){
       const rt = r._tags || [];
       let ok=false;
@@ -368,16 +445,40 @@ function render(rows){
   // Insights text
   const topCat = groupSum(expense, r=>r.category||'(uncategorized)')[0];
   const topMerch = groupSum(expense, r=>r.merchant_code||'(unknown)')[0];
-  const days = groupSum(expense, r=>r.date);
-  const topDay = days[0];
+  const topSub = groupSum(expense, r=>r.subcategory||'(uncategorized)')[0];
+  const topSrc = groupSum(expense, r=>r.source||'(unknown)')[0];
+
+  const daySpend = groupSum(expense, r=>r.date).sort((a,b)=>b[1]-a[1]);
+  const topDay = daySpend[0];
+  const avgDaily = daySpend.length ? (daySpend.reduce((s,x)=>s+x[1],0) / daySpend.length) : 0;
+
+  // biggest single expense row
+  const biggest = expense.slice().sort((a,b)=>(Number(b.amount)||0)-(Number(a.amount)||0))[0] || null;
+
+  const nameCat = (code) => (DATA?.refs?.categories?.[code]?.name) || code;
+  const nameSub = (code) => (DATA?.refs?.subcategories?.[code]?.name) || code;
+  const nameMerch = (code) => (DATA?.refs?.merchants?.[code]?.name) || code;
+  const nameSrc = (code) => (DATA?.refs?.sources?.[code]?.display) || code;
+
   const insights = [];
-  if(topCat) insights.push('Top category: <b>' + topCat[0] + '</b> (' + fmtINR(topCat[1]) + ')');
-  if(topMerch) insights.push('Top merchant: <b>' + topMerch[0] + '</b> (' + fmtINR(topMerch[1]) + ')');
+  if(topCat) insights.push('Top category: <b>' + nameCat(topCat[0]) + '</b> (' + fmtINR(topCat[1]) + ')');
+  if(topSub) insights.push('Top subcategory: <b>' + nameSub(topSub[0]) + '</b> (' + fmtINR(topSub[1]) + ')');
+  if(topMerch) insights.push('Top merchant: <b>' + nameMerch(topMerch[0]) + '</b> (' + fmtINR(topMerch[1]) + ')');
+  if(topSrc) insights.push('Top source: <b>' + nameSrc(topSrc[0]) + '</b> (' + fmtINR(topSrc[1]) + ')');
   if(topDay) insights.push('Highest spend day: <b>' + topDay[0] + '</b> (' + fmtINR(topDay[1]) + ')');
+  if(daySpend.length) insights.push('Avg daily expense: <b>' + fmtINR(avgDaily) + '</b> (across ' + daySpend.length + ' days)');
+  if(biggest) insights.push('Biggest expense: <b>' + fmtINR(biggest.amount) + '</b> — ' + (biggest.raw_text || '')); 
+
   document.getElementById('insights').innerHTML = insights.length?insights.join('<br/>'):'—';
 
-  document.getElementById('uncatList').innerHTML = uncat.slice(0,8)
-    .map(r=>'<div style="margin:6px 0">• ' + (r.raw_text || '') + '</div>')
+  // Uncategorized: show by amount (not just list)
+  const uncatTop = uncat
+    .slice()
+    .sort((a,b)=>(Number(b.amount)||0)-(Number(a.amount)||0))
+    .slice(0,8);
+
+  document.getElementById('uncatList').innerHTML = uncatTop
+    .map(r=>'<div style="margin:6px 0">• <b>' + fmtINR(r.amount) + '</b> — ' + (r.raw_text || '') + '</div>')
     .join('') || '—';
 
   // Table
@@ -389,11 +490,11 @@ function render(rows){
       '<td>' + r.date + '</td>'+
       '<td>' + r.type + '</td>'+
       '<td>' + fmtINR(r.amount) + '</td>'+
-      '<td>' + (r.merchant_code||'') + '</td>'+
-      '<td>' + (r.category||'') + '</td>'+
-      '<td>' + (r.subcategory||'') + '</td>'+
-      '<td>' + (r.source||'') + '</td>'+
-      '<td>' + (r.location||'') + '</td>'+
+      '<td>' + (r.merchant_name||r.merchant_code||'') + '</td>'+
+      '<td>' + (r.category_name||r.category||'') + '</td>'+
+      '<td>' + (r.subcategory_name||r.subcategory||'') + '</td>'+
+      '<td>' + (r.source_name||r.source||'') + '</td>'+
+      '<td>' + (r.location_name||r.location||'') + '</td>'+
       '<td>' + ((r._tags||[]).join(', ')) + '</td>'+
       '<td class="muted">' + ((r.raw_text||'').slice(0,80)) + '</td>';
     tbody.appendChild(tr);
@@ -409,31 +510,96 @@ function render(rows){
     options: { plugins:{ legend:{ display:false } }, scales:{ x:{ grid:{ display:false } }, y:{ grid:{ color:'rgba(255,255,255,.06)' } } } }
   });
 
-  // Category pie
+  // Category pie (click a sector to filter Category)
   const cat = groupSum(expense, r=>r.category||'(uncategorized)').slice(0,10);
   destroyChart('cat');
   charts.cat = new Chart(document.getElementById('cCat'), {
     type: 'doughnut',
     data: { labels: cat.map(x=>x[0]), datasets: [{ data: cat.map(x=>x[1]) }] },
-    options: { plugins:{ legend:{ position:'bottom' } }, cutout:'60%' }
+    options: {
+      plugins:{ legend:{ position:'bottom' } },
+      cutout:'60%',
+      onClick: (evt, elements) => {
+        if(!elements || !elements.length) return;
+        const idx = elements[0].index;
+        const label = cat[idx]?.[0];
+        if(!label) return;
+
+        const sel = document.getElementById('catSel');
+        const shift = !!(evt?.native?.shiftKey);
+        if(shift){
+          toggleSelected(sel, label);
+        } else {
+          const already = readMulti(sel);
+          if(already.length===1 && already[0]===label) clearSelected(sel);
+          else setOnlySelected(sel, label);
+        }
+        updateCounts();
+        render(rows);
+      }
+    }
   });
 
-  // Merch bar
+  // Merch bar (click a bar to filter Merchant)
   const merch = groupSum(expense, r=>r.merchant_code||'(unknown)').slice(0,10);
   destroyChart('merch');
   charts.merch = new Chart(document.getElementById('cMerch'), {
     type: 'bar',
     data: { labels: merch.map(x=>x[0]), datasets: [{ data: merch.map(x=>x[1]), backgroundColor:'rgba(34,197,94,.25)', borderColor:'rgba(34,197,94,.6)', borderWidth:1 }] },
-    options: { plugins:{ legend:{ display:false } }, scales:{ x:{ grid:{ display:false } }, y:{ grid:{ color:'rgba(255,255,255,.06)' } } } }
+    options: {
+      plugins:{ legend:{ display:false } },
+      scales:{ x:{ grid:{ display:false } }, y:{ grid:{ color:'rgba(255,255,255,.06)' } } },
+      onClick: (evt, elements) => {
+        if(!elements || !elements.length) return;
+        const idx = elements[0].index;
+        const label = merch[idx]?.[0];
+        if(label==null) return;
+        const sel = document.getElementById('merchSel');
+        const shift = !!(evt?.native?.shiftKey);
+        if(shift) toggleSelected(sel, label);
+        else {
+          const already = readMulti(sel);
+          if(already.length===1 && already[0]===label) clearSelected(sel);
+          else setOnlySelected(sel, label);
+        }
+        updateCounts();
+        render(rows);
+      }
+    }
   });
 
-  // Source
+  // Source (click a slice to filter Source)
   const src = groupSum(expense, r=>r.source||'(unknown)').slice(0,10);
   destroyChart('src');
   charts.src = new Chart(document.getElementById('cSource'), {
     type: 'pie',
     data: { labels: src.map(x=>x[0]), datasets: [{ data: src.map(x=>x[1]) }] },
-    options: { plugins:{ legend:{ position:'bottom' } } }
+    options: {
+      plugins:{ legend:{ position:'bottom' } },
+      onClick: (evt, elements) => {
+        if(!elements || !elements.length) return;
+        const idx = elements[0].index;
+        const label = src[idx]?.[0];
+        if(label==null) return;
+        // Source isn't currently a multi-select filter in UI, but we can still filter by treating it like Merchant: reuse merchSel? No.
+        // We'll map it onto Type? No. We add a source selector quickly by filtering through the existing data in applyFilters using a hidden select.
+        // For now, we toggle by setting the search text in merchSearch? Not correct.
+        // Instead: use the existing Tags selector? Not.
+        // So: we apply source filter via dateFrom/dateTo? Not.
+        // We'll implement a quick source filter using a prompt-like list is too heavy; add a hidden select.
+        const sSel = document.getElementById('sourceSel');
+        if(!sSel) return;
+        const shift = !!(evt?.native?.shiftKey);
+        if(shift) toggleSelected(sSel, label);
+        else {
+          const already = readMulti(sSel);
+          if(already.length===1 && already[0]===label) clearSelected(sSel);
+          else setOnlySelected(sSel, label);
+        }
+        updateCounts();
+        render(rows);
+      }
+    }
   });
 }
 
@@ -441,12 +607,11 @@ function setupFilters(rows){
   const types = uniq(rows.map(r=>r.type));
   const cats = uniq(rows.map(r=>r.category));
   const merch = uniq(rows.map(r=>r.merchant_code));
+  const sources = uniq(rows.map(r=>r.source));
   const tagList = uniq(rows.flatMap(r=>r._tags||[]));
 
-  setOptions(document.getElementById('typeSel'), types);
-  setOptions(document.getElementById('catSel'), cats);
-  setOptions(document.getElementById('merchSel'), merch);
-  setOptions(document.getElementById('tagSel'), tagList);
+  ALL_OPTS = { type: types, category: cats, merchant: merch, source: sources, tag: tagList };
+  refreshFilteredOptions();
 
   // default date range
   const dates = uniq(rows.map(r=>r.date)).sort();
@@ -457,20 +622,35 @@ function setupFilters(rows){
 }
 
 function wireEvents(rows){
-  const ids=['dateFrom','dateTo','typeSel','catSel','merchSel','tagSel'];
+  const ids=['dateFrom','dateTo','typeSel','catSel','merchSel','sourceSel','tagSel'];
   for(const id of ids){
-    document.getElementById(id).addEventListener('change', ()=>render(rows));
+    document.getElementById(id).addEventListener('change', ()=>{ updateCounts(); render(rows); });
   }
+
+  const sids=['typeSearch','catSearch','merchSearch','sourceSearch','tagSearch'];
+  for(const id of sids){
+    const el=document.getElementById(id);
+    if(!el) continue;
+    el.addEventListener('input', ()=>{ refreshFilteredOptions(); render(rows); });
+  }
+
   document.getElementById('resetBtn').addEventListener('click', ()=>{
-    for(const id of ['typeSel','catSel','merchSel','tagSel']){
+    for(const id of ['typeSel','catSel','merchSel','sourceSel','tagSel']){
       const s=document.getElementById(id);
-      for(const o of s.options) o.selected=false;
+      clearSelected(s);
     }
+    for(const id of ['typeSearch','catSearch','merchSearch','sourceSearch','tagSearch']){
+      const el=document.getElementById(id);
+      if(el) el.value='';
+    }
+    refreshFilteredOptions();
+
     const dates = uniq(rows.map(r=>r.date)).sort();
     if(dates.length){
       document.getElementById('dateFrom').value = dates[0];
       document.getElementById('dateTo').value = dates[dates.length-1];
     }
+    updateCounts();
     render(rows);
   });
 }

@@ -127,7 +127,18 @@ function normalizeValue(key, val, refs){
     const code = String(val);
     return refs.locations?.[code]?.name || val;
   }
-  // keep codes for merchant/category/subcategory (user didn't ask to replace)
+  if(key === 'merchant_code'){
+    const code = String(val);
+    return refs.merchants?.[code]?.name || val;
+  }
+  if(key === 'category'){
+    const code = String(val);
+    return refs.categories?.[code]?.name || val;
+  }
+  if(key === 'subcategory'){
+    const code = String(val);
+    return refs.subcategories?.[code]?.name || val;
+  }
   return val;
 }
 
