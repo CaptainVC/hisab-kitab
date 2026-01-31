@@ -88,15 +88,139 @@ def main():
         r'(?P<total>\d+\.\d{2})\b'
     )
 
+    def is_noise_line(s: str) -> bool:
+        s = (s or '').strip()
+        if not s:
+            return True
+        # Pure numbers / amounts / percents
+        if re.fullmatch(r'\d+(?:\.\d+)?%?', s):
+            return True
+        if re.fullmatch(r'[\+\-]?\s*\d+\.\d{2}', s):
+            return True
+        if re.fullmatch(r'\+\s*\d+\.\d{2}', s):
+            return True
+        if s.lower() in {
+            'sr', 'no', 'hsn', 'qty', 'rate', 'disc.', 'taxable', 'amt.', 'cgst', 's/ut', 'gst', 'cess', 'total',
+            'sr no', 'item & description', 'product rate', 'taxable amt.', 'total amt.'
+        }:
+            return True
+        return False
+
     items = []
-    for ln in lines:
+    # We'll stitch multi-line product names:
+    # - "prefix" lines often appear right before the numeric item line
+    # - some suffix lines (like pack size) appear after the item line
+    
+    # Find where the items section begins (skip address blocks)
+    items_section_start = 0
+    for i, ln in enumerate(lines):
+        if re.fullmatch(r'SR', ln.strip(), flags=re.IGNORECASE):
+            items_section_start = i
+            break
+
+    last_consumed_idx = items_section_start
+
+    def looks_like_header_or_address(s: str) -> bool:
+        s = (s or '').strip()
+        if not s:
+            return True
+        low = s.lower()
+        if 'bengaluru' in low or 'karnataka' in low or 'india' in low:
+            return True
+        if any(k in low for k in ['bill to', 'ship to', 'invoice', 'gstin', 'fssai', 'place of supply']):
+            return True
+        if any(k in low for k in ['sr item', 'hsn', 'taxable', 'cgst', 's/ut', 'cess', 'total amt', 'no description', 'product rate']):
+            return True
+        if ':' in s:
+            return True
+        return False
+
+    def alpha_line(s: str) -> bool:
+        """Likely a product-name fragment: has letters, no digits, not an address/header."""
+        s = (s or '').strip()
+        if not s:
+            return False
+        low = s.lower()
+        if not re.search(r'[A-Za-z]', s):
+            return False
+        if re.search(r'\d', s):
+            return False
+        # reject common address words seen in Zepto PDFs
+        addr_bad = [
+            'layout', 'road', 'rd', 'compound', 'pura', 'aecs', 'munnekollal', 'bengaluru', 'karnataka', 'india',
+            'pin', 'gstin', 'fssai', 'geddit', 'convenience', 'private limited', 'vyom', 'chopra'
+        ]
+        if any(w in low for w in addr_bad):
+            return False
+        # product fragments are usually not extremely long
+        if len(s) > 40:
+            return False
+        return True
+
+    def packish_line(s: str) -> bool:
+        """Likely pack-size fragment: may include digits inside parentheses."""
+        s = (s or '').strip().lower()
+        if not s:
+            return False
+        return any(k in s for k in ['pack', 'pcs', 'pc', 'kg', 'g)', 'ml', 'l)', '(200', '(500', '('])
+
+    for idx, ln in enumerate(lines):
+        if idx < items_section_start:
+            continue
         m = item_re.search(ln)
         if not m:
             continue
-        name = re.sub(r'\s+', ' ', m.group('name')).strip(' -')
+
+        # Base name captured on the item line (often just the last word like "Lemon")
+        base_name = re.sub(r'\s+', ' ', m.group('name')).strip(' -')
+
+        # Collect prefix fragments (brand/name) right above the item line
+        prefix = []
+        j = idx - 1
+        while j >= items_section_start and len(prefix) < 4:
+            t = lines[j].strip()
+            if not t:
+                j -= 1
+                continue
+            # If we hit a pack-size fragment from the previous item, stop (boundary between items)
+            if packish_line(t):
+                break
+            if looks_like_header_or_address(t) or is_noise_line(t):
+                j -= 1
+                continue
+            if alpha_line(t):
+                prefix.append(t)
+            j -= 1
+        prefix = list(reversed(prefix))
+
+        # Collect suffix fragments (pack size) immediately after the item line
+        suffix = []
+        k = idx + 1
+        while k < len(lines) and len(suffix) < 3:
+            t = lines[k].strip()
+            if not t:
+                k += 1
+                continue
+            if item_re.search(t):
+                break
+            low = t.lower()
+            if 'item total' in low or 'invoice value' in low or 'handling fee' in low:
+                break
+            if looks_like_header_or_address(t):
+                break
+            if re.fullmatch(r'\+\s*\d+\.\d{2}', t) or re.fullmatch(r'\d+\.\d{2}%?', t):
+                k += 1
+                continue
+            if packish_line(t):
+                suffix.append(t)
+            k += 1
+
+        full_name = ' '.join(prefix + [base_name] + suffix)
+        full_name = re.sub(r'\s+', ' ', full_name).strip(' -')
+
         items.append({
             'sr': int(m.group('sr')),
-            'name': name,
+            'name': full_name,
             'hsn': m.group('hsn'),
             'qty': int(m.group('qty')),
             'rate': fnum(m.group('rate')),
@@ -110,6 +234,8 @@ def main():
             'cess_amt': fnum(m.group('cess_amt')),
             'total': fnum(m.group('total')),
         })
+
+        last_consumed_idx = max(last_consumed_idx, idx)
 
     out = {
         'merchant': 'ZEPTO',
