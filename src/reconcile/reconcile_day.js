@@ -40,6 +40,7 @@ function parseArgs(argv){
     payWindowDays: Number(get('--pay-window-days') || 7),
     orderTol: Number(get('--order-tol') || 10),
     orderWindowDays: Number(get('--order-window-days') || 7),
+    maxOrderPaymentGapDays: Number(get('--max-order-payment-gap-days') || 5),
     // sources that may not have any payment email trail (manual-only)
     nonVerifiableSources: (get('--non-verifiable-sources') || 'SBI,mk').split(',').map(s=>s.trim()).filter(Boolean)
   };
@@ -76,7 +77,7 @@ function paymentSourceMatchesHint(payment, sourceHint){
 }
 
 function main(){
-  const { baseDir, date, payTol, payWindowDays, orderTol, orderWindowDays, nonVerifiableSources } = parseArgs(process.argv);
+  const { baseDir, date, payTol, payWindowDays, orderTol, orderWindowDays, maxOrderPaymentGapDays, nonVerifiableSources } = parseArgs(process.argv);
   if(!date){
     console.error('Usage: node reconcile_day.js --date YYYY-MM-DD [--base-dir ~/HisabKitab]');
     process.exit(2);
@@ -173,6 +174,8 @@ function main(){
   const paymentToOrder = [];
   const usedPaymentForOrder = new Set();
 
+  const maxGapMs = Number(maxOrderPaymentGapDays) * 24 * 60 * 60 * 1000;
+
   for(const o of ordWin){
     if(o.total == null) continue;
     const oMs = parseOrderDateMs(o);
@@ -181,15 +184,16 @@ function main(){
       .filter(p => p.amount != null && amtClose(p.amount, o.total, orderTol))
       .map(p => ({
         p,
-        dist: (oMs != null && p.internalDateMs != null) ? Math.abs(Number(p.internalDateMs) - oMs) : 0
+        dist: (oMs != null && p.internalDateMs != null) ? Math.abs(Number(p.internalDateMs) - oMs) : null
       }))
-      .sort((a,b)=>a.dist-b.dist);
+      .filter(x => x.dist == null || x.dist <= maxGapMs)
+      .sort((a,b)=>(a.dist ?? 0) - (b.dist ?? 0));
 
     const picked = candidates.find(x => !usedPaymentForOrder.has(x.p.messageId)) || null;
     if(!picked) continue;
 
     usedPaymentForOrder.add(picked.p.messageId);
-    paymentToOrder.push({ payment: picked.p, order: o, confidence: 'amount+cross_day_window' });
+    paymentToOrder.push({ payment: picked.p, order: o, confidence: 'amount+cross_day_window+gap' });
   }
 
   // Orders in window not linked to any payment (possible COD or payment via non-verifiable source)
@@ -222,7 +226,7 @@ function main(){
   lines.push(`- Hisab entries: ${report.hisab_entries}`);
   lines.push(`- Payments (emails): ${report.payments_in_day}`);
   lines.push(`- Orders (±${orderWindowDays}d): ${report.orders_in_window}`);
-  lines.push(`- Matched payment↔orders: ${report.matched_payment_orders}`);
+  lines.push(`- Matched payment↔orders: ${report.matched_payment_orders} (max gap ${maxOrderPaymentGapDays}d)`);
   lines.push('');
 
   if(report.unmatchedPayments.length){
