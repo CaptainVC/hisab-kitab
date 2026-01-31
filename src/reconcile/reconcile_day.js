@@ -201,6 +201,11 @@ function main(){
   const txtPath = path.join(baseDir, 'reconcile', `${date}.txt`);
   fs.writeFileSync(txtPath, lines.join('\n') + '\n', 'utf8');
 
+  // Avoid crashing if output is piped and the consumer closes early.
+  process.stdout.on('error', (e) => {
+    if (e && e.code === 'EPIPE') process.exit(0);
+  });
+
   process.stdout.write(JSON.stringify({ ok: true, saved: outPath, savedText: txtPath, ...report }, null, 2) + '\n');
 }
 
