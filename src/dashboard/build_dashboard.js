@@ -170,9 +170,13 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
     .charts{display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:12px;}
     .charts .panel{min-height:220px}
     canvas{max-width:100%}
-    #cCat, #cSource{max-height:220px}
+    #cCat{max-height:220px}
     #cMerch{max-height:240px}
     #cDaily{max-height:240px}
+
+    .srcRow{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; border:1px solid rgba(255,255,255,.08); border-radius:12px; background:rgba(255,255,255,.02)}
+    .srcRow .name{font-weight:650; color:#fff}
+    .srcRow .amt{font-weight:750}
 
     table{width:100%; border-collapse:collapse; font-size:14px;}
     th, td{padding:10px 8px; border-bottom:1px solid rgba(255,255,255,.06);}
@@ -258,10 +262,13 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
   </div>
 
   <div class="charts">
-    <div class="panel"><div class="muted">Daily spend (Expense)</div><canvas id="cDaily"></canvas></div>
-    <div class="panel"><div class="muted">By category (Expense)</div><canvas id="cCat"></canvas></div>
-    <div class="panel"><div class="muted">Top merchants (Expense)</div><canvas id="cMerch"></canvas></div>
-    <div class="panel"><div class="muted">By source (Expense)</div><canvas id="cSource"></canvas></div>
+    <div class="panel"><div class="muted" id="tDaily">Daily spend</div><canvas id="cDaily"></canvas></div>
+    <div class="panel"><div class="muted" id="tCat">By category</div><canvas id="cCat"></canvas></div>
+    <div class="panel"><div class="muted" id="tMerch">Top merchants</div><canvas id="cMerch"></canvas></div>
+    <div class="panel">
+      <div class="muted">By source</div>
+      <div id="sourceCard" style="margin-top:10px; display:flex; flex-direction:column; gap:8px"></div>
+    </div>
   </div>
 
   <div class="grid" style="margin-top:12px">
@@ -315,7 +322,7 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
 Chart.defaults.color = '#e6eaf2';
 Chart.defaults.borderColor = 'rgba(255,255,255,.08)';
 Chart.defaults.font.family = 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
-Chart.defaults.plugins.legend.labels.color = 'rgba(230,234,242,.9)';
+Chart.defaults.plugins.legend.labels.color = '#ffffff';
 Chart.defaults.plugins.legend.labels.font = { size: 13, weight: '600' };
 
 // Default tooltip formatting: show INR for numeric values
@@ -462,26 +469,15 @@ function groupSum(rows, keyFn){
 function destroyChart(name){ if(charts[name]){ charts[name].destroy(); delete charts[name]; } }
 
 function syncTableHeight(){
-  // Goal: transactions table should be at least as tall as the right sidebar stack
-  // (Insights + Needs review), then scroll within the table.
-  try {
-    const right = document.querySelector('.rightcol');
-    const tw = document.querySelector('.tablewrap');
-    if(!right || !tw) return;
-
-    const twTop = tw.getBoundingClientRect().top;
-    const rightBottom = right.getBoundingClientRect().bottom;
-    const h = Math.max(320, Math.floor(rightBottom - twTop));
-
-    tw.style.height = h + 'px';
-    tw.style.maxHeight = h + 'px';
-  } catch (e) {
-    // ignore
-  }
+  // Legacy no-op (table now has its own scroll height; layout is being redesigned)
 }
 
 function render(rows){
   const filtered = applyFilters(rows);
+
+  // Dashboard should reflect selected transaction types (not only EXPENSE)
+  const selectedTypes = readMulti(document.getElementById('typeSel'));
+  const focusRows = selectedTypes.length ? filtered : filtered.filter(r=>r.type==='EXPENSE');
 
   const expense = filtered.filter(r=>r.type==='EXPENSE');
   const income = filtered.filter(r=>r.type==='INCOME');
@@ -657,8 +653,17 @@ function render(rows){
   syncTableHeight();
 
   // Charts
+  // update chart titles based on selected types
+  const typeLabel = selectedTypes.length ? selectedTypes.join(' + ') : 'EXPENSE';
+  const tDaily = document.getElementById('tDaily');
+  const tCat = document.getElementById('tCat');
+  const tMerch = document.getElementById('tMerch');
+  if (tDaily) tDaily.textContent = 'Daily spend (' + typeLabel + ')';
+  if (tCat) tCat.textContent = 'By category (' + typeLabel + ')';
+  if (tMerch) tMerch.textContent = 'Top merchants (' + typeLabel + ')';
+
   // Daily spend line (click a point to jump to that day's transactions)
-  const daily = groupSum(expense, r=>r.date).sort((a,b)=>a[0].localeCompare(b[0]));
+  const daily = groupSum(focusRows, r=>r.date).sort((a,b)=>a[0].localeCompare(b[0]));
   destroyChart('daily');
   charts.daily = new Chart(document.getElementById('cDaily'), {
     type: 'line',
@@ -698,7 +703,7 @@ function render(rows){
   });
 
   // Category pie (click a sector to filter Category)
-  const cat = groupSum(expense, r=>r.category||'(uncategorized)').slice(0,10);
+  const cat = groupSum(focusRows, r=>r.category||'(uncategorized)').slice(0,10);
   const catLabel = (code) => (DATA?.refs?.categories?.[code]?.name) || code;
   destroyChart('cat');
   charts.cat = new Chart(document.getElementById('cCat'), {
@@ -754,7 +759,7 @@ function render(rows){
   });
 
   // Merch bar (click a bar to filter Merchant)
-  const merch = groupSum(expense, r=>r.merchant_code||'(unknown)').slice(0,10);
+  const merch = groupSum(focusRows, r=>r.merchant_code||'(unknown)').slice(0,10);
   destroyChart('merch');
   charts.merch = new Chart(document.getElementById('cMerch'), {
     type: 'bar',
@@ -781,58 +786,21 @@ function render(rows){
     }
   });
 
-  // Source (click a slice to filter Source)
-  const src = groupSum(expense, r=>r.source||'(unknown)').slice(0,10);
+  // Source summary card (instead of pie)
+  const srcSeries = groupSum(focusRows, r=>r.source||'(unknown)').slice(0,10);
   const srcLabel = (code) => (DATA?.refs?.sources?.[code]?.display) || code;
-  destroyChart('src');
-  charts.src = new Chart(document.getElementById('cSource'), {
-    type: 'pie',
-    data: { labels: src.map(x=>srcLabel(x[0])), datasets: [{ data: src.map(x=>x[1]) }] },
-    options: {
-      plugins:{
-        legend:{
-          position:'right',
-          labels:{
-            generateLabels: (chart) => {
-              const ds = chart.data.datasets?.[0];
-              const data = (ds?.data || []).map(Number);
-              const total = data.reduce((s,x)=>s+(Number(x)||0),0);
-              return chart.data.labels.map((lbl, i) => {
-                const v = Number(data[i]||0);
-                const pct = total ? Math.round((v/total)*100) : 0;
-                const fill = ds?.backgroundColor?.[i] || ds?.backgroundColor;
-                return {
-                  text: (String(lbl) + ' — ' + fmtINR(v) + ' (' + pct + '%)'),
-                  fillStyle: fill,
-                  strokeStyle: fill,
-                  lineWidth: 0,
-                  hidden: !chart.getDataVisibility(i),
-                  index: i
-                };
-              });
-            }
-          }
-        }
-      },
-      onClick: (evt, elements) => {
-        if(!elements || !elements.length) return;
-        const idx = elements[0].index;
-        const code = src[idx]?.[0];
-        if(code==null) return;
-        const sSel = document.getElementById('sourceSel');
-        if(!sSel) return;
-        const shift = !!(evt?.native?.shiftKey);
-        if(shift) toggleSelected(sSel, code);
-        else {
-          const already = readMulti(sSel);
-          if(already.length===1 && already[0]===code) clearSelected(sSel);
-          else setOnlySelected(sSel, code);
-        }
-        updateCounts();
-        render(rows);
-      }
-    }
-  });
+  const srcTotal = srcSeries.reduce((s,x)=>s+(Number(x[1])||0),0);
+  const srcEl = document.getElementById('sourceCard');
+  if (srcEl) {
+    srcEl.innerHTML = srcSeries.map(([code, amt]) => {
+      const pct = srcTotal ? Math.round((Number(amt)/srcTotal)*100) : 0;
+      return '<div class="srcRow">'
+        + '<div class="name">' + srcLabel(code) + '</div>'
+        + '<div class="muted" style="margin-left:auto">' + pct + '%</div>'
+        + '<div class="amt">' + fmtINR(amt) + '</div>'
+        + '</div>';
+    }).join('');
+  }
 }
 
 function setupFilters(rows){
