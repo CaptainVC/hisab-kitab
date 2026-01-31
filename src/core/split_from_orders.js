@@ -73,6 +73,48 @@ function flattenBlinkitItems(order){
   return out.filter(x => Number.isFinite(x.amount) && x.amount > 0);
 }
 
+function pickOrdersForAmount(byDate, date, amt, tol){
+  // Try exact match on same day; then allow +/-1 day; then try subset sum on same day.
+  const dateIso = date;
+  const dates = [dateIso];
+  try {
+    const dt = DateTime.fromISO(dateIso, { zone: IST });
+    if (dt.isValid) {
+      dates.push(dt.plus({ days: 1 }).toISODate());
+      dates.push(dt.minus({ days: 1 }).toISODate());
+    }
+  } catch {}
+
+  // 1) exact match (single invoice)
+  for (const d of dates) {
+    const cand = (byDate.get(d) || []).filter(o => o.total != null);
+    const m = cand.find(o => amtClose(o.total, amt, tol));
+    if (m) return { orders: [m], matchedDate: d, mode: 'single' };
+  }
+
+  // 2) subset sum on the same date only (common case: multiple invoices sum to payment)
+  const same = (byDate.get(dateIso) || []).filter(o => o.total != null);
+  // small N, brute force
+  const n = Math.min(same.length, 10);
+  const arr = same.slice(0, n);
+  let best = null;
+  for (let mask = 1; mask < (1 << n); mask++) {
+    let sum = 0;
+    const picked = [];
+    for (let i = 0; i < n; i++) {
+      if (mask & (1 << i)) {
+        sum += Number(arr[i].total);
+        picked.push(arr[i]);
+      }
+    }
+    if (amtClose(sum, amt, tol)) {
+      // prefer fewer invoices
+      if (!best || picked.length < best.orders.length) best = { orders: picked, matchedDate: dateIso, mode: 'subset' };
+    }
+  }
+  return best;
+}
+
 function splitWorkbook(filePath, baseDir, tol){
   const ordersPath = path.join(baseDir, 'orders_parsed.json');
   const ordersDoc = readJsonSafe(ordersPath, { orders: [] });
@@ -102,11 +144,12 @@ function splitWorkbook(filePath, baseDir, tol){
     const amt = Number(r.amount);
     if(!date || !Number.isFinite(amt)) { out.push(r); continue; }
 
-    const candidates = byDate.get(date) || [];
-    const match = candidates.find(o => o.total != null && amtClose(o.total, amt, tol)) || null;
-    if(!match) { out.push(r); continue; }
+    const picked = pickOrdersForAmount(byDate, date, amt, tol);
+    if(!picked || !picked.orders || !picked.orders.length) { out.push(r); continue; }
 
-    const items = flattenBlinkitItems(match);
+    // Combine items across one or more invoices
+    let items = [];
+    for (const o of picked.orders) items = items.concat(flattenBlinkitItems(o));
     if(!items.length) { out.push(r); continue; }
 
     const groupId = r.group_id ? String(r.group_id) : nanoid();
@@ -118,11 +161,10 @@ function splitWorkbook(filePath, baseDir, tol){
         txn_id: nanoid(),
         group_id: groupId,
         amount: Number(it.amount),
-        // these items should be categorized based on item name keywords
         raw_text: it.name,
         notes: (String(r.raw_text||'') + ' | ' + it.name).slice(0, 300),
         parse_status: 'split_from_invoice',
-        parse_error: ''
+        parse_error: picked.mode === 'subset' ? 'matched_multiple_invoices' : ''
       });
     }
 

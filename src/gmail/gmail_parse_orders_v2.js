@@ -127,7 +127,12 @@ async function savePdfAttachments(gmail, baseDir, merchantKey, msgId, pdfParts){
     const att = await gmail.users.messages.attachments.get({ userId:'me', messageId: msgId, id: p.attachmentId });
     const data = att.data.data.replace(/-/g,'+').replace(/_/g,'/');
     const buf = Buffer.from(data, 'base64');
-    const outPath = path.join(outDir, p.filename || (merchantKey.toLowerCase() + '.pdf'));
+    const rawName = p.filename || (merchantKey.toLowerCase() + '.pdf');
+    const safeName = String(rawName)
+      .replace(/[\\/]+/g, '_')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const outPath = path.join(outDir, safeName);
     fs.writeFileSync(outPath, buf);
     saved.push(outPath);
   }
@@ -187,16 +192,33 @@ async function main(){
   const lbl = (labelsRes.data.labels || []).find(l => l.name === label);
   if(!lbl) throw new Error(`Label '${label}' not found`);
 
-  // If a merchant is specified, use a targeted Gmail query to avoid scanning the whole label.
+  // If a merchant is specified, use a broad PDF query inside the label.
+  // We intentionally keep it broad because some Blinkit/Zepto subjects vary and strict rules can miss emails.
   let q = null;
   if(merchant){
-    const mc = cfg[merchant];
-    if(!mc) throw new Error(`Unknown merchant key '${merchant}' in email_merchants.json`);
-    q = buildGmailQueryForMerchant(merchant, mc);
+    // Narrow it a bit to reduce API calls; keep label as the primary constraint.
+    if (merchant === 'BLINKIT') q = 'from:blinkit has:attachment filename:pdf';
+    else if (merchant === 'ZEPTO') q = 'zepto has:attachment filename:pdf';
+    else q = `${merchant.toLowerCase()} has:attachment filename:pdf`;
   }
 
-  const listRes = await gmail.users.messages.list({ userId: 'me', labelIds: [lbl.id], q: q || undefined, maxResults: max });
-  const msgs = listRes.data.messages || [];
+  // Gmail list is paginated; fetch up to `max` messages from this label.
+  let msgs = [];
+  let pageToken = undefined;
+  while (msgs.length < max) {
+    const batchSize = Math.min(500, max - msgs.length);
+    const listRes = await gmail.users.messages.list({
+      userId: 'me',
+      labelIds: [lbl.id],
+      q: q || undefined,
+      maxResults: batchSize,
+      pageToken
+    });
+    const batch = listRes.data.messages || [];
+    msgs = msgs.concat(batch);
+    pageToken = listRes.data.nextPageToken;
+    if (!pageToken || batch.length === 0) break;
+  }
 
   const outEvents = [];
   const unknown = [];
@@ -220,8 +242,10 @@ async function main(){
     let matchedCfg = null;
 
     if(merchant){
+      // When merchant is explicitly requested, trust the label and parse all PDF emails under it.
+      // This avoids missing invoices due to subject/from variations.
       const mc = cfg[merchant];
-      if(mc?.enabled && matchesRule(from, subject, mc.match || {})){
+      if(mc?.enabled){
         matchedKey = merchant;
         matchedCfg = mc;
       }

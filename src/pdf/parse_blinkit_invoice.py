@@ -186,6 +186,16 @@ def main():
             page_invoice_number = extract_first([r'Invoice\s*Number\s*:?\s*([A-Z0-9]+)'], page_text, flags=re.IGNORECASE)
             page_date = extract_first([r'\b(\d{2}-[A-Za-z]{3}-\d{4})\b'], page_text)
 
+            # Fallback: if Total row not detected, compute invoice_total as sum of item totals.
+            if inv_total is None and inv_items:
+                s_items = 0.0
+                any_item_total = False
+                for it in inv_items:
+                    if it.get('total') is not None:
+                        s_items += float(it['total'])
+                        any_item_total = True
+                inv_total = round(s_items, 2) if any_item_total else None
+
             invoices.append({
                 'page_index': pi,
                 'invoice_number': page_invoice_number,
