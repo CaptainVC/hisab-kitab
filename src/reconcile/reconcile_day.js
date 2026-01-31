@@ -168,29 +168,31 @@ function main(){
     .filter(h => !hisabToPayment.some(m => m.hisab.raw === h.raw))
     .filter(h => !manualOnlyHisab.some(x => x.raw === h.raw));
 
-  // 2) Match payments -> orders (date window) (best-effort)
+  // 2) Match payments -> orders (cross-day window) (best-effort)
+  // We match orders in the invoice-date window against payments in a wider payment window.
   const paymentToOrder = [];
-  const usedOrders = new Set();
+  const usedPaymentForOrder = new Set();
 
-  for(const p of payDay){
-    if(p.amount == null) continue;
-    const candidates = ordWin.filter(o => {
-      const t = o.total;
-      if(t == null) return false;
-      return amtClose(t, p.amount, orderTol);
-    });
-    if(!candidates.length) continue;
+  for(const o of ordWin){
+    if(o.total == null) continue;
+    const oMs = parseOrderDateMs(o);
 
-    // prefer same merchant family when available
-    // (for now, payments don't have reliable merchant, so just pick first)
-    const chosen = candidates.find(o => !usedOrders.has(o.messageId + '::' + (o.invoice_number||o.order_id||''))) || candidates[0];
-    if(!chosen) continue;
+    const candidates = payWin
+      .filter(p => p.amount != null && amtClose(p.amount, o.total, orderTol))
+      .map(p => ({
+        p,
+        dist: (oMs != null && p.internalDateMs != null) ? Math.abs(Number(p.internalDateMs) - oMs) : 0
+      }))
+      .sort((a,b)=>a.dist-b.dist);
 
-    usedOrders.add(chosen.messageId + '::' + (chosen.invoice_number||chosen.order_id||''));
-    paymentToOrder.push({ payment: p, order: chosen, confidence: 'amount+date_window' });
+    const picked = candidates.find(x => !usedPaymentForOrder.has(x.p.messageId)) || null;
+    if(!picked) continue;
+
+    usedPaymentForOrder.add(picked.p.messageId);
+    paymentToOrder.push({ payment: picked.p, order: o, confidence: 'amount+cross_day_window' });
   }
 
-  // Orders in window not linked to any payment (possible COD or delayed payment)
+  // Orders in window not linked to any payment (possible COD or payment via non-verifiable source)
   const matchedOrderKeys = new Set(paymentToOrder.map(x => x.order.messageId + '::' + (x.order.invoice_number||x.order.order_id||'')));
   const unmatchedOrders = ordWin
     .filter(o => !matchedOrderKeys.has(o.messageId + '::' + (o.invoice_number||o.order_id||'')))
@@ -220,6 +222,7 @@ function main(){
   lines.push(`- Hisab entries: ${report.hisab_entries}`);
   lines.push(`- Payments (emails): ${report.payments_in_day}`);
   lines.push(`- Orders (±${orderWindowDays}d): ${report.orders_in_window}`);
+  lines.push(`- Matched payment↔orders: ${report.matched_payment_orders}`);
   lines.push('');
 
   if(report.unmatchedPayments.length){
