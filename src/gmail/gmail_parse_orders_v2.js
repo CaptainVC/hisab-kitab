@@ -140,13 +140,33 @@ function buildGmailQueryForMerchant(key, mc){
   const parts = [];
   const froms = mc?.match?.fromContains || [];
   const subs = mc?.match?.subjectContains || [];
-  if(froms.length) parts.push('(' + froms.map(s => `from:${JSON.stringify(String(s))}`).join(' OR ') + ')');
-  if(subs.length) parts.push('(' + subs.map(s => `subject:${JSON.stringify(String(s))}`).join(' OR ') + ')');
+
+  // from: filters are reliable
+  if(froms.length) {
+    const ors = froms.map(s => `from:${String(s).replace(/\s+/g,'')}`);
+    parts.push('(' + ors.join(' OR ') + ')');
+  }
+
+  // Gmail subject search is tokenized; underscores and punctuation can fail exact matching.
+  // So we extract safe word tokens and search those.
+  const subjectTokens = [];
+  for(const s of subs) {
+    const toks = String(s).toLowerCase().split(/[^a-z0-9]+/g).filter(t => t.length >= 4);
+    for(const t of toks) subjectTokens.push(t);
+  }
+  if(subjectTokens.length) {
+    const ors = [...new Set(subjectTokens)].map(t => `subject:${t}`);
+    parts.push('(' + ors.join(' OR ') + ')');
+  } else {
+    // fallback: search merchant key itself
+    parts.push(key.toLowerCase());
+  }
+
   // If it's a PDF parser, likely has attachment.
-  if(mc?.parser?.type === 'pdf') parts.push('has:attachment');
-  // keyword fallback to merchant key
-  if(!parts.length) parts.push(key);
+  if(mc?.parser?.type === 'pdf') parts.push('has:attachment filename:pdf');
+
   return parts.join(' ');
+}
 }
 
 async function main(){
