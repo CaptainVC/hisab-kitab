@@ -167,7 +167,6 @@ function buildGmailQueryForMerchant(key, mc){
 
   return parts.join(' ');
 }
-}
 
 async function main(){
   const { baseDir, label, max, merchant } = parseArgs(process.argv);
