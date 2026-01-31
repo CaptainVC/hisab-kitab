@@ -157,7 +157,8 @@ function buildGmailQueryForMerchant(key, mc){
   if(subjectTokens.length) {
     const uniq = [...new Set(subjectTokens)];
     // Use AND semantics to reduce false positives (e.g. ZEPTO should match both 'zepto' AND 'invoice').
-    parts.push(uniq.map(t => `subject:${t}`).join(' '));
+    // Use plain terms rather than subject: since Gmail API tokenization can be finicky with subject: and underscores.
+    parts.push(uniq.join(' '));
   } else {
     // fallback: search merchant key itself
     parts.push(key.toLowerCase());
