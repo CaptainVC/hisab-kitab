@@ -37,8 +37,11 @@ function parseArgs(argv){
     baseDir: expandHome(get('--base-dir') || '~/HisabKitab'),
     date: get('--date'),
     payTol: Number(get('--pay-tol') || 2),
+    payWindowDays: Number(get('--pay-window-days') || 7),
     orderTol: Number(get('--order-tol') || 10),
-    orderWindowDays: Number(get('--order-window-days') || 7)
+    orderWindowDays: Number(get('--order-window-days') || 7),
+    // sources that may not have any payment email trail (manual-only)
+    nonVerifiableSources: (get('--non-verifiable-sources') || 'SBI,mk').split(',').map(s=>s.trim()).filter(Boolean)
   };
 }
 
@@ -73,11 +76,18 @@ function paymentSourceMatchesHint(payment, sourceHint){
 }
 
 function main(){
-  const { baseDir, date, payTol, orderTol, orderWindowDays } = parseArgs(process.argv);
+  const { baseDir, date, payTol, payWindowDays, orderTol, orderWindowDays, nonVerifiableSources } = parseArgs(process.argv);
   if(!date){
     console.error('Usage: node reconcile_day.js --date YYYY-MM-DD [--base-dir ~/HisabKitab]');
     process.exit(2);
   }
+
+  const nonVerifiable = new Set((nonVerifiableSources || []).map(s => String(s).trim()));
+
+  // normalize source hint comparisons (SBI/mk)
+  const isNonVerifiableHint = (hint) => hint && nonVerifiable.has(String(hint).trim());
+
+  // (usage message moved above)
 
   const dayStart = DateTime.fromISO(date, { zone: IST }).startOf('day');
   const dayEnd = dayStart.endOf('day');
@@ -97,6 +107,14 @@ function main(){
     return ms >= dayStart.toMillis() && ms <= dayEnd.toMillis();
   });
 
+  // Payment search window for matching hisab entries (cross-day)
+  const payWinStart = dayStart.minus({ days: payWindowDays });
+  const payWinEnd = dayEnd.plus({ days: payWindowDays });
+  const payWin = payments.filter(p => {
+    const ms = Number(p.internalDateMs || 0);
+    return ms >= payWinStart.toMillis() && ms <= payWinEnd.toMillis();
+  });
+
   // Orders near this day (invoice date window)
   const winStart = dayStart.minus({ days: orderWindowDays });
   const winEnd = dayEnd.plus({ days: orderWindowDays });
@@ -105,27 +123,50 @@ function main(){
     return ms != null && ms >= winStart.toMillis() && ms <= winEnd.toMillis();
   });
 
-  // 1) Match hisab entries -> payments (same day)
+  // 1) Match hisab entries -> payments (cross-day window)
   const hisabToPayment = [];
   const usedPaymentIds = new Set();
 
+  const manualOnlyHisab = [];
+
   for(const h of (hisab.entries || [])){
-    const candidates = payDay.filter(p => p.amount != null && amtClose(p.amount, h.amount, payTol));
-    if(!candidates.length) continue;
+    // SBI (and any configured) may not have emails at all
+    if (isNonVerifiableHint(h.source_hint) && h.source_hint !== 'mk') {
+      manualOnlyHisab.push(h);
+      continue;
+    }
+
+    const candidates = payWin
+      .filter(p => p.amount != null && amtClose(p.amount, h.amount, payTol))
+      .map(p => ({ p, dist: Math.abs(Number(p.internalDateMs||0) - dayStart.toMillis()) }));
+
+    if(!candidates.length) {
+      // mk can be manual-only (UPI via mk), so treat as manual section if no email found
+      if (h.source_hint === 'mk') manualOnlyHisab.push(h);
+      continue;
+    }
 
     // prefer source hint
     let picked = null;
-    if(h.source_hint) picked = candidates.find(p => paymentSourceMatchesHint(p, h.source_hint));
-    if(!picked) picked = candidates[0];
+    if(h.source_hint) picked = candidates.find(x => paymentSourceMatchesHint(x.p, h.source_hint));
+    if(!picked) {
+      candidates.sort((a,b)=>a.dist-b.dist);
+      picked = candidates[0];
+    }
 
-    if(picked && !usedPaymentIds.has(picked.messageId)){
-      usedPaymentIds.add(picked.messageId);
-      hisabToPayment.push({ hisab: h, payment: picked, confidence: h.source_hint ? 'amount+hint' : 'amount' });
+    if(picked && !usedPaymentIds.has(picked.p.messageId)){
+      usedPaymentIds.add(picked.p.messageId);
+      hisabToPayment.push({ hisab: h, payment: picked.p, confidence: h.source_hint ? 'amount+hint+window' : 'amount+window' });
     }
   }
 
+  // Payments on this day that weren't matched to any hisab entry (even cross-day)
   const unmatchedPayments = payDay.filter(p => !usedPaymentIds.has(p.messageId));
-  const unmatchedHisab = (hisab.entries || []).filter(h => !hisabToPayment.some(m => m.hisab.raw === h.raw));
+
+  // Hisab entries that did not match, excluding manual-only sources
+  const unmatchedHisab = (hisab.entries || [])
+    .filter(h => !hisabToPayment.some(m => m.hisab.raw === h.raw))
+    .filter(h => !manualOnlyHisab.some(x => x.raw === h.raw));
 
   // 2) Match payments -> orders (date window) (best-effort)
   const paymentToOrder = [];
@@ -165,6 +206,7 @@ function main(){
     matched_payment_orders: paymentToOrder.length,
     unmatchedPayments: unmatchedPayments.map(p => ({ source: p.source, amount: p.amount, subject: p.subject })),
     unmatchedHisab: unmatchedHisab.map(h => ({ amount: h.amount, raw: h.raw, source_hint: h.source_hint })),
+    manualOnlyHisab: manualOnlyHisab.map(h => ({ amount: h.amount, raw: h.raw, source_hint: h.source_hint })),
     unmatchedOrders
   };
 
@@ -189,6 +231,12 @@ function main(){
   if(report.unmatchedHisab.length){
     lines.push('Hisab entries with no matching payment email (cash/typo/COD?):');
     for(const h of report.unmatchedHisab.slice(0, 30)) lines.push(`- ${h.amount} :: ${h.raw}`);
+    lines.push('');
+  }
+
+  if(report.manualOnlyHisab.length){
+    lines.push('Manual-source hisab entries (no payment email expected):');
+    for(const h of report.manualOnlyHisab.slice(0, 30)) lines.push(`- ${h.amount} :: ${h.raw}`);
     lines.push('');
   }
 
