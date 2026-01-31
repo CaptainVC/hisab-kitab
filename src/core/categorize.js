@@ -57,6 +57,26 @@ function applyTagsFromText(row) {
 
   // merchants
   if (row.merchant_code === 'ZOMATO' || row.merchant_code === 'SWIGGY') addTag(set, 'food_delivery');
+  if (row.merchant_code === 'BLINKIT' || row.merchant_code === 'ZEPTO' || row.merchant_code === 'SWIGGY_INSTAMART') addTag(set, 'quick_commerce');
+
+  // category/subcategory driven tags (broad, useful for filtering)
+  if (row.category === 'FOOD_DINING') addTag(set, 'food');
+  if (row.subcategory === 'FOOD_ONLINE_DELIVERY') addTag(set, 'online_order');
+  if (row.subcategory === 'FOOD_SNACKS') addTag(set, 'snacks');
+  if (row.category === 'TRANSPORT') addTag(set, 'transport');
+  if (row.subcategory === 'TRANSPORT_FUEL') addTag(set, 'fuel');
+  if (row.subcategory === 'TRANSPORT_PARKING') addTag(set, 'parking');
+  if (row.subcategory === 'TRANSPORT_INSURANCE') addTag(set, 'insurance');
+  if (row.category === 'ENTERTAINMENT') addTag(set, 'entertainment');
+  if (row.subcategory === 'ENT_MOVIES') addTag(set, 'movies');
+  if (row.category === 'HEALTHCARE') addTag(set, 'health');
+  if (row.category === 'SHOPPING') addTag(set, 'shopping');
+  if (row.category === 'PERSONAL_CARE') addTag(set, 'personal_care');
+
+  // extra text-driven tags (safe)
+  if (text.includes('gym')) addTag(set, 'gym');
+  if (text.includes('recharge')) addTag(set, 'recharge');
+  if (text.includes('refund') || text.includes('refunded')) addTag(set, 'refund');
 
   row.tags = [...set].join(',');
   return row;

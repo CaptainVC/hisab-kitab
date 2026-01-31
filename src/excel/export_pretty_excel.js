@@ -78,7 +78,8 @@ function prettyHeader(s){
 }
 
 function reorderColumns(headers){
-  // Move txn_id and group_id to the end, keep everything else in original order.
+  // Move IDs and less-used columns to the far right.
+  // Order at end: txn_id, group_id, tags, beneficiary, reimb_status, counterparty, linked_txn_id
   const h = headers.slice();
   const pull = (name) => {
     const i = h.indexOf(name);
@@ -87,8 +88,18 @@ function reorderColumns(headers){
       h.push(name);
     }
   };
+
+  // Put IDs last
   pull('txn_id');
   pull('group_id');
+
+  // Put these after group_id (i.e., also at the far right)
+  pull('tags');
+  pull('beneficiary');
+  pull('reimb_status');
+  pull('counterparty');
+  pull('linked_txn_id');
+
   return h;
 }
 
@@ -117,6 +128,13 @@ function colWidth(key){
   return map[key] || 16;
 }
 
+function prettyTag(t){
+  return String(t || '')
+    .trim()
+    .replace(/_/g, ' ')
+    .toLowerCase();
+}
+
 function normalizeValue(key, val, refs){
   if(val == null) return '';
   if(key === 'source'){
@@ -138,6 +156,11 @@ function normalizeValue(key, val, refs){
   if(key === 'subcategory'){
     const code = String(val);
     return refs.subcategories?.[code]?.name || val;
+  }
+  if(key === 'tags'){
+    // keep underlying tags machine-friendly in the source data; render friendly in Excel
+    const parts = String(val).split(',').map(s=>s.trim()).filter(Boolean);
+    return parts.map(prettyTag).join(', ');
   }
   return val;
 }
@@ -198,6 +221,15 @@ function normalizeValue(key, val, refs){
     from: { row: 1, column: 1 },
     to: { row: 1, column: ordered.length }
   };
+
+  // Hide low-signal columns by default (user can unhide in Excel)
+  const hideKeys = new Set(['tags','beneficiary','reimb_status','counterparty','linked_txn_id']);
+  for (const k of ordered) {
+    if (hideKeys.has(k)) {
+      const col = outWs.getColumn(k);
+      if (col) col.hidden = true;
+    }
+  }
 
   // Cell styling + color coding
   const idx = Object.fromEntries(ordered.map((k,i)=>[k,i+1]));

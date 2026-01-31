@@ -167,8 +167,11 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
     .kpi .t{font-size:12px; color:var(--muted)}
 
     .charts{display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:12px;}
-    .charts .panel{min-height:260px}
+    .charts .panel{min-height:220px}
     canvas{max-width:100%}
+    #cCat, #cSource{max-height:220px}
+    #cMerch{max-height:240px}
+    #cDaily{max-height:240px}
 
     table{width:100%; border-collapse:collapse; font-size:13px;}
     th, td{padding:10px 8px; border-bottom:1px solid rgba(255,255,255,.06);}
@@ -652,10 +655,33 @@ function setupFilters(rows){
   }
 }
 
+function enableClickMultiSelect(sel, onChange){
+  // Native multi-select requires Ctrl/⌘; this makes plain click toggle selection.
+  // Works well for our dashboard filters.
+  sel.addEventListener('mousedown', (e) => {
+    if(e.target && e.target.tagName === 'OPTION'){
+      e.preventDefault();
+      const opt = e.target;
+      opt.selected = !opt.selected;
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  });
+  sel.addEventListener('keydown', (e)=>{
+    // keep native keyboard behavior
+    if(e.key === 'Enter') onChange();
+  });
+}
+
 function wireEvents(rows){
   const ids=['dateFrom','dateTo','typeSel','catSel','merchSel','sourceSel','tagSel'];
   for(const id of ids){
     document.getElementById(id).addEventListener('change', ()=>{ updateCounts(); render(rows); });
+  }
+
+  // Improve multi-select UX (no Ctrl required)
+  for (const id of ['typeSel','catSel','merchSel','sourceSel','tagSel']){
+    const sel=document.getElementById(id);
+    if(sel) enableClickMultiSelect(sel, ()=>{ updateCounts(); render(rows); });
   }
 
   const sids=['typeSearch','catSearch','merchSearch','sourceSearch','tagSearch'];
