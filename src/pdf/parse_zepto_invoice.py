@@ -48,11 +48,11 @@ def main():
         raise SystemExit(f'File not found: {pdf_path}')
 
     with pdfplumber.open(str(pdf_path)) as pdf:
-        text = '\n'.join((p.extract_text() or '') for p in pdf.pages)
+        pages = list(pdf.pages)
+        text = '\n'.join((p.extract_text() or '') for p in pages)
 
     text = re.sub(r'\r\n?', '\n', text)
     lines = [ln.strip() for ln in text.split('\n')]
-    # keep empty lines for some heuristics? We'll drop empties later where needed.
 
     invoice_number = extract_first([r'Invoice\s*No\.?\s*:\s*([A-Za-z0-9]+)'], text, flags=re.IGNORECASE)
     order_number = extract_first([r'Order\s*No\.?\s*:\s*([A-Za-z0-9]+)'], text, flags=re.IGNORECASE)
@@ -70,6 +70,336 @@ def main():
     invoice_value = fnum(extract_first([
         rf'\bInvoice\s+Value\b\s*{money}',
     ], text, flags=re.IGNORECASE))
+
+    # Parse items
+    items = []
+
+    def table_extract_items():
+        out = []
+        settings = {
+            "vertical_strategy": "lines",
+            "horizontal_strategy": "lines",
+            "intersection_tolerance": 5,
+            "snap_tolerance": 3,
+            "join_tolerance": 3,
+            "edge_min_length": 20,
+        }
+
+        for page in pages:
+            words = page.extract_words() or []
+            header_top = None
+            for w in words:
+                if (w.get('text','') or '').lower() == 'sr':
+                    header_top = w['top']
+                    break
+            if header_top is None:
+                continue
+
+            item_total_top = None
+            for w in words:
+                if (w.get('text','') or '').lower() == 'item':
+                    for w2 in words:
+                        if (w2.get('text','') or '').lower() == 'total' and abs(w2['top'] - w['top']) < 3.0 and w2['x0'] > w['x0']:
+                            item_total_top = w['top']
+                            break
+                if item_total_top is not None:
+                    break
+
+            y0 = max(0, header_top - 10)
+            y1 = min(page.height, (item_total_top + 80) if item_total_top is not None else (header_top + 520))
+            cropped = page.crop((0, y0, page.width, y1))
+
+            tbs = cropped.extract_tables(settings) or []
+            if not tbs:
+                continue
+
+            tb = tbs[0]
+            header = [str(c or '').strip().lower().replace('\n', ' ') for c in tb[0]]
+            idx_desc = next((i for i, c in enumerate(header) if 'item' in c and 'description' in c), None)
+            idx_qty = next((i for i, c in enumerate(header) if 'qty' in c), None)
+            idx_hsn = next((i for i, c in enumerate(header) if 'hsn' in c), None)
+            # pick the last 'total' column (tables may include multiple totals)
+            idx_total = None
+            for i, c in enumerate(header):
+                if 'total' in c:
+                    idx_total = i
+
+            if idx_desc is None or idx_total is None:
+                continue
+
+            for row in tb[1:]:
+                if not row:
+                    continue
+                first_raw = str(row[0] or '').strip()
+                first = first_raw.lower()
+                if first in ('item total', 'total', 'invoice value'):
+                    continue
+
+                desc_raw = str(row[idx_desc] or '').strip()
+                if not desc_raw:
+                    continue
+
+                # Handle multi-item rows merged into a single table row (values separated by newlines)
+                if '\n' in first_raw or '\n' in desc_raw:
+                    def splitcell(v):
+                        return [re.sub(r'\s+', ' ', s.strip()) for s in str(v or '').split('\n') if s.strip()]
+
+                    srs = splitcell(first_raw)
+                    descs = splitcell(desc_raw)
+                    hsns = splitcell(row[idx_hsn]) if idx_hsn is not None and idx_hsn < len(row) else []
+                    qtys = splitcell(row[idx_qty]) if idx_qty is not None and idx_qty < len(row) else []
+                    totals = splitcell(row[idx_total]) if idx_total is not None and idx_total < len(row) else []
+
+                    n = max(len(descs), len(totals), len(srs), len(hsns), len(qtys))
+                    for i2 in range(n):
+                        name = descs[i2] if i2 < len(descs) else ''
+                        if not name:
+                            continue
+                        total = fnum(totals[i2]) if i2 < len(totals) else None
+                        if total is None:
+                            continue
+                        sr = int(srs[i2]) if i2 < len(srs) and srs[i2].isdigit() else None
+                        hsn = hsns[i2] if i2 < len(hsns) else None
+                        qty = None
+                        if i2 < len(qtys):
+                            try:
+                                qty = int(float(qtys[i2]))
+                            except:
+                                qty = None
+                        out.append({
+                            'sr': sr,
+                            'name': name,
+                            'hsn': hsn,
+                            'qty': qty,
+                            'rate': None,
+                            'discount_pct': None,
+                            'taxable': None,
+                            'cgst_pct': None,
+                            'sgst_pct': None,
+                            'cgst_amt': None,
+                            'sgst_amt': None,
+                            'cess_pct': None,
+                            'cess_amt': None,
+                            'total': total,
+                        })
+                    continue
+
+                desc = re.sub(r'\s+', ' ', desc_raw)
+
+                total = fnum(str(row[idx_total] or '').strip())
+                if total is None:
+                    continue
+
+                qty = None
+                if idx_qty is not None and idx_qty < len(row):
+                    q = str(row[idx_qty] or '').strip()
+                    try:
+                        qty = int(float(q)) if q else None
+                    except:
+                        qty = None
+
+                hsn = None
+                if idx_hsn is not None and idx_hsn < len(row):
+                    hsn = str(row[idx_hsn] or '').strip() or None
+
+                out.append({
+                    'sr': int(first_raw) if first_raw.isdigit() else None,
+                    'name': desc,
+                    'hsn': hsn,
+                    'qty': qty,
+                    'rate': None,
+                    'discount_pct': None,
+                    'taxable': None,
+                    'cgst_pct': None,
+                    'sgst_pct': None,
+                    'cgst_amt': None,
+                    'sgst_amt': None,
+                    'cess_pct': None,
+                    'cess_amt': None,
+                    'total': total,
+                })
+
+        return out
+
+    items = table_extract_items()
+
+    def parse_item_row_text(row_text: str):
+        row_text = re.sub(r'\s+', ' ', (row_text or '').strip())
+        if not row_text:
+            return None
+        # Normalize orphan decimals like ".0" -> "0.0"
+        row_text = re.sub(r'(?<!\d)\.(\d)\b', r'0.\1', row_text)
+        row_pat = (
+            r'\b(?P<sr>\d+)\s+'
+            r'(?P<name>.+?)\s+'
+            r'(?P<hsn>\d{6,8})\s+'
+            r'(?P<qty>\d+)\s+'
+            r'(?P<rate>\d+(?:\.\d{1,2})?)\s+'
+            r'(?P<disc>\d+(?:\.\d+)?)%\s+'
+            r'(?P<taxable>\d+(?:\.\d{1,2})?)\s+'
+            r'(?P<cgst_pct>\d+(?:\.\d+)?)%\s+'
+            r'(?P<sgst_pct>\d+(?:\.\d+)?)%\s+'
+            r'(?P<cgst_amt>\d+(?:\.\d{1,2})?)\s+'
+            r'(?P<sgst_amt>\d+(?:\.\d{1,2})?)\s+'
+            r'(?P<cess_pct>\d+(?:\.\d+)?)(?:%)?\s+'
+            r'(?P<cess_amt>\d+(?:\.\d{1,2})?)\s+'
+            r'(?P<total>\d+(?:\.\d{1,2})?)\b'
+        )
+
+        m = re.search(row_pat, row_text)
+        if not m:
+            return None
+
+        def clean_name(name: str) -> str:
+            name = re.sub(r'\s+', ' ', name).strip(' -')
+            for _ in range(5):
+                name2 = name
+                name2 = re.sub(r'\b([A-Za-z]{1,2})\s+([a-z]{2,})\b', r'\1\2', name2)
+                name2 = re.sub(r'\b([A-Za-z]{1,3})\s+([a-z]{1,3})\b', r'\1\2', name2)
+                name2 = re.sub(r'\b([a-z]{2,4})\s+([a-z]{2,4})\b', r'\1\2', name2)
+                if name2 == name:
+                    break
+                name = name2
+            return name
+
+        name = clean_name(m.group('name'))
+
+        return {
+            'sr': int(m.group('sr')),
+            'name': name,
+            'hsn': m.group('hsn'),
+            'qty': int(float(m.group('qty'))),
+            'rate': fnum(m.group('rate')),
+            'discount_pct': fnum(m.group('disc')),
+            'taxable': fnum(m.group('taxable')),
+            'cgst_pct': fnum(m.group('cgst_pct')),
+            'sgst_pct': fnum(m.group('sgst_pct')),
+            'cgst_amt': fnum(m.group('cgst_amt')),
+            'sgst_amt': fnum(m.group('sgst_amt')),
+            'cess_pct': fnum(m.group('cess_pct')),
+            'cess_amt': fnum(m.group('cess_amt')),
+            'total': fnum(m.group('total')),
+        }
+
+    def parse_item_row_text_all(row_text: str):
+        row_text = re.sub(r'\s+', ' ', (row_text or '').strip())
+        if not row_text:
+            return []
+        row_text = re.sub(r'(?<!\d)\.(\d)\b', r'0.\1', row_text)
+
+        row_pat = (
+            r'\b(?P<sr>\d+)\s+'
+            r'(?P<name>.+?)\s+'
+            r'(?P<hsn>\d{6,8})\s+'
+            r'(?P<qty>\d+)\s+'
+            r'(?P<rate>\d+(?:\.\d{1,2})?)\s+'
+            r'(?P<disc>\d+(?:\.\d+)?)%\s+'
+            r'(?P<taxable>\d+(?:\.\d{1,2})?)\s+'
+            r'(?P<cgst_pct>\d+(?:\.\d+)?)%\s+'
+            r'(?P<sgst_pct>\d+(?:\.\d+)?)%\s+'
+            r'(?P<cgst_amt>\d+(?:\.\d{1,2})?)\s+'
+            r'(?P<sgst_amt>\d+(?:\.\d{1,2})?)\s+'
+            r'(?P<cess_pct>\d+(?:\.\d+)?)(?:%)?\s+'
+            r'(?P<cess_amt>\d+(?:\.\d{1,2})?)\s+'
+            r'(?P<total>\d+(?:\.\d{1,2})?)\b'
+        )
+
+        out = []
+        for m in re.finditer(row_pat, row_text):
+            name = re.sub(r'\s+', ' ', m.group('name')).strip(' -')
+            for _ in range(5):
+                name2 = name
+                name2 = re.sub(r'\b([A-Za-z]{1,2})\s+([a-z]{2,})\b', r'\1\2', name2)
+                name2 = re.sub(r'\b([A-Za-z]{1,3})\s+([a-z]{1,3})\b', r'\1\2', name2)
+                name2 = re.sub(r'\b([a-z]{2,4})\s+([a-z]{2,4})\b', r'\1\2', name2)
+                if name2 == name:
+                    break
+                name = name2
+            out.append({
+                'sr': int(m.group('sr')),
+                'name': name,
+                'hsn': m.group('hsn'),
+                'qty': int(float(m.group('qty'))),
+                'rate': fnum(m.group('rate')),
+                'discount_pct': fnum(m.group('disc')),
+                'taxable': fnum(m.group('taxable')),
+                'cgst_pct': fnum(m.group('cgst_pct')),
+                'sgst_pct': fnum(m.group('sgst_pct')),
+                'cgst_amt': fnum(m.group('cgst_amt')),
+                'sgst_amt': fnum(m.group('sgst_amt')),
+                'cess_pct': fnum(m.group('cess_pct')),
+                'cess_amt': fnum(m.group('cess_amt')),
+                'total': fnum(m.group('total')),
+            })
+        return out
+
+    def table_extract_items_text():
+        out = []
+        settings = {
+            "vertical_strategy": "text",
+            "horizontal_strategy": "text",
+            "intersection_tolerance": 5,
+            "snap_tolerance": 3,
+            "join_tolerance": 3,
+            "min_words_vertical": 2,
+            "min_words_horizontal": 1,
+        }
+        for page in pages:
+            words = page.extract_words() or []
+            header_top = None
+            for w in words:
+                if (w.get('text','') or '').lower() == 'sr':
+                    header_top = w['top']
+                    break
+            if header_top is None:
+                continue
+            y0 = max(0, header_top - 10)
+            cropped = page.crop((0, y0, page.width, page.height))
+            tbs = cropped.extract_tables(settings) or []
+            if not tbs:
+                continue
+            tb = tbs[0]
+            # Skip first 2-3 header rows; parse rows that contain a SR number and an HSN code.
+            for row in tb[1:]:
+                cells = []
+                for c in row:
+                    s = re.sub(r'\s+', ' ', str(c or '').strip())
+                    # Fix digit splits inside a cell (don't join across cells)
+                    s = re.sub(r'(?<=\d)\s+(?=\d)', '', s)
+                    s = re.sub(r'(?<!\d)\.(\d)\b', r'0.\1', s)
+                    if s:
+                        cells.append(s)
+                # Heuristic: sometimes HSN and Qty get fused/split across two numeric cells (e.g., "040120" + "006" -> HSN 04012000, Qty 6)
+                i = 0
+                while i < len(cells) - 1:
+                    a = cells[i]
+                    b = cells[i + 1]
+                    if a.isdigit() and 6 <= len(a) < 8 and b.isdigit() and 1 <= len(b) <= 3:
+                        need = 8 - len(a)
+                        if need > 0 and need <= len(b):
+                            cells[i] = a + b[:need]
+                            cells[i + 1] = b[need:]
+                            if cells[i + 1] == '':
+                                cells.pop(i + 1)
+                                continue
+                    i += 1
+
+                row_text = ' '.join(cells)
+                if not row_text:
+                    continue
+                if 'item total' in row_text.lower() or 'invoice value' in row_text.lower():
+                    break
+                # Must include HSN-like digits
+                if not re.search(r'\b\d{6,8}\b', row_text):
+                    continue
+                parsed_many = parse_item_row_text_all(row_text)
+                for parsed in parsed_many:
+                    if parsed and parsed.get('name'):
+                        out.append(parsed)
+        return out
+
+    if not items:
+        items = table_extract_items_text()
 
     # Parse item lines from the extracted text (items are usually in a single line per item)
     # Example pattern tail:
@@ -107,8 +437,6 @@ def main():
         }:
             return True
         return False
-
-    items = []
 
     # Find where the items section begins (skip address blocks)
     items_section_start = 0
