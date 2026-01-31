@@ -372,6 +372,20 @@ let DATA = null;
 let charts = {};
 let ALL_OPTS = { type: [], category: [], merchant: [], source: [], tag: [] };
 
+function showLoadError(err){
+  const hint = document.getElementById('loadHint');
+  if (!hint) return;
+  hint.style.display = 'block';
+  hint.innerHTML = '<b>Dashboard error:</b> ' + String(err).replace(/</g,'&lt;');
+}
+
+window.addEventListener('error', (e) => {
+  if (e && e.message) showLoadError(e.message);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  showLoadError(e?.reason || 'Unhandled promise rejection');
+});
+
 function fmtINR(n){
   try { return '₹' + (Number(n)||0).toLocaleString('en-IN'); } catch { return '₹' + n; }
 }
@@ -1036,6 +1050,7 @@ async function tryFetch(){
     const res = await fetch('${outDataJsonName}', { cache:'no-store' });
     if(!res.ok) throw new Error('fetch failed');
     const data = await res.json();
+    if (!data || !Array.isArray(data.rows)) throw new Error('Invalid JSON: expected {rows:[...]}');
     DATA = data;
     document.getElementById('loadHint').style.display='none';
     setupFilters(DATA.rows);
@@ -1050,15 +1065,22 @@ async function tryFetch(){
 // (removed Try auto-load button)
 
 document.getElementById('fileInput').addEventListener('change', async (ev)=>{
-  const f = ev.target.files && ev.target.files[0];
-  if(!f) return;
-  const txt = await f.text();
-  const data = JSON.parse(txt);
-  DATA = data;
-  document.getElementById('loadHint').style.display='none';
-  setupFilters(DATA.rows);
-  wireEvents(DATA.rows);
-  render(DATA.rows);
+  try {
+    const f = ev.target.files && ev.target.files[0];
+    if(!f) return;
+    const txt = await f.text();
+    const data = JSON.parse(txt);
+    if (!data || !Array.isArray(data.rows)) throw new Error('Invalid JSON: expected {rows:[...]}');
+
+    DATA = data;
+    document.getElementById('loadHint').style.display='none';
+    setupFilters(DATA.rows);
+    wireEvents(DATA.rows);
+    render(DATA.rows);
+  } catch (e) {
+    console.error(e);
+    showLoadError(e && e.message ? e.message : e);
+  }
 });
 
 // keep table height aligned to sidebar
