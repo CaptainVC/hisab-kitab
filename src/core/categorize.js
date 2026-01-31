@@ -76,12 +76,17 @@ function keywordCategorize(row) {
   const text = `${row.raw_text || ''} ${row.notes || ''}`.toLowerCase();
 
   // Transportation
-  if (text.includes('petrol')) return setCatSub(row, 'TRANSPORT', 'TRANSPORT_PETROL');
+  if (text.includes('petrol') || text.includes('diesel') || text.includes('fuel')) return setCatSub(row, 'TRANSPORT', 'TRANSPORT_FUEL');
   if (text.includes('parking')) return setCatSub(row, 'TRANSPORT', 'TRANSPORT_PARKING');
   if (/\bbus\b/.test(text)) return setCatSub(row, 'TRANSPORT', 'TRANSPORT_BUS');
   if (text.includes('uber') || text.includes('cab')) return setCatSub(row, 'TRANSPORT', 'TRANSPORT_CAB');
   if (text.includes('auto')) return setCatSub(row, 'TRANSPORT', 'TRANSPORT_AUTO');
+  // Activa policy/insurance
+  if (text.includes('activa') && (text.includes('policy') || text.includes('insurance') || text.includes('renewal'))) return setCatSub(row, 'TRANSPORT', 'TRANSPORT_INSURANCE');
   if (text.includes('policy') || text.includes('insurance')) return setCatSub(row, 'TRANSPORT', 'TRANSPORT_INSURANCE');
+
+  // Personal care
+  if (text.includes('haircut') || text.includes('salon') || text.includes('barber')) return setCatSub(row, 'PERSONAL_CARE', 'PERSONAL_HAIRCUT');
 
   // Housing
   if (text.includes('laundry')) return setCatSub(row, 'HOUSING_UTILITIES', 'HOME_LAUNDRY');
@@ -91,7 +96,8 @@ function keywordCategorize(row) {
   if (text.includes('1mg') || text.includes('pharmeasy') || text.includes('medicine')) return setCatSub(row, 'HEALTHCARE', 'HEALTH_MEDICINES');
 
   // Entertainment
-  if (text.includes('movie') || text.includes('multiplex') || text.includes('bookmyshow') || row.merchant_code === 'DISTRICT') {
+  if (text.includes('movie') || text.includes('multiplex') || text.includes('cinema') || text.includes('bookmyshow') || row.merchant_code === 'DISTRICT') {
+    // if it's clearly snacks at the cinema, still keep it under Movies but tag later
     return setCatSub(row, 'ENTERTAINMENT', 'ENT_MOVIES');
   }
 
@@ -144,7 +150,7 @@ function keywordCategorize(row) {
   }
 
   // Food clues (eating out)
-  if (text.includes('poha') || text.includes('momos') || text.includes('paratha') || text.includes('dosa') || text.includes('chai')) {
+  if (text.includes('poha') || text.includes('momos') || text.includes('paratha') || text.includes('dosa') || text.includes('chai') || text.includes('fried') || /\bveg\b/.test(text)) {
     // if Zomato/Swiggy or looks like ordering out
     if (text.includes('zomato') || text.includes('swiggy')) return setCatSub(row, 'FOOD_DINING', 'FOOD_ONLINE_DELIVERY');
     return setCatSub(row, 'FOOD_DINING', 'FOOD_DINEIN');
@@ -157,7 +163,17 @@ function keywordCategorize(row) {
   // Fees
   if (text.includes('debit card charges') || text.includes('charges')) {
     if (!row.category) row.category = 'OTHERS';
-    addTag(ensureTagSet(row.tags), 'bill');
+    const set = ensureTagSet(row.tags);
+    addTag(set, 'bill');
+    row.tags = [...set].join(',');
+  }
+
+  // Cinema snacks
+  if ((text.includes('pepsi') || text.includes('popcorn') || text.includes('nachos') || text.includes('coke'))
+      && (text.includes('multiplex') || text.includes('movie') || text.includes('cinema'))) {
+    const set = ensureTagSet(row.tags);
+    addTag(set, 'cinema_snacks');
+    row.tags = [...set].join(',');
   }
 
   return row;

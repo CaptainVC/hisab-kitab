@@ -356,6 +356,16 @@ function parseHisabText(text, refs) {
     }
     const swTotal = sw.reduce((s,x)=>s+(Number(x.amount)||0),0);
 
+    // Splitwise shorthand: sw-Name (means: entire txn is on Name; treat as expense but tag + counterparty)
+    // Example: (mk, sw-Rishika)
+    for (const t of tokens) {
+      const m = t.match(/^sw\s*[-:]\s*(.+)$/i);
+      if (m && m[1]) {
+        base.counterparty = String(m[1]).trim();
+        base.tags = (base.tags ? base.tags + ',' : '') + 'splitwise,for_someone_else';
+      }
+    }
+
     // money movement: "40 wallet to cash" / "40 cash to mk" / "40 mk to SBI"
     let movement = null;
     for (const t of tokens) {
