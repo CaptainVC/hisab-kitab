@@ -1,0 +1,10 @@
+{
+  "Bk": { "kind": "merchant", "value": "BURGER_KING" },
+  "Dom": { "kind": "merchant", "value": "DOMINOS" },
+
+  "pp": { "kind": "source", "value": "pp" },
+  "mk": { "kind": "source", "value": "mk" },
+  "cc": { "kind": "source", "value": "cc" },
+  "SBI": { "kind": "source", "value": "SBI" },
+  "HDFC": { "kind": "source", "value": "HDFC" }
+}

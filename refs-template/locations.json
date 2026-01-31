@@ -1,0 +1,6 @@
+{
+  "BENGALURU": { "name": "Bengaluru", "default": true },
+  "BALOTRA": { "name": "Balotra" },
+  "AHMEDABAD": { "name": "Ahmedabad" },
+  "MUMBAI": { "name": "Mumbai" }
+}

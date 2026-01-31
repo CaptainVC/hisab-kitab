@@ -1,0 +1,47 @@
+{
+  "AMAZON": {
+    "enabled": true,
+    "label": "HisabKitab",
+    "match": {
+      "fromContains": ["amazon.in"],
+      "subjectContains": ["Ordered:"]
+    },
+    "extract": { "items": true, "total": "sometimes" }
+  },
+  "FLIPKART": {
+    "enabled": true,
+    "label": "HisabKitab",
+    "match": {
+      "fromContains": ["flipkart"],
+      "subjectContains": ["successfully placed", "Order"]
+    },
+    "extract": { "items": "sometimes", "total": "sometimes" }
+  },
+  "MEESHO": {
+    "enabled": true,
+    "label": "HisabKitab",
+    "match": {
+      "fromContains": ["meesho"],
+      "subjectContains": ["order", "Order"]
+    },
+    "extract": { "items": "sometimes", "total": "sometimes" }
+  },
+  "SWIGGY": {
+    "enabled": true,
+    "label": "HisabKitab",
+    "match": {
+      "fromContains": ["swiggy"],
+      "subjectContains": ["order", "Order"]
+    },
+    "extract": { "items": true, "total": true }
+  },
+  "ZOMATO": {
+    "enabled": true,
+    "label": "HisabKitab",
+    "match": {
+      "fromContains": ["zomato"],
+      "subjectContains": ["Your Zomato order"]
+    },
+    "extract": { "items": true, "total": true }
+  }
+}

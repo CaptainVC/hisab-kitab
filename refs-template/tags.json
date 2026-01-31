@@ -1,0 +1,39 @@
+{
+  "subscription": { "name": "Subscription" },
+  "recharge": { "name": "Recharge" },
+  "bill": { "name": "Bill / Fee" },
+
+  "gift": { "name": "Gift" },
+  "for_someone_else": { "name": "Spent for someone else" },
+  "self": { "name": "For self" },
+
+  "online_shopping": { "name": "Online shopping" },
+  "offline": { "name": "Offline" },
+  "food_delivery": { "name": "Food delivery" },
+  "groceries": { "name": "Groceries" },
+
+  "book": { "name": "Book" },
+  "coding": { "name": "Coding" },
+  "course": { "name": "Course" },
+
+  "health": { "name": "Health" },
+  "fitness": { "name": "Fitness" },
+  "gym": { "name": "Gym" },
+
+  "travel": { "name": "Travel" },
+  "flight": { "name": "Flight" },
+  "hotel": { "name": "Hotel" },
+
+  "work": { "name": "Work" },
+  "personal": { "name": "Personal" },
+
+  "cashback": { "name": "Cashback" },
+  "refund": { "name": "Refund" },
+  "refund_expected": { "name": "Refund expected" },
+  "reimbursable": { "name": "Reimbursable" },
+
+  "planned": { "name": "Planned" },
+  "impulse": { "name": "Impulse" },
+  "necessary": { "name": "Necessary" },
+  "luxury": { "name": "Luxury" }
+}

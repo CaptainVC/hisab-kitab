@@ -1,0 +1,227 @@
+{
+  "ZOMATO": {
+    "name": "Zomato",
+    "possibleCategories": ["FOOD_DINING", "RECHARGES"],
+    "default": { "category": "FOOD_DINING", "subcategory": "FOOD_ONLINE_DELIVERY" }
+  },
+  "SWIGGY": {
+    "name": "Swiggy",
+    "possibleCategories": ["FOOD_DINING", "RECHARGES"],
+    "default": { "category": "FOOD_DINING", "subcategory": "FOOD_ONLINE_DELIVERY" }
+  },
+  "BLINKIT": {
+    "name": "Blinkit",
+    "possibleCategories": ["FOOD_DINING"],
+    "default": { "category": "FOOD_DINING", "subcategory": "FOOD_SNACKS" }
+  },
+  "SWIGGY_INSTAMART": {
+    "name": "Swiggy Instamart",
+    "possibleCategories": ["FOOD_DINING"],
+    "default": { "category": "FOOD_DINING", "subcategory": "FOOD_SNACKS" }
+  },
+  "ZEPTO": {
+    "name": "Zepto",
+    "possibleCategories": ["FOOD_DINING"],
+    "default": { "category": "FOOD_DINING", "subcategory": "FOOD_SNACKS" }
+  },
+  "FLIPKART_MINUTES": {
+    "name": "Flipkart Minutes",
+    "possibleCategories": ["FOOD_DINING"],
+    "default": { "category": "FOOD_DINING", "subcategory": "FOOD_SNACKS" }
+  },
+  "BIGBASKET": {
+    "name": "BigBasket",
+    "possibleCategories": ["FOOD_DINING"],
+    "default": { "category": "FOOD_DINING", "subcategory": "FOOD_FRUITS" }
+  },
+  "AMAZON_FRESH": {
+    "name": "Amazon Fresh",
+    "possibleCategories": ["FOOD_DINING"],
+    "default": { "category": "FOOD_DINING", "subcategory": "FOOD_FRUITS" }
+  },
+  "TATA1MG": {
+    "name": "Tata 1mg",
+    "possibleCategories": ["HEALTHCARE", "RECHARGES"],
+    "default": { "category": "HEALTHCARE", "subcategory": "HEALTH_MEDICINES" }
+  },
+  "PHARMEASY": {
+    "name": "PharmEasy",
+    "possibleCategories": ["HEALTHCARE"],
+    "default": { "category": "HEALTHCARE", "subcategory": "HEALTH_MEDICINES" }
+  },
+  "AMAZON": {
+    "name": "Amazon",
+    "possibleCategories": ["SHOPPING", "EDUCATION", "ENTERTAINMENT", "HEALTHCARE", "SPORTS", "RECHARGES", "OTHERS"],
+    "default": { "category": "SHOPPING", "subcategory": "SHOP_ELECTRONICS" }
+  },
+  "FLIPKART": {
+    "name": "Flipkart",
+    "possibleCategories": ["SHOPPING", "EDUCATION", "ENTERTAINMENT", "HEALTHCARE", "SPORTS", "RECHARGES", "OTHERS"],
+    "default": { "category": "SHOPPING", "subcategory": "SHOP_ELECTRONICS" }
+  },
+  "MYNTRA": {
+    "name": "Myntra",
+    "possibleCategories": ["SHOPPING", "OTHERS"],
+    "default": { "category": "SHOPPING", "subcategory": "SHOP_CLOTHES" }
+  },
+  "AJIO": {
+    "name": "Ajio",
+    "possibleCategories": ["SHOPPING", "OTHERS"],
+    "default": { "category": "SHOPPING", "subcategory": "SHOP_CLOTHES" }
+  },
+  "MEESHO": {
+    "name": "Meesho",
+    "possibleCategories": ["SHOPPING", "OTHERS"],
+    "default": { "category": "SHOPPING", "subcategory": "SHOP_TOILETRIES" }
+  },
+  "UBER": {
+    "name": "Uber",
+    "possibleCategories": ["TRANSPORT", "RECHARGES"],
+    "default": { "category": "TRANSPORT", "subcategory": "TRANSPORT_CAB" }
+  },
+  "OLA": {
+    "name": "Ola",
+    "possibleCategories": ["TRANSPORT"],
+    "default": { "category": "TRANSPORT", "subcategory": "TRANSPORT_CAB" }
+  },
+  "RAPIDO": {
+    "name": "Rapido",
+    "possibleCategories": ["TRANSPORT"],
+    "default": { "category": "TRANSPORT", "subcategory": "TRANSPORT_AUTO" }
+  },
+  "THE_SOULED_STORE": {
+    "name": "The Souled Store",
+    "possibleCategories": ["SHOPPING"],
+    "default": { "category": "SHOPPING", "subcategory": "SHOP_CLOTHES" }
+  },
+  "NYKAA": {
+    "name": "Nykaa",
+    "possibleCategories": ["SHOPPING"],
+    "default": { "category": "SHOPPING", "subcategory": "SHOP_TOILETRIES" }
+  },
+  "NOBERO": {
+    "name": "Nobero",
+    "possibleCategories": ["SHOPPING"],
+    "default": { "category": "SHOPPING", "subcategory": "SHOP_CLOTHES" }
+  },
+  "MAGICPIN": {
+    "name": "Magicpin",
+    "possibleCategories": ["SHOPPING", "FOOD_DINING"],
+    "default": { "category": "FOOD_DINING", "subcategory": "FOOD_ONLINE_DELIVERY" }
+  },
+  "EATCLUB": {
+    "name": "EatClub",
+    "possibleCategories": ["FOOD_DINING", "RECHARGES"],
+    "default": { "category": "FOOD_DINING", "subcategory": "FOOD_ONLINE_DELIVERY" }
+  },
+  "AMUL": {
+    "name": "Amul",
+    "possibleCategories": ["FOOD_DINING"],
+    "default": { "category": "FOOD_DINING", "subcategory": "FOOD_PROTEIN" }
+  },
+  "BURGER_KING": {
+    "name": "Burger King",
+    "possibleCategories": ["FOOD_DINING"],
+    "default": { "category": "FOOD_DINING", "subcategory": "FOOD_ONLINE_DELIVERY" }
+  },
+  "DOMINOS": {
+    "name": "Domino's",
+    "possibleCategories": ["FOOD_DINING"],
+    "default": { "category": "FOOD_DINING", "subcategory": "FOOD_ONLINE_DELIVERY" }
+  },
+  "TACO_BELL": {
+    "name": "Taco Bell",
+    "possibleCategories": ["FOOD_DINING"],
+    "default": { "category": "FOOD_DINING", "subcategory": "FOOD_ONLINE_DELIVERY" }
+  },
+  "JIO_HOTSTAR": {
+    "name": "Jio Hotstar",
+    "possibleCategories": ["RECHARGES"],
+    "default": { "category": "RECHARGES", "subcategory": "RECHARGE_SUBSCRIPTIONS" }
+  },
+  "NETFLIX": {
+    "name": "Netflix",
+    "possibleCategories": ["RECHARGES"],
+    "default": { "category": "RECHARGES", "subcategory": "RECHARGE_SUBSCRIPTIONS" }
+  },
+  "YOUTUBE_PREMIUM": {
+    "name": "YouTube Premium",
+    "possibleCategories": ["RECHARGES"],
+    "default": { "category": "RECHARGES", "subcategory": "RECHARGE_SUBSCRIPTIONS" }
+  },
+  "SONY_LIV": {
+    "name": "Sony LIV",
+    "possibleCategories": ["RECHARGES"],
+    "default": { "category": "RECHARGES", "subcategory": "RECHARGE_SUBSCRIPTIONS" }
+  },
+  "FANCODE": {
+    "name": "FanCode",
+    "possibleCategories": ["RECHARGES"],
+    "default": { "category": "RECHARGES", "subcategory": "RECHARGE_SUBSCRIPTIONS" }
+  },
+  "DISTRICT": {
+    "name": "District",
+    "possibleCategories": ["ENTERTAINMENT", "RECHARGES"],
+    "default": { "category": "ENTERTAINMENT", "subcategory": "ENT_MOVIES" }
+  },
+  "BOOKMYSHOW": {
+    "name": "BookMyShow",
+    "possibleCategories": ["ENTERTAINMENT"],
+    "default": { "category": "ENTERTAINMENT", "subcategory": "ENT_MOVIES" }
+  },
+  "AIRTEL_APP": {
+    "name": "Airtel Thanks App",
+    "possibleCategories": ["RECHARGES"],
+    "default": { "category": "RECHARGES", "subcategory": "RECHARGE_MOBILE" }
+  },
+  "MOBIKWIK": {
+    "name": "MobiKwik",
+    "possibleCategories": ["RECHARGES"],
+    "default": { "category": "RECHARGES", "subcategory": "RECHARGE_MOBILE" }
+  },
+  "PHONEPE": {
+    "name": "Phonepe",
+    "possibleCategories": ["RECHARGES"],
+    "default": { "category": "RECHARGES", "subcategory": "RECHARGE_MOBILE" }
+  },
+  "CHATGPT_PLUS": {
+    "name": "ChatGPT Plus",
+    "possibleCategories": ["RECHARGES"],
+    "default": { "category": "RECHARGES", "subcategory": "RECHARGE_SUBSCRIPTIONS" }
+  },
+  "ICICI_LOMBARD": {
+    "name": "ICICI Lombard",
+    "possibleCategories": ["TRANSPORT"],
+    "default": { "category": "TRANSPORT", "subcategory": "TRANSPORT_INSURANCE" }
+  },
+  "OYO": {
+    "name": "OYO",
+    "possibleCategories": ["TRAVEL"],
+    "default": { "category": "TRAVEL", "subcategory": "TRAVEL_HOTELS" }
+  },
+  "INDIGO": {
+    "name": "IndiGo",
+    "possibleCategories": ["TRAVEL"],
+    "default": { "category": "TRAVEL", "subcategory": "TRAVEL_FLIGHTS" }
+  },
+  "AKASA_AIR": {
+    "name": "Akasa Air",
+    "possibleCategories": ["TRAVEL"],
+    "default": { "category": "TRAVEL", "subcategory": "TRAVEL_FLIGHTS" }
+  },
+  "MAKE_MY_TRIP": {
+    "name": "Make My Trip",
+    "possibleCategories": ["TRAVEL"],
+    "default": { "category": "TRAVEL", "subcategory": "TRAVEL_HOTELS" }
+  },
+  "GOIBIBO": {
+    "name": "Goibibo",
+    "possibleCategories": ["TRAVEL"],
+    "default": { "category": "TRAVEL", "subcategory": "TRAVEL_HOTELS" }
+  },
+  "EASEMYTRIP": {
+    "name": "Ease My Trip",
+    "possibleCategories": ["TRAVEL"],
+    "default": { "category": "TRAVEL", "subcategory": "TRAVEL_HOTELS" }
+  }
+}
