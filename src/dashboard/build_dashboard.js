@@ -144,11 +144,13 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
     h1{margin:0 0 6px 0; font-size:18px; letter-spacing:.2px;}
     .muted{color:rgba(220,226,240,.72)}
     .wrap{max-width:1200px; margin:0 auto; padding:16px;}
-    .grid{display:grid; grid-template-columns: 1.6fr .4fr; gap:12px; align-items:start;}
     .panel{background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01)); border:1px solid var(--border); border-radius:14px; padding:12px;}
-    .rightcol{position:sticky; top:86px;}
     .filters{display:grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap:10px;}
     .filters .panel{padding:10px}
+
+    .summary{display:grid; grid-template-columns: 1.2fr 1fr .8fr; gap:12px; align-items:start;}
+    .insRow{display:grid; grid-template-columns: 1.2fr .8fr 1fr; gap:12px; align-items:start;}
+    .charts{display:grid; grid-template-columns: 1.3fr .7fr; gap:12px; align-items:start;}
     label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px}
     input, select{width:100%; background:rgba(255,255,255,.03); border:1px solid var(--border); color:var(--text);
                   border-radius:10px; padding:8px; outline:none;}
@@ -162,17 +164,15 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
     button.secondary{background:rgba(255,255,255,.04); border:1px solid var(--border)}
     button.danger{background:rgba(239,68,68,.12); border-color:rgba(239,68,68,.35)}
 
-    .kpis{display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:10px; margin-top:12px;}
-    .kpi{padding:12px}
-    .kpi .v{font-size:18px; font-weight:700}
-    .kpi .t{font-size:12px; color:var(--muted)}
+    .kpis{display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:10px; margin-top:10px;}
+    .kpi{padding:10px; border:1px solid rgba(255,255,255,.07); border-radius:12px; background:rgba(255,255,255,.02)}
+    .kpi .v{font-size:18px; font-weight:750}
+    .kpi .t{font-size:12px; color:rgba(220,226,240,.72)}
 
-    .charts{display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:12px;}
     .charts .panel{min-height:220px}
     canvas{max-width:100%}
-    #cCat{max-height:220px}
-    #cMerch{max-height:240px}
-    #cDaily{max-height:240px}
+    #cCat{max-height:240px}
+    #cDaily{max-height:260px}
 
     .srcRow{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; border:1px solid rgba(255,255,255,.08); border-radius:12px; background:rgba(255,255,255,.02)}
     .srcRow .name{font-weight:650; color:#fff}
@@ -212,7 +212,6 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
       <label>Load data.json</label>
       <input id="fileInput" type="file" accept="application/json" />
       <div class="btnrow" style="margin-top:8px">
-        <button id="tryFetchBtn" class="secondary">Try auto-load</button>
         <button id="resetBtn" class="danger">Reset filters</button>
       </div>
     </div>
@@ -254,64 +253,78 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
     </div>
   </div>
 
-  <div class="kpis">
-    <div class="panel kpi"><div class="t">Expense</div><div class="v" id="kExpense">—</div></div>
-    <div class="panel kpi"><div class="t">Income</div><div class="v" id="kIncome">—</div></div>
-    <div class="panel kpi"><div class="t">Net (Income - Expense)</div><div class="v" id="kNet">—</div></div>
-    <div class="panel kpi"><div class="t">Uncategorized</div><div class="v" id="kUncat">—</div></div>
-  </div>
-
-  <div class="charts">
-    <div class="panel"><div class="muted" id="tDaily">Daily spend</div><canvas id="cDaily"></canvas></div>
-    <div class="panel"><div class="muted" id="tCat">By category</div><canvas id="cCat"></canvas></div>
-    <div class="panel"><div class="muted" id="tMerch">Top merchants</div><canvas id="cMerch"></canvas></div>
+  <!-- Summary row: KPIs + Sources + Needs review -->
+  <div class="summary" style="margin-top:12px">
     <div class="panel">
-      <div class="muted">By source</div>
+      <div style="font-weight:650; margin-bottom:6px">Summary</div>
+      <div class="muted" style="margin-bottom:10px">Expense · Income · Net (based on selected Types)</div>
+      <div class="kpis">
+        <div class="kpi"><div class="t">Expense</div><div class="v" id="kExpense">—</div></div>
+        <div class="kpi"><div class="t">Income</div><div class="v" id="kIncome">—</div></div>
+        <div class="kpi"><div class="t">Net</div><div class="v" id="kNet">—</div></div>
+        <div class="kpi"><div class="t">Needs review</div><div class="v" id="kUncat">—</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div style="font-weight:650; margin-bottom:6px">Sources</div>
       <div id="sourceCard" style="margin-top:10px; display:flex; flex-direction:column; gap:8px"></div>
     </div>
+
+    <div class="panel">
+      <div style="font-weight:650; margin-bottom:6px">Needs review</div>
+      <div class="muted" id="uncatList">—</div>
+    </div>
   </div>
 
-  <div class="grid" style="margin-top:12px">
+  <!-- Insights row -->
+  <div class="insRow" style="margin-top:12px">
     <div class="panel">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px">
-        <div>
-          <div style="font-weight:650">Transactions</div>
-          <div class="muted" id="rowCount">No data loaded</div>
-        </div>
-        <div id="healthPill" class="pill bad">No data</div>
+      <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:8px">
+        <div style="font-weight:650">Insights</div>
+        <div class="pill" id="insightPill">—</div>
       </div>
-      <div class="tablewrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th><th>Type</th><th>Amount</th><th>Merchant</th><th>Category</th><th>Subcategory</th><th>Source</th><th>Location</th><th>Tags</th><th>Raw</th>
-            </tr>
-          </thead>
-          <tbody id="txBody"></tbody>
-        </table>
-      </div>
+      <div id="insights" style="display:flex; flex-direction:column; gap:10px"></div>
     </div>
-    <div class="rightcol">
-      <div class="panel">
-        <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:8px">
-          <div style="font-weight:650">Insights</div>
-          <div class="pill" id="insightPill">—</div>
-        </div>
-        <div id="insights" style="display:flex; flex-direction:column; gap:10px"></div>
-      </div>
 
-      <div class="panel" id="foodPanel">
-        <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:8px">
-          <div style="font-weight:650">Food insights</div>
-          <div class="pill" id="foodPill">—</div>
-        </div>
-        <div id="foodInsights" style="display:flex; flex-direction:column; gap:10px"></div>
-      </div>
+    <div class="panel">
+      <div style="font-weight:650; margin-bottom:6px">Patterns</div>
+      <div class="muted" id="patternInsights">—</div>
+    </div>
 
-      <div class="panel">
-        <div style="font-weight:650; margin-bottom:6px">Needs review</div>
-        <div class="muted" id="uncatList">—</div>
+    <div class="panel" id="foodPanel">
+      <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:8px">
+        <div style="font-weight:650">Food insights</div>
+        <div class="pill" id="foodPill">—</div>
       </div>
+      <div id="foodInsights" style="display:flex; flex-direction:column; gap:10px"></div>
+    </div>
+  </div>
+
+  <!-- Charts row -->
+  <div class="charts" style="margin-top:12px">
+    <div class="panel"><div class="muted" id="tDaily">Daily spend</div><canvas id="cDaily"></canvas></div>
+    <div class="panel"><div class="muted" id="tCat">By category</div><canvas id="cCat"></canvas></div>
+  </div>
+
+  <!-- Transactions -->
+  <div class="panel" style="margin-top:12px">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px">
+      <div>
+        <div style="font-weight:650">Transactions</div>
+        <div class="muted" id="rowCount">No data loaded</div>
+      </div>
+      <div id="healthPill" class="pill bad">No data</div>
+    </div>
+    <div class="tablewrap" style="height:520px">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th><th>Type</th><th>Amount</th><th>Merchant</th><th>Category</th><th>Subcategory</th><th>Source</th><th>Location</th><th>Tags</th><th>Raw</th>
+          </tr>
+        </thead>
+        <tbody id="txBody"></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -469,18 +482,26 @@ function groupSum(rows, keyFn){
 function destroyChart(name){ if(charts[name]){ charts[name].destroy(); delete charts[name]; } }
 
 function syncTableHeight(){
-  // Legacy no-op (table now has its own scroll height; layout is being redesigned)
+  // Layout now uses fixed heights; nothing to sync.
 }
 
 function render(rows){
   const filtered = applyFilters(rows);
 
-  // Dashboard should reflect selected transaction types (not only EXPENSE)
-  const selectedTypes = readMulti(document.getElementById('typeSel'));
-  const focusRows = selectedTypes.length ? filtered : filtered.filter(r=>r.type==='EXPENSE');
+  // Dashboard should reflect selected transaction types.
+  // If user selects nothing, default to EXPENSE.
+  const typeSelEl = document.getElementById('typeSel');
+  let selectedTypes = readMulti(typeSelEl);
+  if (!selectedTypes.length) {
+    selectedTypes = ['EXPENSE'];
+    // reflect in UI
+    for (const o of typeSelEl.options) o.selected = (o.value === 'EXPENSE');
+  }
 
-  const expense = filtered.filter(r=>r.type==='EXPENSE');
-  const income = filtered.filter(r=>r.type==='INCOME');
+  const focusRows = filtered.filter(r => selectedTypes.includes(r.type));
+
+  const expense = focusRows.filter(r=>r.type==='EXPENSE');
+  const income = focusRows.filter(r=>r.type==='INCOME');
   const expTotal = expense.reduce((s,r)=>s+(Number(r.amount)||0),0);
   const incTotal = income.reduce((s,r)=>s+(Number(r.amount)||0),0);
   const net = incTotal - expTotal;
@@ -489,7 +510,7 @@ function render(rows){
   document.getElementById('kIncome').textContent = fmtINR(incTotal);
   document.getElementById('kNet').textContent = (net>=0?fmtINR(net):('-'+fmtINR(Math.abs(net))));
 
-  const uncat = filtered.filter(r=>r.type==='EXPENSE' && (!r.category || !r.subcategory));
+  const uncat = focusRows.filter(r => (!r.category || !r.subcategory));
   document.getElementById('kUncat').textContent = String(uncat.length);
 
   document.getElementById('rowCount').textContent = (
@@ -620,7 +641,32 @@ function render(rows){
   const insightPill = document.getElementById('insightPill');
   if(insightPill) insightPill.textContent = expense.length ? (expense.length + ' exp') : '—';
 
-  // Uncategorized: show by amount (not just list)
+  // Patterns panel (simple, high-signal)
+  const patEl = document.getElementById('patternInsights');
+  if (patEl) {
+    const mostCommonTag = (() => {
+      const m = new Map();
+      for (const r of focusRows) {
+        for (const t of (r._tags || [])) m.set(t, (m.get(t)||0)+1);
+      }
+      return [...m.entries()].sort((a,b)=>b[1]-a[1])[0] || null;
+    })();
+
+    const biggest5 = focusRows
+      .filter(r=>r.type==='EXPENSE')
+      .slice()
+      .sort((a,b)=>(Number(b.amount)||0)-(Number(a.amount)||0))
+      .slice(0,5)
+      .map(r=>'• <b>'+fmtINR(r.amount)+'</b> — '+(r.raw_text||'').slice(0,70))
+      .join('<br/>');
+
+    const lines = [];
+    if (mostCommonTag) lines.push('<div><span class="muted">Most common tag:</span> <b>' + String(mostCommonTag[0]).replace(/_/g,' ') + '</b> (' + mostCommonTag[1] + ')</div>');
+    if (biggest5) lines.push('<div style="margin-top:8px" class="muted">Top 5 expenses</div><div>'+biggest5+'</div>');
+    patEl.innerHTML = lines.join('') || '<div class="muted">—</div>';
+  }
+
+  // Needs review: show by amount
   const uncatTop = uncat
     .slice()
     .sort((a,b)=>(Number(b.amount)||0)-(Number(a.amount)||0))
@@ -654,7 +700,7 @@ function render(rows){
 
   // Charts
   // update chart titles based on selected types
-  const typeLabel = selectedTypes.length ? selectedTypes.join(' + ') : 'EXPENSE';
+  const typeLabel = selectedTypes.join(' + ');
   const tDaily = document.getElementById('tDaily');
   const tCat = document.getElementById('tCat');
   const tMerch = document.getElementById('tMerch');
@@ -813,6 +859,13 @@ function setupFilters(rows){
   ALL_OPTS = { type: types, category: cats, merchant: merch, source: sources, tag: tagList };
   refreshFilteredOptions();
 
+  // Default: EXPENSE selected
+  const typeSel = document.getElementById('typeSel');
+  if (typeSel) {
+    for (const o of typeSel.options) o.selected = (o.value === 'EXPENSE');
+  }
+  updateCounts();
+
   // default date range
   const dates = uniq(rows.map(r=>r.date)).sort();
   if(dates.length){
@@ -862,6 +915,11 @@ function wireEvents(rows){
       const s=document.getElementById(id);
       clearSelected(s);
     }
+    // re-select EXPENSE by default
+    const typeSel = document.getElementById('typeSel');
+    if (typeSel) {
+      for (const o of typeSel.options) o.selected = (o.value === 'EXPENSE');
+    }
     for(const id of ['typeSearch','catSearch','merchSearch','sourceSearch','tagSearch']){
       const el=document.getElementById(id);
       if(el) el.value='';
@@ -894,7 +952,7 @@ async function tryFetch(){
   }
 }
 
-document.getElementById('tryFetchBtn').addEventListener('click', tryFetch);
+// (removed Try auto-load button)
 
 document.getElementById('fileInput').addEventListener('change', async (ev)=>{
   const f = ev.target.files && ev.target.files[0];
@@ -909,7 +967,7 @@ document.getElementById('fileInput').addEventListener('change', async (ev)=>{
 });
 
 // keep table height aligned to sidebar
-window.addEventListener('resize', ()=>{ if(DATA) syncTableHeight(); });
+window.addEventListener('resize', ()=>{ /* no-op */ });
 
 // attempt auto-load once
 tryFetch();
