@@ -154,6 +154,7 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
     label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px}
     input, select{width:100%; background:rgba(255,255,255,.03); border:1px solid var(--border); color:var(--text);
                   border-radius:10px; padding:8px; outline:none;}
+    #catInsightSel{width:auto; padding:6px 10px; border-radius:999px; font-size:13px}
     input::placeholder{color:rgba(154,164,178,.75)}
     select[multiple]{height:120px; padding:6px}
     select[multiple] option{padding:6px; border-radius:8px}
@@ -293,8 +294,11 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
     </div>
 
     <div class="panel" id="foodPanel">
-      <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:8px">
-        <div style="font-weight:650">Food insights</div>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px">
+        <div style="display:flex; align-items:center; gap:10px">
+          <div style="font-weight:650">Subcategory insights</div>
+          <select id="catInsightSel" style="max-width:220px"></select>
+        </div>
         <div class="pill" id="foodPill">—</div>
       </div>
       <div id="foodInsights" style="display:flex; flex-direction:column; gap:10px"></div>
@@ -605,28 +609,33 @@ function render(rows){
     addBlock('Top 3 category mix', s, 'share of expense');
   }
 
-  // Food subcategory insights (render in separate panel)
-  const food = expense.filter(r=>r.category==='FOOD_DINING');
-  const foodEl = document.getElementById('foodInsights');
-  const foodPill = document.getElementById('foodPill');
-  if (foodEl) {
-    if (!food.length) {
-      foodEl.innerHTML = '<div class="muted">—</div>';
-      if (foodPill) foodPill.textContent = '—';
+  // Subcategory insights panel (category dropdown)
+  const catInsightSel = document.getElementById('catInsightSel');
+  const selectedCats = readMulti(document.getElementById('catSel'));
+  // Hierarchy: Category filter → dropdown.
+  // If exactly one category is selected in filter, force dropdown to it.
+  if (catInsightSel && selectedCats.length === 1) {
+    catInsightSel.value = selectedCats[0];
+  }
+
+  const catFocus = catInsightSel ? String(catInsightSel.value || '') : 'FOOD_DINING';
+
+  const catRows = expense.filter(r=>r.category===catFocus);
+  const catEl = document.getElementById('foodInsights');
+  const catPill = document.getElementById('foodPill');
+
+  if (catEl) {
+    if (!catRows.length) {
+      catEl.innerHTML = '<div class="muted">—</div>';
+      if (catPill) catPill.textContent = '—';
     } else {
-      const foodTotal = food.reduce((s,r)=>s+(Number(r.amount)||0),0);
-      const byFoodSub = groupSum(food, r=>r.subcategory||'(uncategorized)');
-      const topFoodSub = byFoodSub[0];
-      const deliveryTotal = food.filter(r=>r.subcategory==='FOOD_ONLINE_DELIVERY').reduce((s,r)=>s+(Number(r.amount)||0),0);
-      const snacksTotal = food.filter(r=>r.subcategory==='FOOD_SNACKS').reduce((s,r)=>s+(Number(r.amount)||0),0);
-      const dineinTotal = food.filter(r=>r.subcategory==='FOOD_DINEIN').reduce((s,r)=>s+(Number(r.amount)||0),0);
+      const catTotal = catRows.reduce((s,r)=>s+(Number(r.amount)||0),0);
+      const bySub = groupSum(catRows, r=>r.subcategory||'(uncategorized)');
+      const topSub = bySub[0];
 
-      // merchants inside food
-      const foodMerch = groupSum(food, r=>r.merchant_code||'(unknown)').slice(0,5);
-
-      // day peaks for food
-      const foodDays = groupSum(food, r=>r.date).sort((a,b)=>b[1]-a[1]);
-      const topFoodDay = foodDays[0];
+      const catMerch = groupSum(catRows, r=>r.merchant_code||'(unknown)').slice(0,5);
+      const catDays = groupSum(catRows, r=>r.date).sort((a,b)=>b[1]-a[1]);
+      const topDay2 = catDays[0];
 
       const pct = (a, base) => base ? Math.round((a/base)*100) : 0;
 
@@ -641,28 +650,24 @@ function render(rows){
         );
       };
 
-      add('Total food spend', fmtINR(foodTotal), food.length + ' txns');
-      if (topFoodSub) add('Top food subcategory', nameSub(topFoodSub[0]), fmtINR(topFoodSub[1]));
-      add('Food mix',
-        (pct(deliveryTotal, foodTotal) + '% delivery · ' + pct(snacksTotal, foodTotal) + '% snacks · ' + pct(dineinTotal, foodTotal) + '% dine-in'),
-        (fmtINR(deliveryTotal) + ' · ' + fmtINR(snacksTotal) + ' · ' + fmtINR(dineinTotal))
-      );
+      const catName = nameCat(catFocus);
+      add('Total ('+catName+')', fmtINR(catTotal), catRows.length + ' txns');
+      if (topSub) add('Top subcategory', nameSub(topSub[0]), fmtINR(topSub[1]));
 
-      // Food subcategory breakdown list
-      const topSubs = byFoodSub.slice(0,6).map(([sc,a])=>{
-        return '• <b>' + nameSub(sc) + '</b> — ' + fmtINR(a) + ' (' + pct(a, foodTotal) + '%)';
+      const topSubs = bySub.slice(0,6).map(([sc,a])=>{
+        return '• <b>' + nameSub(sc) + '</b> — ' + fmtINR(a) + ' (' + pct(a, catTotal) + '%)';
       }).join('<br/>');
       add('Top subcategories', topSubs, '');
 
-      const topMerchHtml = foodMerch.map(([m,a])=>{
+      const topMerchHtml = catMerch.map(([m,a])=>{
         return '• <b>' + nameMerch(m) + '</b> — ' + fmtINR(a);
       }).join('<br/>');
-      add('Top food merchants', topMerchHtml, '');
+      add('Top merchants', topMerchHtml, '');
 
-      if (topFoodDay) add('Highest food day', topFoodDay[0], fmtINR(topFoodDay[1]));
+      if (topDay2) add('Highest day', topDay2[0], fmtINR(topDay2[1]));
 
-      foodEl.innerHTML = blocks.join('');
-      if (foodPill) foodPill.textContent = fmtINR(foodTotal);
+      catEl.innerHTML = blocks.join('');
+      if (catPill) catPill.textContent = fmtINR(catTotal);
     }
   }
 
@@ -933,6 +938,23 @@ function setupFilters(rows){
   if (typeSel) {
     for (const o of typeSel.options) o.selected = (o.value === 'EXPENSE');
   }
+
+  // Populate category dropdown for subcategory insights
+  const catInsightSel = document.getElementById('catInsightSel');
+  if (catInsightSel) {
+    const pretty = (code) => (DATA?.refs?.categories?.[code]?.name) || String(code||'');
+    catInsightSel.innerHTML = '';
+    for (const c of (ALL_OPTS.category || [])) {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = pretty(c);
+      catInsightSel.appendChild(opt);
+    }
+    // default: FOOD_DINING if present else first
+    const hasFood = (ALL_OPTS.category || []).includes('FOOD_DINING');
+    catInsightSel.value = hasFood ? 'FOOD_DINING' : (ALL_OPTS.category?.[0] || '');
+  }
+
   updateCounts();
 
   // default date range
@@ -965,6 +987,10 @@ function wireEvents(rows){
   for(const id of ids){
     document.getElementById(id).addEventListener('change', ()=>{ updateCounts(); render(rows); });
   }
+
+  // subcategory insights category dropdown
+  const catInsightSel = document.getElementById('catInsightSel');
+  if (catInsightSel) catInsightSel.addEventListener('change', ()=>render(rows));
 
   // Improve multi-select UX (no Ctrl required)
   for (const id of ['typeSel','catSel','merchSel','sourceSel','tagSel']){
