@@ -501,13 +501,44 @@ function render(rows){
   }
 
   // Charts
-  // Daily spend line
+  // Daily spend line (click a point to jump to that day's transactions)
   const daily = groupSum(expense, r=>r.date).sort((a,b)=>a[0].localeCompare(b[0]));
   destroyChart('daily');
   charts.daily = new Chart(document.getElementById('cDaily'), {
     type: 'line',
-    data: { labels: daily.map(x=>x[0]), datasets: [{ label: 'Expense', data: daily.map(x=>x[1]), tension: .3, borderColor: '#7c5cff', backgroundColor: 'rgba(124,92,255,.2)', fill: true }] },
-    options: { plugins:{ legend:{ display:false } }, scales:{ x:{ grid:{ display:false } }, y:{ grid:{ color:'rgba(255,255,255,.06)' } } } }
+    data: { labels: daily.map(x=>x[0]), datasets: [{ label: 'Expense', data: daily.map(x=>x[1]), tension: .3, borderColor: '#7c5cff', backgroundColor: 'rgba(124,92,255,.2)', fill: true, pointRadius: 4, pointHoverRadius: 7 }] },
+    options: {
+      plugins:{ legend:{ display:false } },
+      scales:{ x:{ grid:{ display:false } }, y:{ grid:{ color:'rgba(255,255,255,.06)' } } },
+      onClick: (evt, elements) => {
+        if(!elements || !elements.length) return;
+        const idx = elements[0].index;
+        const day = daily[idx]?.[0];
+        if(!day) return;
+
+        const df = document.getElementById('dateFrom');
+        const dt = document.getElementById('dateTo');
+        const shift = !!(evt?.native?.shiftKey);
+
+        // Default behavior: set range to exactly that day.
+        // If already locked to that day, click again clears back to full range.
+        const alreadyLocked = (df.value === day && dt.value === day);
+        if(alreadyLocked && !shift){
+          const dates = uniq(rows.map(r=>r.date)).sort();
+          if(dates.length){ df.value = dates[0]; dt.value = dates[dates.length-1]; }
+        } else {
+          df.value = day;
+          dt.value = day;
+        }
+
+        updateCounts();
+        render(rows);
+
+        // scroll to transactions table
+        const table = document.querySelector('.tablewrap');
+        if(table) table.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
   });
 
   // Category pie (click a sector to filter Category)
