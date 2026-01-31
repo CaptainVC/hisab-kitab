@@ -291,11 +291,17 @@ async function main(){
   for (const o of outEvents) byKey.set(keyOf(o), o);
 
   const mergedOrders = Array.from(byKey.values());
-  const mergedUnknown = (existing.unknown || []).concat(unknown || []);
+  const mergedUnknownRaw = (existing.unknown || []).concat(unknown || []);
+  const unkById = new Map();
+  for (const u of mergedUnknownRaw) {
+    const id = u.messageId || JSON.stringify(u).slice(0, 120);
+    unkById.set(id, u);
+  }
+  const mergedUnknown = Array.from(unkById.values());
 
   fs.writeFileSync(outPath, JSON.stringify({ ok: true, label, count: mergedOrders.length, orders: mergedOrders, unknown: mergedUnknown }, null, 2));
 
-  process.stdout.write(JSON.stringify({ ok: true, count: outEvents.length, saved: outPath, unknown: unknown.length, total: mergedOrders.length }, null, 2) + '\n');
+  process.stdout.write(JSON.stringify({ ok: true, count: outEvents.length, saved: outPath, unknown: unknown.length, total: mergedOrders.length, unknown_total: mergedUnknown.length }, null, 2) + '\n');
 }
 
 main().catch(err => { console.error(err); process.exit(1); });

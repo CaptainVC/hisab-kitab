@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 /* Reconcile a day (IST) across:
- * - Hisab entries (hisab/YYYY-MM-DD.txt)
+ * - Hisab entries (hisab/YYYY-MM-DD.txt -> hisab_entries/YYYY-MM-DD.json)
  * - Payment events (payments_parsed.json)
- * - Orders (orders_unmatched.json / orders_parsed.json later)
+ * - Orders/events (orders_parsed.json)
  *
- * Current v0: flags missing hisab entries for the day and unmatched hisab entries.
+ * v1 goals:
+ * - Match hisab entries to payments (amount + source hint)
+ * - Match payments to orders (amount + date window)
+ * - Flag missing hisab entries (payments with no hisab)
+ * - Flag unmatched orders (orders with no payment yet; likely COD or delayed)
  *
  * Usage:
  *   node src/reconcile/reconcile_day.js --base-dir ~/HisabKitab --date YYYY-MM-DD
@@ -13,6 +17,9 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { DateTime } = require('luxon');
+
+const IST = 'Asia/Kolkata';
 
 function expandHome(p){
   if(!p) return p;
@@ -29,77 +36,172 @@ function parseArgs(argv){
   return {
     baseDir: expandHome(get('--base-dir') || '~/HisabKitab'),
     date: get('--date'),
-    tol: Number(get('--tol') || 2)
+    payTol: Number(get('--pay-tol') || 2),
+    orderTol: Number(get('--order-tol') || 10),
+    orderWindowDays: Number(get('--order-window-days') || 7)
   };
 }
-
-// (hisab entries are expected to be pre-parsed into baseDir/hisab_entries/YYYY-MM-DD.json)
 
 function amtClose(a,b,tol){
   return Math.abs(Number(a) - Number(b)) <= tol;
 }
 
+function parseOrderDateMs(order){
+  const s = order.invoice_date || order.date || '';
+  if(!s) return null;
+
+  // Zepto: 15-04-2025
+  let dt = DateTime.fromFormat(s, 'dd-MM-yyyy', { zone: IST });
+  if(dt.isValid) return dt.toMillis();
+
+  // Blinkit: 28-Jan-2026
+  dt = DateTime.fromFormat(s, 'dd-LLL-yyyy', { zone: IST });
+  if(dt.isValid) return dt.toMillis();
+
+  // ISO
+  dt = DateTime.fromISO(s, { zone: IST });
+  if(dt.isValid) return dt.toMillis();
+
+  return null;
+}
+
+function paymentSourceMatchesHint(payment, sourceHint){
+  if(!sourceHint) return false;
+  if(sourceHint === 'mk') return payment.source === 'MOBIKWIK';
+  if(sourceHint === 'cc') return payment.source === 'HDFC_INSTA_ALERT';
+  return false;
+}
+
 function main(){
-  const { baseDir, date, tol } = parseArgs(process.argv);
+  const { baseDir, date, payTol, orderTol, orderWindowDays } = parseArgs(process.argv);
   if(!date){
     console.error('Usage: node reconcile_day.js --date YYYY-MM-DD [--base-dir ~/HisabKitab]');
     process.exit(2);
   }
 
-  // hisab entries
+  const dayStart = DateTime.fromISO(date, { zone: IST }).startOf('day');
+  const dayEnd = dayStart.endOf('day');
+
   const hisabJsonPath = path.join(baseDir, 'hisab_entries', `${date}.json`);
-  const hisab = readJsonSafe(hisabJsonPath, null);
+  const hisab = readJsonSafe(hisabJsonPath, { entries: [], errors: [{ error: 'missing hisab_entries json', file: hisabJsonPath }] });
 
-  const paymentsPath = path.join(baseDir, 'payments_parsed.json');
-  const paymentsDoc = readJsonSafe(paymentsPath, { payments: [] });
+  const paymentsDoc = readJsonSafe(path.join(baseDir, 'payments_parsed.json'), { payments: [], unknown: [] });
+  const ordersDoc = readJsonSafe(path.join(baseDir, 'orders_parsed.json'), { orders: [], unknown: [] });
+
   const payments = paymentsDoc.payments || [];
+  const orders = ordersDoc.orders || [];
 
-  const dayStart = new Date(date + 'T00:00:00+05:30').getTime();
-  const dayEnd = new Date(date + 'T23:59:59+05:30').getTime();
+  // Payments in this IST day (using internalDateMs)
+  const payDay = payments.filter(p => {
+    const ms = Number(p.internalDateMs || 0);
+    return ms >= dayStart.toMillis() && ms <= dayEnd.toMillis();
+  });
 
-  const payDay = payments.filter(p => (p.internalDateMs || 0) >= dayStart && (p.internalDateMs || 0) <= dayEnd);
+  // Orders near this day (invoice date window)
+  const winStart = dayStart.minus({ days: orderWindowDays });
+  const winEnd = dayEnd.plus({ days: orderWindowDays });
+  const ordWin = orders.filter(o => {
+    const ms = parseOrderDateMs(o);
+    return ms != null && ms >= winStart.toMillis() && ms <= winEnd.toMillis();
+  });
 
-  // basic matching by amount + source hint (if available)
-  const matches = [];
-  const usedPayments = new Set();
+  // 1) Match hisab entries -> payments (same day)
+  const hisabToPayment = [];
+  const usedPaymentIds = new Set();
 
-  if(hisab && hisab.entries){
-    for(const h of hisab.entries){
-      const candidates = payDay
-        .map((p, idx) => ({ p, idx }))
-        .filter(({p}) => p.amount != null && amtClose(p.amount, h.amount, tol));
+  for(const h of (hisab.entries || [])){
+    const candidates = payDay.filter(p => p.amount != null && amtClose(p.amount, h.amount, payTol));
+    if(!candidates.length) continue;
 
-      // prefer source if present
-      let picked = null;
-      if(h.source_hint){
-        picked = candidates.find(({p}) => (p.source === 'MOBIKWIK' && h.source_hint === 'mk') || (p.source === 'HDFC_INSTA_ALERT' && h.source_hint === 'cc'));
-      }
-      if(!picked) picked = candidates[0] || null;
+    // prefer source hint
+    let picked = null;
+    if(h.source_hint) picked = candidates.find(p => paymentSourceMatchesHint(p, h.source_hint));
+    if(!picked) picked = candidates[0];
 
-      if(picked && !usedPayments.has(picked.p.messageId)){
-        usedPayments.add(picked.p.messageId);
-        matches.push({ hisab: h, payment: picked.p, confidence: 'amount' });
-      }
+    if(picked && !usedPaymentIds.has(picked.messageId)){
+      usedPaymentIds.add(picked.messageId);
+      hisabToPayment.push({ hisab: h, payment: picked, confidence: h.source_hint ? 'amount+hint' : 'amount' });
     }
   }
 
-  const unmatchedPayments = payDay.filter(p => !usedPayments.has(p.messageId));
-  const unmatchedHisab = (hisab?.entries || []).filter(h => !matches.some(m => m.hisab.raw === h.raw));
+  const unmatchedPayments = payDay.filter(p => !usedPaymentIds.has(p.messageId));
+  const unmatchedHisab = (hisab.entries || []).filter(h => !hisabToPayment.some(m => m.hisab.raw === h.raw));
+
+  // 2) Match payments -> orders (date window) (best-effort)
+  const paymentToOrder = [];
+  const usedOrders = new Set();
+
+  for(const p of payDay){
+    if(p.amount == null) continue;
+    const candidates = ordWin.filter(o => {
+      const t = o.total;
+      if(t == null) return false;
+      return amtClose(t, p.amount, orderTol);
+    });
+    if(!candidates.length) continue;
+
+    // prefer same merchant family when available
+    // (for now, payments don't have reliable merchant, so just pick first)
+    const chosen = candidates.find(o => !usedOrders.has(o.messageId + '::' + (o.invoice_number||o.order_id||''))) || candidates[0];
+    if(!chosen) continue;
+
+    usedOrders.add(chosen.messageId + '::' + (chosen.invoice_number||chosen.order_id||''));
+    paymentToOrder.push({ payment: p, order: chosen, confidence: 'amount+date_window' });
+  }
+
+  // Orders in window not linked to any payment (possible COD or delayed payment)
+  const matchedOrderKeys = new Set(paymentToOrder.map(x => x.order.messageId + '::' + (x.order.invoice_number||x.order.order_id||'')));
+  const unmatchedOrders = ordWin
+    .filter(o => !matchedOrderKeys.has(o.messageId + '::' + (o.invoice_number||o.order_id||'')))
+    .map(o => ({ merchant: o.merchant, invoice_date: o.invoice_date, order_id: o.order_id, invoice_number: o.invoice_number, total: o.total }));
 
   const report = {
     ok: true,
     date,
     payments_in_day: payDay.length,
-    hisab_entries: hisab?.entries?.length || 0,
-    matched: matches.length,
+    orders_in_window: ordWin.length,
+    hisab_entries: (hisab.entries || []).length,
+    matched_hisab_payments: hisabToPayment.length,
+    matched_payment_orders: paymentToOrder.length,
     unmatchedPayments: unmatchedPayments.map(p => ({ source: p.source, amount: p.amount, subject: p.subject })),
     unmatchedHisab: unmatchedHisab.map(h => ({ amount: h.amount, raw: h.raw, source_hint: h.source_hint })),
+    unmatchedOrders
   };
 
   const outPath = path.join(baseDir, 'reconcile', `${date}.json`);
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, JSON.stringify(report, null, 2));
-  process.stdout.write(JSON.stringify({ ok: true, saved: outPath, ...report }, null, 2) + '\n');
+
+  // Human-readable report for Telegram (can be sent by a cron later)
+  const lines = [];
+  lines.push(`HisabKitab review for ${date} (IST)`);
+  lines.push(`- Hisab entries: ${report.hisab_entries}`);
+  lines.push(`- Payments (emails): ${report.payments_in_day}`);
+  lines.push(`- Orders (±${orderWindowDays}d): ${report.orders_in_window}`);
+  lines.push('');
+
+  if(report.unmatchedPayments.length){
+    lines.push('Unmatched payments (check if missed in hisab):');
+    for(const p of report.unmatchedPayments.slice(0, 30)) lines.push(`- ${p.amount} (${p.source}) :: ${p.subject}`);
+    lines.push('');
+  }
+
+  if(report.unmatchedHisab.length){
+    lines.push('Hisab entries with no matching payment email (cash/typo/COD?):');
+    for(const h of report.unmatchedHisab.slice(0, 30)) lines.push(`- ${h.amount} :: ${h.raw}`);
+    lines.push('');
+  }
+
+  if(report.unmatchedOrders.length){
+    lines.push('Orders not matched to any payment yet (may arrive later / COD):');
+    for(const o of report.unmatchedOrders.slice(0, 30)) lines.push(`- ${o.merchant} ${o.total} :: ${o.invoice_number||o.order_id||''} (${o.invoice_date||''})`);
+    lines.push('');
+  }
+
+  const txtPath = path.join(baseDir, 'reconcile', `${date}.txt`);
+  fs.writeFileSync(txtPath, lines.join('\n') + '\n', 'utf8');
+
+  process.stdout.write(JSON.stringify({ ok: true, saved: outPath, savedText: txtPath, ...report }, null, 2) + '\n');
 }
 
 main();
