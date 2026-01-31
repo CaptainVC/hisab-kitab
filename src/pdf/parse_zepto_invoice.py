@@ -408,8 +408,19 @@ def main():
                         out.append(parsed)
         return out
 
-    if not items:
-        items = table_extract_items_text()
+    # If line-strategy got some items, still run text-strategy to recover edge cases
+    # (e.g., Zepto row-overlap bug where an item lands in the next page header).
+    extra_items = table_extract_items_text()
+    if extra_items:
+        def key(it):
+            return (str(it.get('hsn') or ''), str(it.get('qty') or ''), str(it.get('total') or ''), (it.get('name') or '').lower())
+        seen = set(key(it) for it in items)
+        for it in extra_items:
+            k = key(it)
+            if k in seen:
+                continue
+            items.append(it)
+            seen.add(k)
 
     # Parse item lines from the extracted text (items are usually in a single line per item)
     # Example pattern tail:
