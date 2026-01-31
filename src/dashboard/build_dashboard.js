@@ -307,12 +307,25 @@ Chart.defaults.borderColor = 'rgba(255,255,255,.08)';
 Chart.defaults.font.family = 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
 
 // Default tooltip formatting: show INR for numeric values
-Chart.defaults.plugins.tooltip.callbacks = {
-  label: (ctx) => {
-    const label = ctx.label ? (ctx.label + ': ') : '';
-    const v = (ctx.parsed != null) ? (typeof ctx.parsed === 'number' ? ctx.parsed : (ctx.parsed.y ?? ctx.parsed)) : null;
-    if (typeof v === 'number' && Number.isFinite(v)) return label + fmtINR(v);
-    return label + String(v ?? '');
+// (Be defensive: if the callback throws, Chart.js can suppress tooltips.)
+Chart.defaults.plugins.tooltip = {
+  ...(Chart.defaults.plugins.tooltip || {}),
+  enabled: true,
+  callbacks: {
+    ...(Chart.defaults.plugins.tooltip?.callbacks || {}),
+    label: (ctx) => {
+      try {
+        const prefix = ctx.label ? (ctx.label + ': ') : (ctx.dataset?.label ? (ctx.dataset.label + ': ') : '');
+        // formattedValue is always present and already formatted by Chart.js
+        const fv = ctx.formattedValue;
+        const num = Number(String(fv).replace(/[^0-9.-]/g,''));
+        if (Number.isFinite(num)) return prefix + fmtINR(num);
+        // fall back
+        return prefix + String(fv ?? '');
+      } catch (e) {
+        return String(ctx.formattedValue ?? '');
+      }
+    }
   }
 };
 
