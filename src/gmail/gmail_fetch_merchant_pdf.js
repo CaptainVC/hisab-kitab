@@ -76,7 +76,14 @@ async function main(){
   const listRes = await gmail.users.messages.list({ userId: 'me', labelIds: [lbl.id], maxResults: max });
   const msgs = listRes.data.messages || [];
 
+  const seenPath = path.join(baseDir, 'attachments', keyword, '_seen_message_ids.json');
+  let seen = [];
+  try { seen = JSON.parse(fs.readFileSync(seenPath,'utf8')); } catch(e) {}
+  const seenSet = new Set(Array.isArray(seen) ? seen : []);
+
   for(const m of msgs){
+    if(seenSet.has(m.id)) continue;
+
     const full = await gmail.users.messages.get({ userId:'me', id:m.id, format:'full' });
     const h = full.data.payload?.headers || [];
     const from = header(h,'From');
@@ -102,6 +109,11 @@ async function main(){
       fs.writeFileSync(outPath, buf);
       saved.push(outPath);
     }
+
+    // mark seen
+    seenSet.add(m.id);
+    fs.mkdirSync(path.dirname(seenPath), { recursive: true });
+    fs.writeFileSync(seenPath, JSON.stringify(Array.from(seenSet), null, 2));
 
     console.log(JSON.stringify({ ok:true, keyword, messageId: full.data.id, from, subject, saved }, null, 2));
     return;

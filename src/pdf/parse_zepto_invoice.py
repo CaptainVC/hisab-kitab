@@ -75,7 +75,7 @@ def main():
     item_re = re.compile(
         r'\b(?P<sr>\d+)\s+'
         r'(?P<name>.+?)\s+'
-        r'(?P<hsn>\d{8})\s+'
+        r'(?P<hsn>\d{6,8})\s+'
         r'(?P<qty>\d+)\s+'
         r'(?P<rate>\d+\.\d{2})\s+'
         r'(?P<disc>\d+\.\d+)%\s+'
@@ -107,16 +107,16 @@ def main():
         return False
 
     items = []
-    # We'll stitch multi-line product names:
-    # - "prefix" lines often appear right before the numeric item line
-    # - some suffix lines (like pack size) appear after the item line
-    
+
     # Find where the items section begins (skip address blocks)
     items_section_start = 0
     for i, ln in enumerate(lines):
         if re.fullmatch(r'SR', ln.strip(), flags=re.IGNORECASE):
             items_section_start = i
             break
+
+    # Parse Mode 1 (preferred): single-line items (common in some Zepto invoice templates)
+    # Parse Mode 2 (fallback): multi-line blocks (seen in Zepto Pass / membership type invoices)
 
     last_consumed_idx = items_section_start
 
@@ -164,14 +164,18 @@ def main():
             return False
         return any(k in s for k in ['pack', 'pcs', 'pc', 'kg', 'g)', 'ml', 'l)', '(200', '(500', '('])
 
+    # Mode 1: single-line pattern
     for idx, ln in enumerate(lines):
         if idx < items_section_start:
             continue
         m = item_re.search(ln)
         if not m:
             continue
+        # Require that the captured name contains at least one letter.
+        # This avoids false positives on templates where the table is split across lines.
+        if not re.search(r'[A-Za-z]', m.group('name')):
+            continue
 
-        # Base name captured on the item line (often just the last word like "Lemon")
         base_name = re.sub(r'\s+', ' ', m.group('name')).strip(' -')
 
         # Collect prefix fragments (brand/name) right above the item line
@@ -182,7 +186,6 @@ def main():
             if not t:
                 j -= 1
                 continue
-            # If we hit a pack-size fragment from the previous item, stop (boundary between items)
             if packish_line(t):
                 break
             if looks_like_header_or_address(t) or is_noise_line(t):
@@ -236,6 +239,62 @@ def main():
         })
 
         last_consumed_idx = max(last_consumed_idx, idx)
+
+    # Mode 2: semi-structured lines (if Mode 1 found nothing)
+    if not items:
+        # Zepto Pass tends to split "Zepto Pass" into its own line.
+        # We'll stitch adjacent lines and try matching across 1-2 lines.
+        for idx, ln in enumerate(lines[items_section_start:]):
+            if 'item total' in ln.lower() or 'invoice value' in ln.lower():
+                break
+
+            candidates = [ln]
+            if idx + 1 < len(lines[items_section_start:]):
+                candidates.append((ln + ' ' + lines[items_section_start:][idx+1]).strip())
+
+            for cand in candidates:
+                m = re.search(
+                    r'(?P<name>.+?)\s+'
+                    r'(?P<sr>\d+)\s+'
+                    r'(?P<desc2>.+?)\s+'
+                    r'(?P<hsn>\d{6,8})\s+'
+                    r'(?P<qty>\d+)\s+'
+                    r'(?P<taxable>\d+\.\d{2})\s+'
+                    r'(?P<disc>\d+(?:\.\d+)?)%\s+'
+                    r'(?P<taxable2>\d+\.\d{2})\s+'
+                    r'(?P<cgst_pct>\d+\.\d+)%\s+'
+                    r'(?P<sgst_pct>\d+\.\d+)%\s+'
+                    r'(?P<cgst_amt>\d+\.\d{2})\s+'
+                    r'(?P<sgst_amt>\d+\.\d{2})\s+'
+                    r'(?P<cess_pct>\d+(?:\.\d+)?)%\s+'
+                    r'(?P<cess_amt>\d+\.\d{2})\s+'
+                    r'(?P<total>\d+\.\d{2})\b',
+                    cand
+                )
+                if not m:
+                    continue
+
+                name = re.sub(r'\s+',' ', (m.group('name') + ' ' + m.group('desc2')).strip())
+
+                items.append({
+                    'sr': int(m.group('sr')),
+                    'name': name,
+                    'hsn': m.group('hsn'),
+                    'qty': int(m.group('qty')),
+                    'rate': None,
+                    'discount_pct': fnum(m.group('disc')),
+                    'taxable': fnum(m.group('taxable2')),
+                    'cgst_pct': fnum(m.group('cgst_pct')),
+                    'sgst_pct': fnum(m.group('sgst_pct')),
+                    'cgst_amt': fnum(m.group('cgst_amt')),
+                    'sgst_amt': fnum(m.group('sgst_amt')),
+                    'cess_pct': fnum(m.group('cess_pct')),
+                    'cess_amt': fnum(m.group('cess_amt')),
+                    'total': fnum(m.group('total')),
+                })
+                break
+            if items:
+                break
 
     out = {
         'merchant': 'ZEPTO',
