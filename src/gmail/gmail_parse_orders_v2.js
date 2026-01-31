@@ -38,7 +38,7 @@ function parseArgs(argv){
     baseDir: expandHome(get('--base-dir') || '~/HisabKitab'),
     label: get('--label') || 'HisabKitab',
     max: Number(get('--max') || 200),
-    merchant: get('--merchant') || ''
+    merchant: (get('--merchant') || '').trim().toUpperCase()
   };
 }
 
