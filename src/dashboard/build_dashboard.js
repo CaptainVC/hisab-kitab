@@ -336,6 +336,9 @@ Chart.defaults.color = '#e6eaf2';
 Chart.defaults.borderColor = 'rgba(255,255,255,.08)';
 Chart.defaults.font.family = 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
 Chart.defaults.plugins.legend.labels.color = '#ffffff';
+Chart.defaults.plugins.legend.labels.boxWidth = 14;
+Chart.defaults.plugins.legend.labels.boxHeight = 10;
+Chart.defaults.plugins.legend.labels.padding = 14;
 Chart.defaults.plugins.legend.labels.font = { size: 13, weight: '600' };
 
 // Default tooltip formatting: show INR for numeric values
@@ -488,30 +491,37 @@ function syncTableHeight(){
 function render(rows){
   const filtered = applyFilters(rows);
 
-  // Dashboard should reflect selected transaction types.
-  // If user selects nothing, default to EXPENSE.
+  // Types filter affects charts/insights/table.
+  // If user selects nothing, default to EXPENSE (and reflect in UI).
   const typeSelEl = document.getElementById('typeSel');
   let selectedTypes = readMulti(typeSelEl);
   if (!selectedTypes.length) {
     selectedTypes = ['EXPENSE'];
-    // reflect in UI
     for (const o of typeSelEl.options) o.selected = (o.value === 'EXPENSE');
   }
 
   const focusRows = filtered.filter(r => selectedTypes.includes(r.type));
 
-  const expense = focusRows.filter(r=>r.type==='EXPENSE');
-  const income = focusRows.filter(r=>r.type==='INCOME');
-  const expTotal = expense.reduce((s,r)=>s+(Number(r.amount)||0),0);
-  const incTotal = income.reduce((s,r)=>s+(Number(r.amount)||0),0);
+  // Summary + Needs review should always reflect ALL types in the current filters (date/cat/source/etc.),
+  // not the Type selection.
+  const summaryRows = filtered;
+
+  const summaryExpense = summaryRows.filter(r=>r.type==='EXPENSE');
+  const summaryIncome = summaryRows.filter(r=>r.type==='INCOME');
+  const expTotal = summaryExpense.reduce((s,r)=>s+(Number(r.amount)||0),0);
+  const incTotal = summaryIncome.reduce((s,r)=>s+(Number(r.amount)||0),0);
   const net = incTotal - expTotal;
 
   document.getElementById('kExpense').textContent = fmtINR(expTotal);
   document.getElementById('kIncome').textContent = fmtINR(incTotal);
   document.getElementById('kNet').textContent = (net>=0?fmtINR(net):('-'+fmtINR(Math.abs(net))));
 
-  const uncat = focusRows.filter(r => (!r.category || !r.subcategory));
+  const uncat = summaryRows.filter(r => (!r.category || !r.subcategory));
   document.getElementById('kUncat').textContent = String(uncat.length);
+
+  // For insights/charts that are expense-specific, keep using the focusRows subset.
+  const expense = focusRows.filter(r=>r.type==='EXPENSE');
+  const income = focusRows.filter(r=>r.type==='INCOME');
 
   document.getElementById('rowCount').textContent = (
     filtered.length + ' rows (Expense ' + expense.length + ', Income ' + income.length + ')'
@@ -666,15 +676,53 @@ function render(rows){
     patEl.innerHTML = lines.join('') || '<div class="muted">—</div>';
   }
 
-  // Needs review: show by amount
+  // Needs review: show by amount + click to jump/filter
   const uncatTop = uncat
     .slice()
     .sort((a,b)=>(Number(b.amount)||0)-(Number(a.amount)||0))
     .slice(0,8);
 
-  document.getElementById('uncatList').innerHTML = uncatTop
-    .map(r=>'<div style="margin:6px 0">• <b>' + fmtINR(r.amount) + '</b> — ' + (r.raw_text || '') + '</div>')
-    .join('') || '—';
+  const uncatEl = document.getElementById('uncatList');
+  if (uncatEl) {
+    uncatEl.innerHTML = uncatTop.map((r, i) => {
+      const key = encodeURIComponent([r.date,r.type,r.amount,r.source,r.raw_text].join('|'));
+      return '<div class="uncRow" data-key="'+key+'" style="margin:6px 0; cursor:pointer">'
+        + '• <b>' + fmtINR(r.amount) + '</b> — ' + (r.raw_text || '')
+        + '</div>';
+    }).join('') || '—';
+
+    // bind click handlers
+    for (const el of Array.from(uncatEl.querySelectorAll('.uncRow'))) {
+      el.addEventListener('click', () => {
+        const k = decodeURIComponent(el.getAttribute('data-key') || '');
+        const parts = k.split('|');
+        const [d, ty, amt, src, raw] = parts;
+
+        // set date to that day
+        const df = document.getElementById('dateFrom');
+        const dt = document.getElementById('dateTo');
+        if (df && dt && d) { df.value = d; dt.value = d; }
+
+        // ensure type includes this row type
+        const ts = document.getElementById('typeSel');
+        if (ts && ty) {
+          let has=false;
+          for (const o of ts.options) if (o.selected && o.value === ty) has=true;
+          if (!has) {
+            for (const o of ts.options) {
+              if (o.value === ty) o.selected = true;
+            }
+          }
+        }
+
+        updateCounts();
+        render(rows);
+
+        const table = document.querySelector('.tablewrap');
+        if (table) table.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+  }
 
   // Table
   const tbody=document.getElementById('txBody');
@@ -700,7 +748,7 @@ function render(rows){
 
   // Charts
   // update chart titles based on selected types
-  const typeLabel = selectedTypes.join(' + ');
+  const typeLabel = (selectedTypes.length === (ALL_OPTS.type||[]).length) ? 'ALL TYPES' : selectedTypes.join(' + ');
   const tDaily = document.getElementById('tDaily');
   const tCat = document.getElementById('tCat');
   const tMerch = document.getElementById('tMerch');
