@@ -73,7 +73,10 @@ async function main(){
   const lbl = (labelsRes.data.labels || []).find(l => l.name === label);
   if(!lbl) throw new Error(`Label '${label}' not found`);
 
-  const listRes = await gmail.users.messages.list({ userId: 'me', labelIds: [lbl.id], maxResults: max });
+  // Speed: use Gmail query to pre-filter by keyword inside the label.
+  // (Still keep labelIds as a hard constraint.)
+  const q = `${keyword}`;
+  const listRes = await gmail.users.messages.list({ userId: 'me', labelIds: [lbl.id], q, maxResults: max });
   const msgs = listRes.data.messages || [];
 
   const seenPath = path.join(baseDir, 'attachments', keyword, '_seen_message_ids.json');
