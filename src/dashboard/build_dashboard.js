@@ -604,31 +604,26 @@ function render(rows){
 
   // Source (click a slice to filter Source)
   const src = groupSum(expense, r=>r.source||'(unknown)').slice(0,10);
+  const srcLabel = (code) => (DATA?.refs?.sources?.[code]?.display) || code;
   destroyChart('src');
   charts.src = new Chart(document.getElementById('cSource'), {
     type: 'pie',
-    data: { labels: src.map(x=>x[0]), datasets: [{ data: src.map(x=>x[1]) }] },
+    data: { labels: src.map(x=>srcLabel(x[0])), datasets: [{ data: src.map(x=>x[1]) }] },
     options: {
       plugins:{ legend:{ position:'right' } },
       onClick: (evt, elements) => {
         if(!elements || !elements.length) return;
         const idx = elements[0].index;
-        const label = src[idx]?.[0];
-        if(label==null) return;
-        // Source isn't currently a multi-select filter in UI, but we can still filter by treating it like Merchant: reuse merchSel? No.
-        // We'll map it onto Type? No. We add a source selector quickly by filtering through the existing data in applyFilters using a hidden select.
-        // For now, we toggle by setting the search text in merchSearch? Not correct.
-        // Instead: use the existing Tags selector? Not.
-        // So: we apply source filter via dateFrom/dateTo? Not.
-        // We'll implement a quick source filter using a prompt-like list is too heavy; add a hidden select.
+        const code = src[idx]?.[0];
+        if(code==null) return;
         const sSel = document.getElementById('sourceSel');
         if(!sSel) return;
         const shift = !!(evt?.native?.shiftKey);
-        if(shift) toggleSelected(sSel, label);
+        if(shift) toggleSelected(sSel, code);
         else {
           const already = readMulti(sSel);
-          if(already.length===1 && already[0]===label) clearSelected(sSel);
-          else setOnlySelected(sSel, label);
+          if(already.length===1 && already[0]===code) clearSelected(sSel);
+          else setOnlySelected(sSel, code);
         }
         updateCounts();
         render(rows);
