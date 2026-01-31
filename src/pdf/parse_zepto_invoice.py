@@ -359,6 +359,16 @@ def main():
             if not tbs:
                 continue
             tb = tbs[0]
+
+            # Some Zepto PDFs have a rendering bug where an item row overlaps the table header on the next page.
+            # In that case, the "header" row may actually contain a full item row (sr/hsn/qty/rate/total).
+            header_cells = [re.sub(r'\s+', ' ', str(c or '').strip()) for c in tb[0]]
+            header_text = ' '.join([c for c in header_cells if c])
+            if header_text and re.search(r'\b\d{6,8}\b', header_text):
+                for parsed in parse_item_row_text_all(header_text):
+                    if parsed and parsed.get('name'):
+                        out.append(parsed)
+
             # Skip first 2-3 header rows; parse rows that contain a SR number and an HSN code.
             for row in tb[1:]:
                 cells = []
