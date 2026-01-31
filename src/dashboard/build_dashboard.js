@@ -547,6 +547,31 @@ function render(rows){
     addBlock('Top 3 category mix', s, 'share of expense');
   }
 
+  // Food subcategory insights
+  const food = expense.filter(r=>r.category==='FOOD_DINING');
+  if(food.length){
+    const foodTotal = food.reduce((s,r)=>s+(Number(r.amount)||0),0);
+    const byFoodSub = groupSum(food, r=>r.subcategory||'(uncategorized)').slice(0,6);
+    const topFoodSub = byFoodSub[0];
+
+    const deliveryTotal = food.filter(r=>r.subcategory==='FOOD_ONLINE_DELIVERY').reduce((s,r)=>s+(Number(r.amount)||0),0);
+    const snacksTotal = food.filter(r=>r.subcategory==='FOOD_SNACKS').reduce((s,r)=>s+(Number(r.amount)||0),0);
+
+    const breakdown = byFoodSub.map(([sc,a])=>{
+      const pct = foodTotal ? Math.round((a/foodTotal)*100) : 0;
+      return (nameSub(sc) + ': ' + fmtINR(a) + ' (' + pct + '%)');
+    }).join('<br/>');
+
+    addBlock('Food spend (total)', fmtINR(foodTotal), (food.length + ' txns'));
+    if(topFoodSub) addBlock('Top food subcategory', nameSub(topFoodSub[0]), fmtINR(topFoodSub[1]));
+    if(foodTotal) addBlock(
+      'Food split: Delivery vs Snacks',
+      ((Math.round((deliveryTotal/foodTotal)*100)||0) + '% delivery · ' + (Math.round((snacksTotal/foodTotal)*100)||0) + '% snacks'),
+      (fmtINR(deliveryTotal) + ' vs ' + fmtINR(snacksTotal))
+    );
+    addBlock('Food subcategory breakdown (top)', breakdown, '');
+  }
+
   const insightsEl = document.getElementById('insights');
   insightsEl.innerHTML = insightBlocks.length ? insightBlocks.join('') : '<div class="muted">—</div>';
 
@@ -628,12 +653,38 @@ function render(rows){
 
   // Category pie (click a sector to filter Category)
   const cat = groupSum(expense, r=>r.category||'(uncategorized)').slice(0,10);
+  const catLabel = (code) => (DATA?.refs?.categories?.[code]?.name) || code;
   destroyChart('cat');
   charts.cat = new Chart(document.getElementById('cCat'), {
     type: 'doughnut',
-    data: { labels: cat.map(x=>x[0]), datasets: [{ data: cat.map(x=>x[1]) }] },
+    data: { labels: cat.map(x=>catLabel(x[0])), datasets: [{ data: cat.map(x=>x[1]) }] },
     options: {
-      plugins:{ legend:{ position:'right' } },
+      plugins:{
+        legend:{
+          position:'right',
+          labels:{
+            // show totals beside legend label
+            generateLabels: (chart) => {
+              const ds = chart.data.datasets?.[0];
+              const data = (ds?.data || []).map(Number);
+              const total = data.reduce((s,x)=>s+(Number(x)||0),0);
+              return chart.data.labels.map((lbl, i) => {
+                const v = Number(data[i]||0);
+                const pct = total ? Math.round((v/total)*100) : 0;
+                const fill = ds?.backgroundColor?.[i] || ds?.backgroundColor;
+                return {
+                  text: (String(lbl) + ' — ' + fmtINR(v) + ' (' + pct + '%)'),
+                  fillStyle: fill,
+                  strokeStyle: fill,
+                  lineWidth: 0,
+                  hidden: !chart.getDataVisibility(i),
+                  index: i
+                };
+              });
+            }
+          }
+        }
+      },
       cutout:'60%',
       onClick: (evt, elements) => {
         if(!elements || !elements.length) return;
@@ -692,7 +743,31 @@ function render(rows){
     type: 'pie',
     data: { labels: src.map(x=>srcLabel(x[0])), datasets: [{ data: src.map(x=>x[1]) }] },
     options: {
-      plugins:{ legend:{ position:'right' } },
+      plugins:{
+        legend:{
+          position:'right',
+          labels:{
+            generateLabels: (chart) => {
+              const ds = chart.data.datasets?.[0];
+              const data = (ds?.data || []).map(Number);
+              const total = data.reduce((s,x)=>s+(Number(x)||0),0);
+              return chart.data.labels.map((lbl, i) => {
+                const v = Number(data[i]||0);
+                const pct = total ? Math.round((v/total)*100) : 0;
+                const fill = ds?.backgroundColor?.[i] || ds?.backgroundColor;
+                return {
+                  text: (String(lbl) + ' — ' + fmtINR(v) + ' (' + pct + '%)'),
+                  fillStyle: fill,
+                  strokeStyle: fill,
+                  lineWidth: 0,
+                  hidden: !chart.getDataVisibility(i),
+                  index: i
+                };
+              });
+            }
+          }
+        }
+      },
       onClick: (evt, elements) => {
         if(!elements || !elements.length) return;
         const idx = elements[0].index;
