@@ -144,8 +144,9 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
     h1{margin:0 0 6px 0; font-size:18px; letter-spacing:.2px;}
     .muted{color:var(--muted)}
     .wrap{max-width:1200px; margin:0 auto; padding:16px;}
-    .grid{display:grid; grid-template-columns: 1.4fr .6fr; gap:12px; align-items:start;}
+    .grid{display:grid; grid-template-columns: 1.6fr .4fr; gap:12px; align-items:start;}
     .panel{background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01)); border:1px solid var(--border); border-radius:14px; padding:12px;}
+    .rightcol{position:sticky; top:86px;}
     .filters{display:grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap:10px;}
     .filters .panel{padding:10px}
     label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px}
@@ -283,11 +284,15 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
     </div>
     <div class="rightcol">
       <div class="panel">
-        <div style="font-weight:650; margin-bottom:6px">Quick insights</div>
-        <div class="muted" id="insights">—</div>
+        <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:8px">
+          <div style="font-weight:650">Insights</div>
+          <div class="pill" id="insightPill">—</div>
+        </div>
+        <div id="insights" style="display:flex; flex-direction:column; gap:10px"></div>
       </div>
+
       <div class="panel">
-        <div style="font-weight:650; margin-bottom:6px">Uncategorized (top)</div>
+        <div style="font-weight:650; margin-bottom:6px">Needs review</div>
         <div class="muted" id="uncatList">—</div>
       </div>
     </div>
@@ -300,6 +305,16 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
 Chart.defaults.color = '#e6eaf2';
 Chart.defaults.borderColor = 'rgba(255,255,255,.08)';
 Chart.defaults.font.family = 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
+
+// Default tooltip formatting: show INR for numeric values
+Chart.defaults.plugins.tooltip.callbacks = {
+  label: (ctx) => {
+    const label = ctx.label ? (ctx.label + ': ') : '';
+    const v = (ctx.parsed != null) ? (typeof ctx.parsed === 'number' ? ctx.parsed : (ctx.parsed.y ?? ctx.parsed)) : null;
+    if (typeof v === 'number' && Number.isFinite(v)) return label + fmtINR(v);
+    return label + String(v ?? '');
+  }
+};
 
 let DATA = null;
 let charts = {};
@@ -458,21 +473,51 @@ function render(rows){
   // biggest single expense row
   const biggest = expense.slice().sort((a,b)=>(Number(b.amount)||0)-(Number(a.amount)||0))[0] || null;
 
+  // avg txn size
+  const avgTxn = expense.length ? (expTotal / expense.length) : 0;
+
+  // category share
+  const catSeriesAll = groupSum(expense, r=>r.category||'(uncategorized)');
+  const top3Cats = catSeriesAll.slice(0,3);
+
   const nameCat = (code) => (DATA?.refs?.categories?.[code]?.name) || code;
   const nameSub = (code) => (DATA?.refs?.subcategories?.[code]?.name) || code;
   const nameMerch = (code) => (DATA?.refs?.merchants?.[code]?.name) || code;
   const nameSrc = (code) => (DATA?.refs?.sources?.[code]?.display) || code;
 
-  const insights = [];
-  if(topCat) insights.push('Top category: <b>' + nameCat(topCat[0]) + '</b> (' + fmtINR(topCat[1]) + ')');
-  if(topSub) insights.push('Top subcategory: <b>' + nameSub(topSub[0]) + '</b> (' + fmtINR(topSub[1]) + ')');
-  if(topMerch) insights.push('Top merchant: <b>' + nameMerch(topMerch[0]) + '</b> (' + fmtINR(topMerch[1]) + ')');
-  if(topSrc) insights.push('Top source: <b>' + nameSrc(topSrc[0]) + '</b> (' + fmtINR(topSrc[1]) + ')');
-  if(topDay) insights.push('Highest spend day: <b>' + topDay[0] + '</b> (' + fmtINR(topDay[1]) + ')');
-  if(daySpend.length) insights.push('Avg daily expense: <b>' + fmtINR(avgDaily) + '</b> (across ' + daySpend.length + ' days)');
-  if(biggest) insights.push('Biggest expense: <b>' + fmtINR(biggest.amount) + '</b> — ' + (biggest.raw_text || '')); 
+  const insightBlocks = [];
+  const addBlock = (title, value, sub) => {
+    insightBlocks.push(
+      '<div>'+
+        '<div class="muted" style="font-size:12px">'+title+'</div>'+
+        '<div style="font-weight:700; font-size:14px">'+value+'</div>'+
+        (sub ? '<div class="muted" style="margin-top:2px">'+sub+'</div>' : '')+
+      '</div>'
+    );
+  };
 
-  document.getElementById('insights').innerHTML = insights.length?insights.join('<br/>'):'—';
+  if(topCat) addBlock('Top category', nameCat(topCat[0]), fmtINR(topCat[1]));
+  if(topSub) addBlock('Top subcategory', nameSub(topSub[0]), fmtINR(topSub[1]));
+  if(topMerch) addBlock('Top merchant', nameMerch(topMerch[0]), fmtINR(topMerch[1]));
+  if(topSrc) addBlock('Top payment source', nameSrc(topSrc[0]), fmtINR(topSrc[1]));
+  if(topDay) addBlock('Highest spend day', topDay[0], fmtINR(topDay[1]));
+  if(daySpend.length) addBlock('Avg daily expense', fmtINR(avgDaily), 'across '+daySpend.length+' days');
+  if(expense.length) addBlock('Avg expense per txn', fmtINR(avgTxn), expense.length+' expense txns');
+  if(biggest) addBlock('Biggest expense', fmtINR(biggest.amount), (biggest.raw_text || '').slice(0,80));
+
+  if(top3Cats.length){
+    const s = top3Cats.map(([c,a])=>{
+      const pct = expTotal ? Math.round((a/expTotal)*100) : 0;
+      return nameCat(c) + ' ' + pct + '%';
+    }).join(' · ');
+    addBlock('Top 3 category mix', s, 'share of expense');
+  }
+
+  const insightsEl = document.getElementById('insights');
+  insightsEl.innerHTML = insightBlocks.length ? insightBlocks.join('') : '<div class="muted">—</div>';
+
+  const insightPill = document.getElementById('insightPill');
+  if(insightPill) insightPill.textContent = expense.length ? (expense.length + ' exp') : '—';
 
   // Uncategorized: show by amount (not just list)
   const uncatTop = uncat
