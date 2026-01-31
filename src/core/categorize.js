@@ -199,7 +199,16 @@ function keywordCategorize(row) {
   if (text.includes('soap')) return setCatSub(row, 'SHOPPING', 'SHOP_TOILETRIES');
 
   // Fees
-  if (text.includes('debit card charges') || text.includes('charges')) {
+  if (text.includes('debit card charges')) {
+    // treat as yearly subscription (per user)
+    forceCatSub(row, 'RECHARGES', 'RECHARGE_SUBSCRIPTIONS');
+    const set = ensureTagSet(row.tags);
+    addTag(set, 'subscription');
+    addTag(set, 'yearly');
+    row.tags = [...set].join(',');
+    return row;
+  }
+  if (text.includes('charges')) {
     if (!row.category) row.category = 'OTHERS';
     const set = ensureTagSet(row.tags);
     addTag(set, 'bill');

@@ -284,7 +284,7 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
         <div style="font-weight:650">Insights</div>
         <div class="pill" id="insightPill">—</div>
       </div>
-      <div id="insights" style="display:flex; flex-direction:column; gap:10px"></div>
+      <div id="insights" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px"></div>
     </div>
 
     <div class="panel">
@@ -332,7 +332,7 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 // Dark theme for Chart.js
-Chart.defaults.color = '#e6eaf2';
+Chart.defaults.color = '#ffffff';
 Chart.defaults.borderColor = 'rgba(255,255,255,.08)';
 Chart.defaults.font.family = 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
 Chart.defaults.plugins.legend.labels.color = '#ffffff';
@@ -489,7 +489,28 @@ function syncTableHeight(){
 }
 
 function render(rows){
-  const filtered = applyFilters(rows);
+  // Base filter: everything except Type (so Summary + Needs review do NOT change when you toggle types)
+  const from=document.getElementById('dateFrom').value;
+  const to=document.getElementById('dateTo').value;
+  const cats=new Set(readMulti(document.getElementById('catSel')));
+  const merch=new Set(readMulti(document.getElementById('merchSel')));
+  const sources=new Set(readMulti(document.getElementById('sourceSel')));
+  const tags=new Set(readMulti(document.getElementById('tagSel')));
+
+  const baseFiltered = rows.filter(r=>{
+    if(from && r.date < from) return false;
+    if(to && r.date > to) return false;
+    if(cats.size && !cats.has(r.category)) return false;
+    if(merch.size && !merch.has(r.merchant_code)) return false;
+    if(sources.size && !sources.has(r.source)) return false;
+    if(tags.size){
+      const rt = r._tags || [];
+      let ok=false;
+      for(const t of rt) if(tags.has(t)) { ok=true; break; }
+      if(!ok) return false;
+    }
+    return true;
+  });
 
   // Types filter affects charts/insights/table.
   // If user selects nothing, default to EXPENSE (and reflect in UI).
@@ -500,11 +521,10 @@ function render(rows){
     for (const o of typeSelEl.options) o.selected = (o.value === 'EXPENSE');
   }
 
-  const focusRows = filtered.filter(r => selectedTypes.includes(r.type));
+  const focusRows = baseFiltered.filter(r => selectedTypes.includes(r.type));
 
-  // Summary + Needs review should always reflect ALL types in the current filters (date/cat/source/etc.),
-  // not the Type selection.
-  const summaryRows = filtered;
+  // Summary always from baseFiltered (ALL types)
+  const summaryRows = baseFiltered;
 
   const summaryExpense = summaryRows.filter(r=>r.type==='EXPENSE');
   const summaryIncome = summaryRows.filter(r=>r.type==='INCOME');
@@ -516,7 +536,8 @@ function render(rows){
   document.getElementById('kIncome').textContent = fmtINR(incTotal);
   document.getElementById('kNet').textContent = (net>=0?fmtINR(net):('-'+fmtINR(Math.abs(net))));
 
-  const uncat = summaryRows.filter(r => (!r.category || !r.subcategory));
+  // Needs review: only EXPENSE rows need category/subcategory
+  const uncat = summaryRows.filter(r => r.type==='EXPENSE' && (!r.category || !r.subcategory));
   document.getElementById('kUncat').textContent = String(uncat.length);
 
   // For insights/charts that are expense-specific, keep using the focusRows subset.
