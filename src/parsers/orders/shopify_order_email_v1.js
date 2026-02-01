@@ -51,7 +51,7 @@ function parseOrderId(blob){
 }
 
 function parseTotal(blob){
-  const m = String(blob).match(/\bTotal\s*₹\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/i);
+  const m = String(blob).match(/\bTotal\s*:?\s*₹\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/i);
   return m ? parseMoney(m[1]) : null;
 }
 
@@ -60,27 +60,46 @@ function parseItems(blob){
   const s = String(blob);
 
   const idx = s.toLowerCase().indexOf('order summary');
-  if(idx === -1) return out;
-  let tail = s.slice(idx);
+  let tail = idx === -1 ? s : s.slice(idx);
 
-  // stop before subtotal table if possible
-  const stop = tail.match(/\bSubtotal\b/i);
+  // stop before totals section if possible
+  const stop = tail.match(/\b(?:Subtotal|Customer information|Billing address|Shipping address)\b/i);
   if(stop && stop.index != null) tail = tail.slice(0, stop.index);
 
-  // Typical line in stripped HTML:
-  // "Product Name × 1 ₹ 1,999.00"
-  // Some have "Qty: 1"; keep it flexible.
-  const re = /(.{3,160}?)\s*(?:×|x)\s*(\d+)\s*₹\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/ig;
+  // Pattern A (most common): "Product Name × 1 ₹ 1,999.00"
+  const reTimes = /(.{3,180}?)\s*(?:×|x)\s*(\d+)\s*₹\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/ig;
   let m;
-  while((m = re.exec(tail))){
+  while((m = reTimes.exec(tail))){
     const name = cleanName(m[1]);
     const qty = Number(m[2] || 1);
     const amt = parseMoney(m[3]);
     if(!name || !Number.isFinite(qty) || !Number.isFinite(amt)) continue;
-    // ignore header-like captures
     const low = name.toLowerCase();
     if(low.includes('order summary')) continue;
     out.push({ name: name.slice(0,180), qty, amount: Math.round(amt*100)/100 });
+  }
+
+  // Pattern B (Naturaltein/Misfits style):
+  // "Product Quantity Price <NAME ...> 1 ₹ 2,390.00"
+  if(!out.length && /\bProduct\s+Quantity\s+Price\b/i.test(tail)){
+    const rePQ = /\bProduct\s+Quantity\s+Price\b([\s\S]*)$/i;
+    const mm = rePQ.exec(tail);
+    const body = mm ? mm[1] : tail;
+
+    // greedy but bounded name until qty+₹price
+    const reLine = /([A-Za-z0-9][A-Za-z0-9\s:&,'()\-\.\/|]{6,220}?)\s+(\d+)\s+₹\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/g;
+    let m2;
+    while((m2 = reLine.exec(body))){
+      const name = cleanName(m2[1]);
+      const qty = Number(m2[2] || 1);
+      const amt = parseMoney(m2[3]);
+      if(!name || !Number.isFinite(qty) || !Number.isFinite(amt)) continue;
+      // filter headers / section labels
+      const low = name.toLowerCase();
+      if(['product','quantity','price'].includes(low)) continue;
+      out.push({ name: name.slice(0,180), qty, amount: Math.round(amt*100)/100 });
+      if(out.length >= 40) break;
+    }
   }
 
   return out;
