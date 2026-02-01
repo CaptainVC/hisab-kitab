@@ -150,15 +150,23 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
 
     .summary{display:grid; grid-template-columns: 1.2fr 1fr .8fr; gap:12px; align-items:start;}
     .insRow{display:grid; grid-template-columns: 1.2fr .8fr 1fr; gap:12px; align-items:start;}
-    .charts{display:grid; grid-template-columns: 1.3fr .7fr; gap:12px; align-items:start;}
+    .charts{display:grid; grid-template-columns: 1.2fr .7fr .9fr; gap:12px; align-items:start;}
     label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px}
     input, select{width:100%; background:rgba(255,255,255,.03); border:1px solid var(--border); color:var(--text);
                   border-radius:10px; padding:8px; outline:none;}
+
+    /* File input: keep native button look, but hide the chosen filename text */
+    #fileInput{all: revert; width:100%; color:transparent;}
+    #fileInput::file-selector-button{all: revert;}
     #catInsightSel{width:auto; padding:6px 10px; border-radius:999px; font-size:13px}
     input::placeholder{color:rgba(154,164,178,.75)}
     select[multiple]{height:120px; padding:6px}
     select[multiple] option{padding:6px; border-radius:8px}
     select[multiple] option:checked{background:rgba(124,92,255,.25)}
+
+    /* Make dropdown options readable in dark theme (Chrome uses light option bg by default) */
+    select option{background:var(--panel); color:var(--text)}
+    select option:checked{background:rgba(124,92,255,.35); color:var(--text)}
     .btnrow{display:flex; gap:8px; flex-wrap:wrap}
     button{background:rgba(124,92,255,.18); border:1px solid rgba(124,92,255,.35); color:var(--text);
            border-radius:10px; padding:8px 10px; cursor:pointer;}
@@ -192,13 +200,41 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
 
     .hint{padding:10px; border-radius:12px; border:1px dashed rgba(255,255,255,.18); color:var(--muted)}
     a{color:#b7abff}
+
+    /* Header polish */
+    header{padding:14px 18px 12px;}
+    .headbar{display:flex; align-items:center; justify-content:space-between; gap:14px;}
+    .brand{display:flex; align-items:center; gap:12px; min-width:0;}
+    .mark{width:34px; height:34px; border-radius:10px;
+          background:linear-gradient(135deg, rgba(124,92,255,.65), rgba(34,197,94,.35));
+          border:1px solid rgba(255,255,255,.12);
+          box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    .title{display:flex; flex-direction:column; min-width:0;}
+    .title h1{margin:0; font-size:16px; letter-spacing:.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .title .sub{margin-top:2px; font-size:12px; color:rgba(220,226,240,.72); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .badges{display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end;}
+    .badge{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px;
+           background:rgba(255,255,255,.04); border:1px solid var(--border); color:rgba(230,234,242,.85);
+           font-size:12px;}
+    .badge strong{font-weight:750; color:#fff;}
   </style>
 </head>
 <body>
 <header>
   <div class="wrap">
-    <h1>Hisab Kitab — Dashboard</h1>
-    <div class="muted">Dark interactive dashboard. Data source: <code>${outDataJsonName}</code></div>
+    <div class="headbar">
+      <div class="brand">
+        <div class="mark" aria-hidden="true"></div>
+        <div class="title">
+          <h1>Hisab Kitab</h1>
+          <div class="sub">Personal finance dashboard • Data file: <code>${outDataJsonName}</code></div>
+        </div>
+      </div>
+      <div class="badges">
+        <div class="badge"><strong>Dashboard</strong> • Dark</div>
+      </div>
+    </div>
   </div>
 </header>
 
@@ -212,7 +248,9 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
     <div class="panel">
       <label>Load data.json</label>
       <input id="fileInput" type="file" accept="application/json" />
-      <div class="btnrow" style="margin-top:8px">
+      <div id="fileName" class="muted" style="margin-top:6px">No file selected</div>
+      <div id="fileLoaded" class="muted" style="margin-top:6px"></div>
+      <div class="btnrow" style="margin-top:18px">
         <button id="resetBtn" class="danger">Reset filters</button>
       </div>
     </div>
@@ -309,6 +347,7 @@ function writeDashboardHTML(outHtmlPath, outDataJsonName) {
   <div class="charts" style="margin-top:12px">
     <div class="panel"><div class="muted" id="tDaily">Daily spend</div><canvas id="cDaily"></canvas></div>
     <div class="panel"><div class="muted" id="tCat">By category</div><canvas id="cCat"></canvas></div>
+    <div class="panel"><div class="muted" id="tMerch">Top merchants</div><canvas id="cMerch"></canvas></div>
   </div>
 
   <!-- Transactions -->
@@ -372,11 +411,20 @@ let DATA = null;
 let charts = {};
 let ALL_OPTS = { type: [], category: [], merchant: [], source: [], tag: [] };
 
+function escHtml(s){
+  return String(s ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
 function showLoadError(err){
   const hint = document.getElementById('loadHint');
   if (!hint) return;
   hint.style.display = 'block';
-  hint.innerHTML = '<b>Dashboard error:</b> ' + String(err).replace(/</g,'&lt;');
+  hint.innerHTML = '<b>Dashboard error:</b> ' + escHtml(err);
 }
 
 window.addEventListener('error', (e) => {
@@ -540,6 +588,10 @@ function render(rows){
   }
 
   const focusRows = baseFiltered.filter(r => selectedTypes.includes(r.type));
+
+  // Rows that drive charts/insights/table.
+  // (Previously called "filtered"; keep this alias to avoid runtime errors.)
+  const filtered = focusRows;
 
   // Summary always from baseFiltered (ALL types)
   const summaryRows = baseFiltered;
@@ -848,17 +900,14 @@ function render(rows){
         legend:{
           position:'right',
           labels:{
-            // show totals beside legend label
+            color: '#ffffff',
+            // keep legend clean: label only (no totals)
             generateLabels: (chart) => {
               const ds = chart.data.datasets?.[0];
-              const data = (ds?.data || []).map(Number);
-              const total = data.reduce((s,x)=>s+(Number(x)||0),0);
               return chart.data.labels.map((lbl, i) => {
-                const v = Number(data[i]||0);
-                const pct = total ? Math.round((v/total)*100) : 0;
                 const fill = ds?.backgroundColor?.[i] || ds?.backgroundColor;
                 return {
-                  text: (String(lbl) + ' — ' + fmtINR(v) + ' (' + pct + '%)'),
+                  text: String(lbl),
                   fillStyle: fill,
                   strokeStyle: fill,
                   lineWidth: 0,
@@ -893,18 +942,18 @@ function render(rows){
   });
 
   // Merch bar (click a bar to filter Merchant)
-  const merch = groupSum(focusRows, r=>r.merchant_code||'(unknown)').slice(0,10);
+  const merchSeries = groupSum(focusRows, r=>r.merchant_code||'(unknown)').slice(0,10);
   destroyChart('merch');
   charts.merch = new Chart(document.getElementById('cMerch'), {
     type: 'bar',
-    data: { labels: merch.map(x=>x[0]), datasets: [{ data: merch.map(x=>x[1]), backgroundColor:'rgba(34,197,94,.25)', borderColor:'rgba(34,197,94,.6)', borderWidth:1 }] },
+    data: { labels: merchSeries.map(x=>x[0]), datasets: [{ data: merchSeries.map(x=>x[1]), backgroundColor:'rgba(34,197,94,.25)', borderColor:'rgba(34,197,94,.6)', borderWidth:1 }] },
     options: {
       plugins:{ legend:{ display:false } },
       scales:{ x:{ grid:{ display:false } }, y:{ grid:{ color:'rgba(255,255,255,.06)' } } },
       onClick: (evt, elements) => {
         if(!elements || !elements.length) return;
         const idx = elements[0].index;
-        const label = merch[idx]?.[0];
+        const label = merchSeries[idx]?.[0];
         if(label==null) return;
         const sel = document.getElementById('merchSel');
         const shift = !!(evt?.native?.shiftKey);
@@ -1067,7 +1116,16 @@ async function tryFetch(){
 document.getElementById('fileInput').addEventListener('change', async (ev)=>{
   try {
     const f = ev.target.files && ev.target.files[0];
-    if(!f) return;
+    const fileNameEl = document.getElementById('fileName');
+    const fileLoadedEl = document.getElementById('fileLoaded');
+    if(!f) {
+      if (fileNameEl) fileNameEl.textContent = 'No file selected';
+      if (fileLoadedEl) fileLoadedEl.textContent = '';
+      return;
+    }
+    if (fileNameEl) fileNameEl.innerHTML = '<b>Selected:</b> ' + escHtml(f.name || 'data.json');
+    if (fileLoadedEl) fileLoadedEl.textContent = '';
+
     const txt = await f.text();
     const data = JSON.parse(txt);
     if (!data || !Array.isArray(data.rows)) throw new Error('Invalid JSON: expected {rows:[...]}');
@@ -1075,12 +1133,15 @@ document.getElementById('fileInput').addEventListener('change', async (ev)=>{
     DATA = data;
 
     // Visible confirmation that the file change handler fired
+    // Visible confirmation
     const hint = document.getElementById('loadHint');
     if (hint) {
       hint.style.display = 'block';
       hint.innerHTML = '<b>Loaded:</b> ' + (data.rows.length || 0) + ' rows';
       setTimeout(()=>{ try{ hint.style.display='none'; }catch{} }, 1500);
     }
+
+    if (fileLoadedEl) fileLoadedEl.innerHTML = '<b>Loaded:</b> ' + escHtml((data.rows.length || 0) + ' rows');
 
     setupFilters(DATA.rows);
     wireEvents(DATA.rows);
@@ -1094,8 +1155,10 @@ document.getElementById('fileInput').addEventListener('change', async (ev)=>{
 // keep table height aligned to sidebar
 window.addEventListener('resize', ()=>{ /* no-op */ });
 
-// attempt auto-load once
-tryFetch();
+// attempt auto-load once (only works on http(s); browsers block file:// fetch due to CORS)
+if (location.protocol === 'http:' || location.protocol === 'https:') {
+  tryFetch();
+}
 </script>
 </body>
 </html>`;

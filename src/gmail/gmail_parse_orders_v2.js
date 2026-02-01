@@ -169,8 +169,9 @@ function buildGmailQueryForMerchant(key, mc){
     parts.push(key.toLowerCase());
   }
 
-  // If it's a PDF parser, likely has attachment.
-  if(mc?.parser?.type === 'pdf') parts.push('has:attachment filename:pdf');
+  // If it's a PDF parser, require attachment.
+  // Do NOT filter by filename: some merchants use non-.pdf names (e.g. "taco/..." for Swiggy).
+  if(mc?.parser?.type === 'pdf') parts.push('has:attachment');
 
   return parts.join(' ');
 }
@@ -192,14 +193,12 @@ async function main(){
   const lbl = (labelsRes.data.labels || []).find(l => l.name === label);
   if(!lbl) throw new Error(`Label '${label}' not found`);
 
-  // If a merchant is specified, use a broad PDF query inside the label.
-  // We intentionally keep it broad because some Blinkit/Zepto subjects vary and strict rules can miss emails.
+  // If a merchant is specified, build a query based on config.
+  // (Do NOT assume PDF; Amazon/Swiggy/etc are email/text.)
   let q = null;
   if(merchant){
-    // Narrow it a bit to reduce API calls; keep label as the primary constraint.
-    if (merchant === 'BLINKIT') q = 'from:blinkit has:attachment filename:pdf';
-    else if (merchant === 'ZEPTO') q = 'zepto has:attachment filename:pdf';
-    else q = `${merchant.toLowerCase()} has:attachment filename:pdf`;
+    const mc = cfg[merchant];
+    q = buildGmailQueryForMerchant(merchant, mc);
   }
 
   // Gmail list is paginated; fetch up to `max` messages from this label.
@@ -273,13 +272,14 @@ async function main(){
 
     const parser = getParser(parserId);
 
-    // extract best text
+    // extract text parts
     const parts = collectTextParts(full.data.payload);
-    let plain = '';
     const tp = parts.find(p => p.mimeType === 'text/plain');
     const th = parts.find(p => p.mimeType === 'text/html');
-    if(tp) plain = tp.text;
-    else if(th) plain = stripHtml(th.text);
+
+    const plainText = tp ? tp.text : '';
+    const htmlText = th ? th.text : '';
+    const htmlStripped = th ? stripHtml(th.text) : '';
 
     if(matchedCfg?.parser?.type === 'pdf'){
       const pdfs = findPdfParts(full.data.payload);
@@ -293,7 +293,7 @@ async function main(){
         for(const e of events) outEvents.push(e);
       }
     } else {
-      const events = parser.parse({ msg: msgMeta, text: plain, cfg: matchedCfg });
+      const events = parser.parse({ msg: msgMeta, text: plainText || htmlStripped, html: htmlStripped, htmlRaw: htmlText, cfg: matchedCfg });
       for(const e of events) outEvents.push(e);
     }
   }
@@ -307,6 +307,7 @@ async function main(){
     // Prefer messageId + pdfPath (unique per attachment) else messageId.
     if (o.messageId && o.pdfPath) return o.messageId + '::' + o.pdfPath;
     if (o.messageId && o.invoice_number) return o.messageId + '::' + o.invoice_number;
+    if (o.messageId && o.order_id) return o.messageId + '::' + o.order_id;
     if (o.messageId) return o.messageId;
     return JSON.stringify(o).slice(0, 200);
   };

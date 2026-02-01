@@ -10,5 +10,7 @@
   "HEALTHCARE": { "name": "Healthcare" },
   "SPORTS": { "name": "Sports" },
   "OTHERS": { "name": "Others" },
-  "PERSONAL_CARE": { "name": "Personal Care" }
+  "PERSONAL_CARE": { "name": "Personal Care" },
+  "INVESTMENT": { "name": "Investment" },
+  "TRANSFER": { "name": "Transfers" }
 }

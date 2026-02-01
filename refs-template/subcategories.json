@@ -5,6 +5,7 @@
   "FOOD_WATER": { "name": "Water", "category": "FOOD_DINING" },
   "FOOD_SNACKS": { "name": "Snacks", "category": "FOOD_DINING" },
   "FOOD_PROTEIN": { "name": "Protein", "category": "FOOD_DINING" },
+  "FOOD_DRY_FRUITS_NUTS": { "name": "Dry Fruits & Nuts", "category": "FOOD_DINING" },
   "FOOD_DINEIN": { "name": "Restaurant Dine-in", "category": "FOOD_DINING" },
   "FOOD_CAFE": { "name": "Cafe / Snacks", "category": "FOOD_DINING" },
 
@@ -45,6 +46,7 @@
   "SHOP_STATIONERY": { "name": "Stationery Shopping", "category": "SHOPPING" },
   "SHOP_TOYS": { "name": "Toys Shopping", "category": "SHOPPING" },
   "SHOP_HOME_APPLIANCES": { "name": "Home Appliances Shopping", "category": "SHOPPING" },
+  "SHOP_BOTTLES": { "name": "Bottles / Drinkware", "category": "SHOPPING" },
   "SHOP_MISC": { "name": "Misc Shopping", "category": "SHOPPING" },
 
   "HEALTH_DOCTOR": { "name": "Doctor Visits", "category": "HEALTHCARE" },
@@ -62,5 +64,8 @@
 
   "TRANSPORT_FUEL": { "name": "Fuel", "category": "TRANSPORT" },
 
-  "PERSONAL_HAIRCUT": { "name": "Haircut / Salon", "category": "PERSONAL_CARE" }
+  "PERSONAL_HAIRCUT": { "name": "Haircut / Salon", "category": "PERSONAL_CARE" },
+
+  "TRANSFER_CC_BILL": { "name": "Credit Card Bill Payment", "category": "TRANSFER" },
+  "TRANSFER_FOR_OTHERS": { "name": "Paid For Someone Else", "category": "TRANSFER" }
 }

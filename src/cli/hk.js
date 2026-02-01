@@ -218,15 +218,21 @@ function parseSplit(paren, refs) {
 }
 
 function parseAdjustmentsFromNotes(notes) {
-  // returns [{kind, amount}]
+  // returns [{kind, amount}] where amount is SIGNED.
+  // If user wrote "got X refunded" it means the refund already happened.
+  // Represent it as a negative adjustment so net spend comes down.
   const out = [];
-  // got 12 cashback
   let m;
+
+  // got 12 cashback
   m = notes.match(/\bgot\s+(\d+)\s+cashback\b/i);
-  if (m) out.push({ kind: 'cashback', amount: Number(m[1]) });
+  if (m) out.push({ kind: 'cashback', amount: -Number(m[1]) });
+
+  // got 20 refunded
   m = notes.match(/\bgot\s+(\d+)\s+refunded\b/i);
-  if (m) out.push({ kind: 'refund', amount: Number(m[1]) });
-  return out.filter(x => Number.isFinite(x.amount) && x.amount > 0);
+  if (m) out.push({ kind: 'refund', amount: -Number(m[1]) });
+
+  return out.filter(x => Number.isFinite(x.amount) && x.amount !== 0);
 }
 
 function parseHisabText(text, refs) {
@@ -271,9 +277,48 @@ function parseHisabText(text, refs) {
       continue;
     }
 
+    // Allow separator lines in dumps
+    if (/^[-—–]{3,}$/.test(line)) continue;
+
+    // Allow bare "Day" lines (some older dumps missed the date)
+    if (/^Day\b/i.test(line) && !parseDayHeader(line)) continue;
+
     const amountPrefix = parseAmountPrefix(line);
     if (!amountPrefix) {
-      errors.push({ line, error: 'Missing amount prefix like 100/-' });
+      // Missing amount: keep it as a 0-value row so it shows up for review.
+      // User intent: these ARE expenses, but need backfilling.
+      if (!currentDate) currentDate = DateTime.now().setZone(IST).startOf('day');
+      const t = line.toLowerCase();
+
+      const review = {
+        txn_id: nanoid(),
+        group_id: '',
+        date: currentDate.toISODate(),
+        type: 'EXPENSE',
+        amount: 0,
+        source: 'cash',
+        location: currentLocation || 'BENGALURU',
+        merchant_code: inferMerchantCode(line, refs) || '',
+        category: '',
+        subcategory: '',
+        tags: 'needs_review,missing_amount',
+        beneficiary: '',
+        reimb_status: '',
+        counterparty: '',
+        linked_txn_id: '',
+        notes: '',
+        raw_text: line,
+        parse_status: 'error',
+        parse_error: 'missing_amount'
+      };
+
+      // Heuristic category assignment for common missing-amount activities
+      if (t.includes('badminton')) { review.category = 'SPORTS'; review.subcategory = 'SPORTS_BADMINTON_BOOKING'; }
+      else if (t.includes('cricket')) { review.category = 'SPORTS'; review.subcategory = 'SPORTS_CRICKET_BOOKING'; }
+      else if (t.includes('pool') || t.includes('video game') || t.includes('carrom') || t.includes('game')) { review.category = 'ENTERTAINMENT'; review.subcategory = 'ENT_GAMING'; }
+      else if (t.includes('party')) { review.category = 'ENTERTAINMENT'; review.subcategory = 'ENT_EVENTS'; }
+
+      rows.push(applyMerchantMappings(review, refs));
       continue;
     }
 
@@ -403,6 +448,32 @@ function parseHisabText(text, refs) {
 
     // Merchant code inference from body
     base.merchant_code = inferMerchantCode(body, refs);
+
+    // INVESTMENT / TRANSFER detection (older hisab data has lots of these)
+    // Investments should not count as day-to-day spending.
+    const bodyLower = String(body || '').toLowerCase();
+    const isInvestment = (
+      bodyLower.includes('groww') ||
+      bodyLower.includes('mutual fund') ||
+      /\bmf\b/.test(bodyLower) ||
+      bodyLower.includes('sip') ||
+      bodyLower.includes('indmoney')
+    );
+    const isTransfer = (
+      bodyLower.includes('transfer from') ||
+      bodyLower.includes('transfer to') ||
+      /\bfrom\s+[a-z]{2,5}\s+to\s+[a-z]{2,5}\b/i.test(body) ||
+      /\bto\s+[a-z]{2,5}\b/i.test(bodyLower)
+    );
+
+    if (isInvestment) {
+      base.type = 'INVESTMENT';
+      base.category = 'INVESTMENT';
+      base.tags = (base.tags ? base.tags + ',' : '') + 'cashflow';
+    } else if (isTransfer) {
+      base.type = 'TRANSFER';
+      base.tags = (base.tags ? base.tags + ',' : '') + 'cashflow';
+    }
 
     // If merchant not inferred, keep body in notes
     if (!base.merchant_code) {

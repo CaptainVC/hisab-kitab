@@ -26,16 +26,19 @@ module.exports = {
     const blob = `${subject}\n${text || ''}`;
 
     let direction = '';
-    const s = subject.toLowerCase();
+    // Some HDFC alerts put debit/credit only in the body (e.g. RuPay CC UPI txn subjects).
+    const hay = String(blob).toLowerCase();
     const debit = cfg?.parse?.direction?.debitSubjectContains || [];
     const credit = cfg?.parse?.direction?.creditSubjectContains || [];
-    if (debit.some(x => s.includes(String(x).toLowerCase()))) direction = 'DEBIT';
-    if (credit.some(x => s.includes(String(x).toLowerCase()))) direction = 'CREDIT';
+    if (debit.some(x => hay.includes(String(x).toLowerCase()))) direction = 'DEBIT';
+    if (credit.some(x => hay.includes(String(x).toLowerCase()))) direction = 'CREDIT';
 
     const amtStr = applyRegex(blob, cfg?.parse?.amount?.regex, 1);
     const amount = normalizeAmt(amtStr);
 
-    const last4 = applyRegex(blob, cfg?.parse?.cardLast4?.regex, 1);
+    // cardLast4 regex may have multiple groups; take the first non-empty
+    let last4 = applyRegex(blob, cfg?.parse?.cardLast4?.regex, 1);
+    if (!last4) last4 = applyRegex(blob, cfg?.parse?.cardLast4?.regex, 2);
 
     return [{
       source: 'HDFC_INSTA_ALERT',

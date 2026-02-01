@@ -143,30 +143,49 @@ async function main(){
   }
   const q = qParts.length ? '(' + Array.from(new Set(qParts)).join(' OR ') + ')' : undefined;
 
-  const listRes = await gmail.users.messages.list({ userId: 'me', labelIds: [lbl.id], q, maxResults: max });
-  const msgs = listRes.data.messages || [];
+  // Paginate like orders parser: fetch up to `max` messages from this label.
+  let msgs = [];
+  let pageToken = undefined;
+  while (msgs.length < max) {
+    const batchSize = Math.min(500, max - msgs.length);
+    const listRes = await gmail.users.messages.list({
+      userId: 'me',
+      labelIds: [lbl.id],
+      q,
+      maxResults: batchSize,
+      pageToken
+    });
+    const batch = listRes.data.messages || [];
+    msgs = msgs.concat(batch);
+    pageToken = listRes.data.nextPageToken;
+    if (!pageToken || batch.length === 0) break;
+  }
 
   const payments = [];
   const unknown = [];
 
   for(const m of msgs){
-    const full = await gmail.users.messages.get({ userId:'me', id:m.id, format:'full' });
-    const h = full.data.payload?.headers || [];
+    // Optimization: fetch metadata first (much lighter than format=full).
+    // For HDFC alerts, the snippet usually contains the full transaction line we need.
+    // For other sources (e.g. Mobikwik), snippet is often sufficient too; if not, we can add a per-source flag later.
+    const meta = await gmail.users.messages.get({
+      userId:'me',
+      id:m.id,
+      format:'metadata',
+      metadataHeaders:['From','Subject','Date']
+    });
+
+    const h = meta.data.payload?.headers || [];
     const from = header(h,'From');
     const subject = header(h,'Subject');
 
-    // extract best text
-    const parts = collectTextParts(full.data.payload);
-    let plain = '';
-    const tp = parts.find(p => p.mimeType === 'text/plain');
-    const th = parts.find(p => p.mimeType === 'text/html');
-    if(tp) plain = tp.text;
-    else if(th) plain = stripHtml(th.text);
+    // Use snippet as body text fallback to avoid full fetch.
+    const plain = String(meta.data.snippet || '');
 
     const msgMeta = {
-      messageId: full.data.id,
-      threadId: full.data.threadId,
-      internalDateMs: Number(full.data.internalDate || 0),
+      messageId: meta.data.id,
+      threadId: meta.data.threadId,
+      internalDateMs: Number(meta.data.internalDate || 0),
       from,
       subject
     };

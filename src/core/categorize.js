@@ -26,6 +26,7 @@ function loadRefs(baseDir) {
     merchants: readJson(path.join(refsDir, 'merchants.json'), {}),
     subcategories: readJson(path.join(refsDir, 'subcategories.json'), {}),
     tags: readJson(path.join(refsDir, 'tags.json'), {}),
+    people: readJson(path.join(refsDir, 'people.json'), {}),
     locations: readJson(path.join(refsDir, 'locations.json'), { BENGALURU: { name: 'Bengaluru', default: true } })
   };
 }
@@ -92,9 +93,89 @@ function forceCatSub(row, category, subcategory) {
   row.subcategory = subcategory;
 }
 
-function keywordCategorize(row) {
+function keywordCategorize(row, refs) {
   const text = `${row.raw_text || ''} ${row.notes || ''}`.toLowerCase();
   const itemText = `${row.raw_text || ''}`.toLowerCase();
+
+  // Paid for someone else (non-reimbursable): treat as cashflow, not personal expense.
+  // Configurable via refs/people.json
+  if (row.type === 'EXPENSE') {
+    for (const [code, p] of Object.entries(refs.people || {})) {
+      const name = String(p?.name || code).trim();
+      if (!name) continue;
+      const needle = name.toLowerCase();
+      if (needle && text.includes(needle)) {
+        row.type = 'TRANSFER';
+        row.category = 'TRANSFER';
+        row.subcategory = 'TRANSFER_FOR_OTHERS';
+        row.counterparty = name;
+        const set = ensureTagSet(row.tags);
+        addTag(set, 'cashflow');
+        addTag(set, 'for_someone_else');
+        row.tags = [...set].join(',');
+        return row;
+      }
+    }
+  }
+
+  // Credit card bill/payment (cashflow, not an expense)
+  // Covers older shorthands like "July CC" as well.
+  const looksLikeCcBill = (
+    text.includes('credit card payment') ||
+    text.includes('credit card bill') ||
+    text.includes('cc payment') ||
+    text.includes('cc bill') ||
+    /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s+cc\b/.test(text) ||
+    /\bcc\s*\b.*\bbill\b/.test(text)
+  );
+  if (looksLikeCcBill) {
+    row.type = 'TRANSFER';
+    row.category = 'TRANSFER';
+    row.subcategory = 'TRANSFER_CC_BILL';
+    const set = ensureTagSet(row.tags);
+    addTag(set, 'cashflow');
+    row.tags = [...set].join(',');
+    return row;
+  }
+
+  // Education / courses
+  if (text.includes('course') || text.includes('upskilling') || text.includes('dsa') || text.includes('system design')) {
+    return setCatSub(row, 'EDUCATION', 'EDU_COURSES');
+  }
+
+  // Tax
+  if (text.includes(' tax') || text.startsWith('tax') || text.includes(' gst') || text.includes('tds')) {
+    forceCatSub(row, 'OTHERS', 'OTH_MISC');
+    const set = ensureTagSet(row.tags);
+    addTag(set, 'tax');
+    row.tags = [...set].join(',');
+    return row;
+  }
+
+  // Medical tests / scans
+  if (text.includes('ct scan') || text.includes('mri') || text.includes('scan') || text.includes('audiogram') || text.includes('x-ray') || text.includes('xray')) {
+    return setCatSub(row, 'HEALTHCARE', 'HEALTH_TESTS');
+  }
+
+  // Sports equipment
+  if (text.includes('badminton racket') || text.includes('racket')) {
+    return setCatSub(row, 'SPORTS', 'SPORTS_EQUIPMENT');
+  }
+
+  // Trip keywords
+  if (text.includes('coorg')) {
+    return setCatSub(row, 'TRAVEL', 'TRAVEL_TOURS');
+  }
+
+  // Rent
+  if (text.includes(' rent') || text.includes('rent ')) {
+    return setCatSub(row, 'HOUSING_UTILITIES', 'HOME_RENT');
+  }
+
+  // Travel payments (incl. paying for someone else, non-reimbursable)
+  if (text.includes('travel')) {
+    return setCatSub(row, 'TRAVEL', 'TRAVEL_TOURS');
+  }
 
   // Transportation
   if (text.includes('petrol') || text.includes('diesel') || text.includes('fuel')) return setCatSub(row, 'TRANSPORT', 'TRANSPORT_FUEL');
@@ -187,6 +268,24 @@ function keywordCategorize(row) {
     return row;
   }
 
+  // Amazon item-level rules (after split_from_orders)
+  if (row.merchant_code === 'AMAZON') {
+    // Dry fruits / nuts
+    if (itemText.includes('almond') || itemText.includes('badam') || itemText.includes('walnut') || itemText.includes('kaju') || itemText.includes('cashew')
+        || itemText.includes('pista') || itemText.includes('pistachio') || itemText.includes('dry fruit') || itemText.includes('dryfruit')
+        || itemText.includes('raisins') || itemText.includes('kishmish') || itemText.includes('dates') || itemText.includes('fig')) {
+      forceCatSub(row, 'FOOD_DINING', 'FOOD_DRY_FRUITS_NUTS');
+      return row;
+    }
+
+    // Bottles / drinkware (Milton, flask, sipper)
+    if (itemText.includes('bottle') || itemText.includes('water bottle') || itemText.includes('sipper') || itemText.includes('flask') || itemText.includes('thermos')
+        || itemText.includes('steel bottle') || itemText.includes('milton')) {
+      forceCatSub(row, 'SHOPPING', 'SHOP_BOTTLES');
+      return row;
+    }
+  }
+
   // Food clues (eating out)
   if (text.includes('poha') || text.includes('momos') || text.includes('paratha') || text.includes('dosa') || text.includes('chai') || text.includes('fried') || /\bveg\b/.test(text)) {
     // if Zomato/Swiggy or looks like ordering out
@@ -261,10 +360,10 @@ function run(filePath, baseDir) {
     applyMerchantDefaults(r, refs);
 
     // Keyword categorization:
-    // - For Zepto/Blinkit item-level rows we *always* run (it may override merchant defaults).
+    // - For Zepto/Blinkit/Amazon item-level rows we *always* run (it may override merchant defaults).
     // - Otherwise, only if still missing.
-    if (r.merchant_code === 'ZEPTO' || r.merchant_code === 'BLINKIT') keywordCategorize(r);
-    else if (!r.category || !r.subcategory) keywordCategorize(r);
+    if (r.merchant_code === 'ZEPTO' || r.merchant_code === 'BLINKIT' || r.merchant_code === 'AMAZON') keywordCategorize(r, refs);
+    else if (!r.category || !r.subcategory) keywordCategorize(r, refs);
 
     // Tags
     applyTagsFromText(r);
