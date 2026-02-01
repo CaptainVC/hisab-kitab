@@ -32,6 +32,7 @@ const DRINKMISFITS_EMAIL_V1 = require('./orders/drinkmisfits_email_v1');
 
 const MUSCLEBLAZE_EMAIL_V1 = require('./orders/muscleblaze_email_v1');
 const AMUL_EMAIL_V1 = require('./orders/amul_email_v1');
+const SHIPROCKET_EMAIL_V1 = require('./orders/shiprocket_email_v1');
 
 const all = [
   HDFC_INSTA_ALERTS_V1,
@@ -57,6 +58,7 @@ const all = [
   DRINKMISFITS_EMAIL_V1,
   MUSCLEBLAZE_EMAIL_V1,
   AMUL_EMAIL_V1,
+  SHIPROCKET_EMAIL_V1,
 ];
 
 const byId = new Map(all.map(p => [p.id, p]));

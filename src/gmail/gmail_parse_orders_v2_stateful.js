@@ -142,6 +142,7 @@ function buildGmailQueryForMerchant(key, mc){
   const parts = [];
   const froms = mc?.match?.fromContains || [];
   const subs = mc?.match?.subjectContains || [];
+  const fromOnly = !!mc?.gmailQuery?.fromOnly;
 
   if(froms.length){
     const ors = froms.map(s => `from:${String(s).replace(/\s+/g,'')}`);
@@ -149,14 +150,18 @@ function buildGmailQueryForMerchant(key, mc){
   }
 
   // Subject terms (use token approach)
-  const subjectTokens = [];
-  for(const s of subs){
-    const toks = String(s).toLowerCase().split(/[^a-z0-9]+/g).filter(t => t.length >= 4);
-    for(const t of toks) subjectTokens.push(t);
-  }
-  if(subjectTokens.length){
-    const uniq = [...new Set(subjectTokens)];
-    parts.push(uniq.join(' '));
+  // Some senders (e.g., Shiprocket) don't reliably match when we AND extra tokens,
+  // so allow forcing from-only queries.
+  if(!fromOnly){
+    const subjectTokens = [];
+    for(const s of subs){
+      const toks = String(s).toLowerCase().split(/[^a-z0-9]+/g).filter(t => t.length >= 4);
+      for(const t of toks) subjectTokens.push(t);
+    }
+    if(subjectTokens.length){
+      const uniq = [...new Set(subjectTokens)];
+      parts.push(uniq.join(' '));
+    }
   }
 
   if(mc?.parser?.type === 'pdf') parts.push('has:attachment');
