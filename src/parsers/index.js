@@ -27,6 +27,11 @@ const EATCLUB_PDF_V1 = require('./orders/eatclub_pdf_v1');
 const SHOPIFY_ORDER_EMAIL_V1 = require('./orders/shopify_order_email_v1');
 const NOBERO_EMAIL_V1 = require('./orders/nobero_email_v1');
 const BEMINIMALIST_EMAIL_V1 = require('./orders/beminimalist_email_v1');
+const NATURALTEIN_EMAIL_V1 = require('./orders/naturaltein_email_v1');
+const DRINKMISFITS_EMAIL_V1 = require('./orders/drinkmisfits_email_v1');
+
+const MUSCLEBLAZE_EMAIL_V1 = require('./orders/muscleblaze_email_v1');
+const AMUL_EMAIL_V1 = require('./orders/amul_email_v1');
 
 const all = [
   HDFC_INSTA_ALERTS_V1,
@@ -48,6 +53,10 @@ const all = [
   SHOPIFY_ORDER_EMAIL_V1,
   NOBERO_EMAIL_V1,
   BEMINIMALIST_EMAIL_V1,
+  NATURALTEIN_EMAIL_V1,
+  DRINKMISFITS_EMAIL_V1,
+  MUSCLEBLAZE_EMAIL_V1,
+  AMUL_EMAIL_V1,
 ];
 
 const byId = new Map(all.map(p => [p.id, p]));
