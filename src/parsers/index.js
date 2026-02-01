@@ -24,6 +24,10 @@ const UBER_EMAIL_V1 = require('./orders/uber_email_v1');
 const SOULEDSTORE_EMAIL_V1 = require('./orders/souledstore_email_v1');
 const EATCLUB_PDF_V1 = require('./orders/eatclub_pdf_v1');
 
+const SHOPIFY_ORDER_EMAIL_V1 = require('./orders/shopify_order_email_v1');
+const NOBERO_EMAIL_V1 = require('./orders/nobero_email_v1');
+const BEMINIMALIST_EMAIL_V1 = require('./orders/beminimalist_email_v1');
+
 const all = [
   HDFC_INSTA_ALERTS_V1,
   MOBIKWIK_V1,
@@ -41,6 +45,9 @@ const all = [
   UBER_EMAIL_V1,
   SOULEDSTORE_EMAIL_V1,
   EATCLUB_PDF_V1,
+  SHOPIFY_ORDER_EMAIL_V1,
+  NOBERO_EMAIL_V1,
+  BEMINIMALIST_EMAIL_V1,
 ];
 
 const byId = new Map(all.map(p => [p.id, p]));
