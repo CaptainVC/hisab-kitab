@@ -20,6 +20,10 @@ const DOMINOS_EMAIL_V1 = require('./orders/dominos_email_v1');
 const REDBUS_PDF_V1 = require('./orders/redbus_pdf_v1');
 const DISTRICT_PDF_V1 = require('./orders/district_pdf_v1');
 
+const UBER_EMAIL_V1 = require('./orders/uber_email_v1');
+const SOULEDSTORE_EMAIL_V1 = require('./orders/souledstore_email_v1');
+const EATCLUB_PDF_V1 = require('./orders/eatclub_pdf_v1');
+
 const all = [
   HDFC_INSTA_ALERTS_V1,
   MOBIKWIK_V1,
@@ -34,6 +38,9 @@ const all = [
   DOMINOS_EMAIL_V1,
   REDBUS_PDF_V1,
   DISTRICT_PDF_V1,
+  UBER_EMAIL_V1,
+  SOULEDSTORE_EMAIL_V1,
+  EATCLUB_PDF_V1,
 ];
 
 const byId = new Map(all.map(p => [p.id, p]));
