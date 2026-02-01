@@ -34,10 +34,16 @@ function parseMoney(s){
 
 function cleanName(s){
   let name = normText(s);
+
+  // Common prefix in stripped Shopify emails
+  name = name.replace(/^order\s+summary\s*/i, '').trim();
+
   // Remove HSN/SKU codes if present
   name = name.replace(/\b(?:HSN|SAC|SKU)\b\s*[:#-]?\s*\d+/ig, '').trim();
+
   // Remove coupon-like fragments often placed inline
   name = name.replace(/\s+\([^)]+\)\s*$/,'').trim();
+
   return name;
 }
 
@@ -45,8 +51,14 @@ function parseOrderId(blob){
   const s = String(blob);
   let m = s.match(/\bOrder\s*#\s*([A-Za-z0-9-]+)\b/i);
   if(m) return m[1];
+
+  // Fallback "Order ABC123" style, but avoid matching "Order summary" etc.
   m = s.match(/\bOrder\s+([A-Za-z0-9-]{6,})\b/i);
-  if(m) return m[1];
+  if(m){
+    const v = m[1];
+    if (/\d/.test(v)) return v; // require at least one digit
+  }
+
   return null;
 }
 
@@ -74,9 +86,36 @@ function parseItems(blob){
     const qty = Number(m[2] || 1);
     const amt = parseMoney(m[3]);
     if(!name || !Number.isFinite(qty) || !Number.isFinite(amt)) continue;
-    const low = name.toLowerCase();
-    if(low.includes('order summary')) continue;
     out.push({ name: name.slice(0,180), qty, amount: Math.round(amt*100)/100 });
+  }
+
+  // Pattern A2 (promo text between qty and price):
+  // "<name> × 1 FREE ... (-₹ 99.00) ₹ 99.00"
+  const multCount = (tail.match(/(?:×|x)\s*\d+/g) || []).length;
+  if(out.length < multCount && (/\bFREE\b/i.test(tail) || /(?:×|x)\s*\d+\s+[^₹]{0,40}₹/i.test(tail))){
+    const reLoose = /([A-Za-z][A-Za-z0-9\s:&,'()%\-\.\/|]{3,220}?)\s*(?:×|x)\s*(\d+)\s+([\s\S]*?)(?=(?:[A-Za-z][A-Za-z0-9\s:&,'()%\-\.\/|]{3,220}?\s*(?:×|x)\s*\d+\s+)|\bSubtotal\b|\bCustomer information\b|\bBilling address\b|\bShipping address\b|$)/gi;
+    let m2;
+    while((m2 = reLoose.exec(tail))){
+      const name = cleanName(m2[1]);
+      const qty = Number(m2[2] || 1);
+      const seg = String(m2[3] || '');
+      const all = [...seg.matchAll(/₹\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/g)];
+      if(!all.length) continue;
+      const amt = parseMoney(all[all.length-1][1]);
+      if(!name || !Number.isFinite(qty) || !Number.isFinite(amt)) continue;
+      out.push({ name: name.slice(0,180), qty, amount: Math.round(amt*100)/100 });
+      if(out.length >= 40) break;
+    }
+
+    // Deduplicate by (qty,amount): keep the most descriptive (longest) name
+    const best = new Map();
+    for(const it of out){
+      const k = `${it.qty}::${it.amount}`;
+      const prev = best.get(k);
+      if(!prev || String(it.name).length > String(prev.name).length) best.set(k, it);
+    }
+    out.length = 0;
+    for(const v of best.values()) out.push(v);
   }
 
   // Pattern B (Naturaltein/Misfits style):
