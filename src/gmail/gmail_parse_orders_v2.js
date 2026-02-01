@@ -201,37 +201,70 @@ async function main(){
     q = buildGmailQueryForMerchant(merchant, mc);
   }
 
-  // Gmail list is paginated; fetch up to `max` messages from this label.
+  // Gmail list is paginated.
+  // Optimization: if merchant is not specified, query per-merchant to avoid scanning irrelevant labeled mail.
   let msgs = [];
-  let pageToken = undefined;
-  while (msgs.length < max) {
-    const batchSize = Math.min(500, max - msgs.length);
-    const listRes = await gmail.users.messages.list({
-      userId: 'me',
-      labelIds: [lbl.id],
-      q: q || undefined,
-      maxResults: batchSize,
-      pageToken
-    });
-    const batch = listRes.data.messages || [];
-    msgs = msgs.concat(batch);
-    pageToken = listRes.data.nextPageToken;
-    if (!pageToken || batch.length === 0) break;
+
+  async function listByQuery(query, limit){
+    let out = [];
+    let pageToken = undefined;
+    while(out.length < limit){
+      const batchSize = Math.min(500, limit - out.length);
+      const listRes = await gmail.users.messages.list({
+        userId: 'me',
+        labelIds: [lbl.id],
+        q: query || undefined,
+        maxResults: batchSize,
+        pageToken
+      });
+      const batch = listRes.data.messages || [];
+      out = out.concat(batch);
+      pageToken = listRes.data.nextPageToken;
+      if(!pageToken || batch.length === 0) break;
+    }
+    return out;
+  }
+
+  if(merchant){
+    msgs = await listByQuery(q, max);
+  } else {
+    const seen = new Set();
+    const keys = Object.keys(cfg).filter(k => cfg[k]?.enabled);
+    // Aim to respect max overall by dividing roughly per merchant.
+    const per = Math.max(20, Math.ceil(max / Math.max(1, keys.length)));
+    for(const k of keys){
+      const mc = cfg[k];
+      const mq = buildGmailQueryForMerchant(k, mc);
+      const list = await listByQuery(mq, per);
+      for(const it of list){
+        if(seen.has(it.id)) continue;
+        seen.add(it.id);
+        msgs.push(it);
+      }
+      if(msgs.length >= max) break;
+    }
   }
 
   const outEvents = [];
   const unknown = [];
 
   for(const m of msgs){
-    const full = await gmail.users.messages.get({ userId:'me', id:m.id, format:'full' });
-    const h = full.data.payload?.headers || [];
+    // Optimization: fetch metadata first (fast). Only fetch full for matched messages.
+    const meta = await gmail.users.messages.get({
+      userId:'me',
+      id:m.id,
+      format:'metadata',
+      metadataHeaders:['From','Subject','Date']
+    });
+
+    const h = meta.data.payload?.headers || [];
     const from = header(h,'From');
     const subject = header(h,'Subject');
 
     const msgMeta = {
-      messageId: full.data.id,
-      threadId: full.data.threadId,
-      internalDateMs: Number(full.data.internalDate || 0),
+      messageId: meta.data.id,
+      threadId: meta.data.threadId,
+      internalDateMs: Number(meta.data.internalDate || 0),
       from,
       subject
     };
@@ -241,14 +274,13 @@ async function main(){
     let matchedCfg = null;
 
     if(merchant){
-      // When merchant is explicitly requested, trust the label and parse all PDF emails under it.
-      // This avoids missing invoices due to subject/from variations.
       const mc = cfg[merchant];
       if(mc?.enabled){
         matchedKey = merchant;
         matchedCfg = mc;
       }
     } else {
+      // Even though we queried per-merchant, keep a safe match fallback.
       for(const [k, mc] of Object.entries(cfg)){
         if(!mc?.enabled) continue;
         const match = mc.match || {};
@@ -272,16 +304,13 @@ async function main(){
 
     const parser = getParser(parserId);
 
-    // extract text parts
-    const parts = collectTextParts(full.data.payload);
-    const tp = parts.find(p => p.mimeType === 'text/plain');
-    const th = parts.find(p => p.mimeType === 'text/html');
-
-    const plainText = tp ? tp.text : '';
-    const htmlText = th ? th.text : '';
-    const htmlStripped = th ? stripHtml(th.text) : '';
+    // Use snippet as a cheap first-pass body for email parsers.
+    // If parsing fails/returns empty, we fall back to full fetch.
+    const snippet = String(meta.data.snippet || '');
 
     if(matchedCfg?.parser?.type === 'pdf'){
+      // Need full payload to access attachment IDs.
+      const full = await gmail.users.messages.get({ userId:'me', id:m.id, format:'full' });
       const pdfs = findPdfParts(full.data.payload);
       if(!pdfs.length){
         outEvents.push({ merchant: matchedKey, parse_status: 'error', parse_error: 'expected pdf attachment but none found', messageId: msgMeta.messageId, subject });
@@ -293,8 +322,28 @@ async function main(){
         for(const e of events) outEvents.push(e);
       }
     } else {
-      const events = parser.parse({ msg: msgMeta, text: plainText || htmlStripped, html: htmlStripped, htmlRaw: htmlText, cfg: matchedCfg });
-      for(const e of events) outEvents.push(e);
+      // First pass: subject + snippet only
+      let events = [];
+      try {
+        events = parser.parse({ msg: msgMeta, text: snippet, html: snippet, htmlRaw: '', cfg: matchedCfg }) || [];
+      } catch (e) {
+        events = [];
+      }
+
+      // Fallback: fetch full message if nothing useful
+      const useful = Array.isArray(events) && events.some(e => (e.parse_status === 'ok') || (e.items && e.items.length) || (e.total != null));
+      if(!useful){
+        const full = await gmail.users.messages.get({ userId:'me', id:m.id, format:'full' });
+        const parts = collectTextParts(full.data.payload);
+        const tp = parts.find(p => p.mimeType === 'text/plain');
+        const th = parts.find(p => p.mimeType === 'text/html');
+        const plainText = tp ? tp.text : '';
+        const htmlText = th ? th.text : '';
+        const htmlStripped = th ? stripHtml(th.text) : '';
+        events = parser.parse({ msg: msgMeta, text: plainText || htmlStripped || snippet, html: htmlStripped || snippet, htmlRaw: htmlText || '', cfg: matchedCfg }) || [];
+      }
+
+      for(const e of (events || [])) outEvents.push(e);
     }
   }
 
