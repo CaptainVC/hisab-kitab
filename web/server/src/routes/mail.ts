@@ -129,6 +129,34 @@ export async function registerMailRoutes(app: FastifyInstance, opts: { baseDir: 
     }
   });
 
+  // Cross-reference unmatched mail orders to Hisab overall entries (no Excel edits).
+  app.post('/api/v1/mail/crossref', async (req, reply) => {
+    if (!requireAuth(req, reply)) return;
+    const body = (req.body || {}) as any;
+    const from = String(body.from || '');
+    const to = String(body.to || '');
+    const bufferDays = Number(body.bufferDays ?? 2);
+    if (!from || !to) return reply.code(400).send({ ok: false, error: 'missing_range' });
+
+    const script = path.join(opts.repoDir, 'web', 'server', 'dist', 'scripts', 'mail_crossref.js');
+    const args = [
+      script,
+      '--base-dir', opts.baseDir,
+      '--from', from,
+      '--to', to,
+      '--buffer-days', String(bufferDays),
+      '--tol', '2'
+    ];
+
+    try {
+      const job = await opts.runner.startJob('mailCrossref', { from, to, bufferDays }, process.execPath, args, { cwd: opts.repoDir });
+      return reply.send({ ok: true, jobId: job.jobId });
+    } catch (e: any) {
+      if (String(e?.message || e) === 'job_already_running') return reply.code(409).send({ ok: false, error: 'job_already_running' });
+      return reply.code(500).send({ ok: false, error: 'start_failed', detail: String(e?.message || e) });
+    }
+  });
+
   // Ingest mail-derived orders into Excel (item-level) with best-effort categorization.
   app.post('/api/v1/mail/ingestOrders', async (req, reply) => {
     if (!requireAuth(req, reply)) return;

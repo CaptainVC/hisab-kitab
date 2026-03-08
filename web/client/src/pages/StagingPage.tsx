@@ -234,6 +234,27 @@ export default function StagingPage() {
             <button className="px-3 py-2 rounded-md hk-btn-secondary disabled:opacity-50" disabled={busy || !text.trim()} onClick={() => doParse()}>
               {busy ? 'Working…' : 'Parse preview'}
             </button>
+            <button
+              className="px-3 py-2 rounded-md hk-btn-secondary disabled:opacity-50"
+              disabled={busy || parseRows.length === 0}
+              onClick={async () => {
+                try {
+                  setBusy(true);
+                  setErr(null);
+                  setJobLog('');
+                  const r = await apiPost<{ ok: true; jobId: string }>('/api/v1/mail/crossref', { from, to, bufferDays: 2 });
+                  setJobId(r.jobId);
+                  setJobLog((t) => t + `[mailCrossref] job ${r.jobId} (range ${from}..${to})\n`);
+                  await pollJob(r.jobId, 'mailCrossref');
+                } catch (e: any) {
+                  setErr(String(e?.message || e));
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              Cross-reference unmatched mails
+            </button>
             <button className="px-3 py-2 hk-btn-primary disabled:opacity-50" disabled={busy || !text.trim()} onClick={() => doCommitText(false)}>
               Commit text
             </button>
