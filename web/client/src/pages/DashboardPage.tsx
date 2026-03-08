@@ -86,7 +86,7 @@ export default function DashboardPage() {
   const [fMerchant, setFMerchant] = useState<string>('');
   const [fCategory, setFCategory] = useState<string>('');
   const [fSubcategory, setFSubcategory] = useState<string>('');
-  const [fTag, setFTag] = useState<string>('');
+  const [fTags, setFTags] = useState<string[]>([]);
 
   const filteredRows = rows.filter((r: any) => {
     if (fType && r.type !== fType) return false;
@@ -102,9 +102,15 @@ export default function DashboardPage() {
     const sub = r.subcategory_name || r.subcategory || '';
     if (fSubcategory && sub !== fSubcategory && r.subcategory !== fSubcategory) return false;
 
-    if (fTag) {
-      const tags: string[] = Array.isArray(r._tags) ? r._tags : (String(r.tags || '').split(',').map((s: string) => s.trim()).filter(Boolean));
-      if (!tags.includes(fTag)) return false;
+    if (fTags.length) {
+      const tags: string[] = Array.isArray(r._tags)
+        ? r._tags
+        : String(r.tags || '')
+            .split(',')
+            .map((s: string) => s.trim())
+            .filter(Boolean);
+      // Any-match (OR)
+      if (!fTags.some((t) => tags.includes(t))) return false;
     }
 
     return true;
@@ -209,13 +215,37 @@ export default function DashboardPage() {
             </select>
           </div>
           <div>
-            <label className="text-xs text-zinc-400">Tag</label>
-            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={fTag} onChange={(e) => setFTag(e.target.value)}>
-              <option value="">(all)</option>
-              {Array.from(new Set(rows.flatMap((r:any)=>Array.isArray(r._tags)?r._tags:String(r.tags||'').split(',').map((x:string)=>x.trim()).filter(Boolean)))).filter(Boolean).sort().map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
+            <label className="text-xs text-zinc-400">Tags (any)</label>
+            <select
+              multiple
+              className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800 h-24"
+              value={fTags}
+              onChange={(e) => {
+                const sel = Array.from(e.target.selectedOptions).map((o) => o.value);
+                setFTags(sel);
+              }}
+            >
+              {Array.from(
+                new Set(
+                  rows.flatMap((r: any) =>
+                    Array.isArray(r._tags)
+                      ? r._tags
+                      : String(r.tags || '')
+                          .split(',')
+                          .map((x: string) => x.trim())
+                          .filter(Boolean)
+                  )
+                )
+              )
+                .filter(Boolean)
+                .sort()
+                .map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
             </select>
+            <div className="mt-1 text-[11px] text-zinc-500">Hold Ctrl/Cmd to select multiple</div>
           </div>
           <div>
             <label className="text-xs text-zinc-400">Merchant</label>
@@ -245,7 +275,7 @@ export default function DashboardPage() {
             </select>
           </div>
           <div className="flex items-end">
-            <button className="w-full px-3 py-2 rounded-md bg-zinc-800 hover:bg-zinc-700" onClick={() => { setFType(''); setFSource(''); setFLocation(''); setFMerchant(''); setFCategory(''); setFSubcategory(''); setFTag(''); }}>
+            <button className="w-full px-3 py-2 rounded-md bg-zinc-800 hover:bg-zinc-700" onClick={() => { setFType(''); setFSource(''); setFLocation(''); setFMerchant(''); setFCategory(''); setFSubcategory(''); setFTags([]); }}>
               Clear filters
             </button>
           </div>
