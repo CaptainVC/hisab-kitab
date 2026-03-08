@@ -88,6 +88,9 @@ export default function DashboardPage() {
   const [fSubcategory, setFSubcategory] = useState<string>('');
   const [fTags, setFTags] = useState<string[]>([]);
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+
   const filteredRows = rows.filter((r: any) => {
     if (fType && r.type !== fType) return false;
     if (fSource && (r.source_name || r.source) !== fSource && r.source !== fSource) return false;
@@ -117,6 +120,11 @@ export default function DashboardPage() {
   });
 
   const expenseRows = filteredRows.filter((r: any) => r.type === 'EXPENSE');
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const curPage = Math.min(page, totalPages);
+  const pageStart = (curPage - 1) * pageSize;
+  const pageRows = filteredRows.slice(pageStart, pageStart + pageSize);
 
   const daily = (() => {
     const sums: Record<string, number> = {};
@@ -298,7 +306,7 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
-        <div className="mt-3 text-xs text-zinc-500">Showing {filteredRows.length} / {rows.length} transactions</div>
+        <div className="mt-3 text-xs text-zinc-500">Showing {filteredRows.length} / {rows.length} transactions (filters). Transactions table paginates.</div>
       </div>
 
       <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -431,7 +439,24 @@ export default function DashboardPage() {
       </div>
 
       <div className="mt-6">
-        <h2 className="text-sm font-semibold text-zinc-200">Transactions (first 200)</h2>
+        <div className="flex items-end justify-between gap-3 flex-wrap">
+          <h2 className="text-sm font-semibold text-zinc-200">Transactions</h2>
+          <div className="flex items-center gap-2 text-sm text-zinc-300">
+            <span className="text-zinc-500">Page size</span>
+            <select
+              className="px-2 py-1 rounded bg-zinc-900 border border-zinc-800"
+              value={pageSize}
+              onChange={(e) => { setPage(1); setPageSize(Number(e.target.value)); }}
+            >
+              {[25, 50, 100, 200].map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+            <button className="px-2 py-1 rounded bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 disabled:opacity-50" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</button>
+            <div className="text-zinc-500">{page} / {totalPages}</div>
+            <button className="px-2 py-1 rounded bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 disabled:opacity-50" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</button>
+          </div>
+        </div>
         <div className="mt-2 border border-zinc-800 rounded-lg overflow-auto">
           <table className="w-full text-sm">
             <thead className="bg-zinc-900 text-zinc-300">
@@ -446,7 +471,7 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredRows.slice(0, 200).map((r) => (
+              {pageRows.map((r) => (
                 <tr key={r.txn_id} className="border-t border-zinc-800">
                   <td className="px-3 py-2 whitespace-nowrap">{r.date}</td>
                   <td className="px-3 py-2">{r.type}</td>

@@ -24,6 +24,13 @@ export default function LoginPage({ onAuthed }: { onAuthed: () => void }) {
     try {
       await apiPost('/api/v1/auth/login', { password });
       onAuthed();
+      try {
+        const rt = localStorage.getItem('hk:returnTo');
+        if (rt) {
+          localStorage.removeItem('hk:returnTo');
+          window.location.href = rt;
+        }
+      } catch {}
     } catch (e: any) {
       setErr(String(e?.message || e));
     } finally {

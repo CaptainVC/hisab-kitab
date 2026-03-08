@@ -4,7 +4,10 @@ export async function apiGet<T>(url: string): Promise<T> {
   if (!res.ok) {
     if (res.status === 401) {
       // Session expired / not logged in
-      try { localStorage.setItem('hk:sessionExpired', '1'); } catch {}
+      try {
+        localStorage.setItem('hk:sessionExpired', '1');
+        localStorage.setItem('hk:returnTo', window.location.pathname + window.location.search + window.location.hash);
+      } catch {}
       window.location.href = '/';
     }
     const err = new Error(j?.error || 'request_failed');

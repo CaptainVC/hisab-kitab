@@ -55,9 +55,21 @@ export function CategoryDoughnut({
             label: 'Spend',
             data: values,
             backgroundColor: [
-              '#60a5fa', '#a78bfa', '#34d399', '#fbbf24', '#fb7185',
-              '#22d3ee', '#f472b6', '#4ade80', '#c084fc', '#f97316',
-              '#94a3b8', '#e879f9', '#2dd4bf', '#facc15', '#38bdf8'
+              '#2563eb', // blue
+              '#7c3aed', // violet
+              '#059669', // emerald
+              '#d97706', // amber
+              '#dc2626', // red
+              '#0891b2', // cyan
+              '#db2777', // pink
+              '#16a34a', // green
+              '#9333ea', // purple
+              '#ea580c', // orange
+              '#64748b', // slate
+              '#c026d3', // fuchsia
+              '#0f766e', // teal
+              '#ca8a04', // yellow
+              '#0284c7'  // sky
             ]
           }
         ]
