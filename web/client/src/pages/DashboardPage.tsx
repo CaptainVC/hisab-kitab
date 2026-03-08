@@ -515,6 +515,7 @@ export default function DashboardPage() {
               labels={daily.map(x => x[0])}
               values={daily.map(x => Math.round(x[1]))}
               height={220}
+              formatY={(v) => formatINR(v)}
               onPointClick={(label) => { setFDate(label); setPage(1); }}
             />
           </div>
@@ -528,6 +529,9 @@ export default function DashboardPage() {
               values={topCats.map(x => Math.round(x[1]))}
               height={220}
               label="Expense"
+              indexAxis="y"
+              tickMax={12}
+              formatValue={(v) => formatINR(v)}
               onBarClick={(label) => { setFCategory(label); setFSubcategory(''); setPage(1); }}
             />
           </div>
@@ -549,6 +553,9 @@ export default function DashboardPage() {
                   values={top.map(x => Math.round(x[1]))}
                   height={220}
                   label="Expense"
+                  indexAxis="y"
+                  tickMax={10}
+                  formatValue={(v) => formatINR(v)}
                   onBarClick={(label) => {
                     setFType('EXPENSE');
                     setFMerchant(label === 'Unknown' ? MISSING : label);
@@ -577,6 +584,8 @@ export default function DashboardPage() {
                   values={top.map(x => x[1])}
                   height={220}
                   label="Txns"
+                  tickMax={6}
+                  formatValue={(v) => String(Math.round(v))}
                   onBarClick={(label) => { setFSource(label); setPage(1); }}
                 />
               );

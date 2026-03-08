@@ -17,12 +17,14 @@ export function DailyLineChart({
   labels,
   values,
   height = 180,
-  onPointClick
+  onPointClick,
+  formatY
 }: {
   labels: string[];
   values: number[];
   height?: number;
   onPointClick?: (label: string) => void;
+  formatY?: (v: number) => string;
 }) {
   return (
     <Line
@@ -43,8 +45,34 @@ export function DailyLineChart({
       options={{
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true }, x: { ticks: { maxTicksLimit: 7 } } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const v = Number(ctx.parsed?.y ?? 0);
+                return formatY ? formatY(v) : String(v);
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              color: 'rgba(255,255,255,0.65)',
+              callback: (val) => {
+                const v = Number(val);
+                return formatY ? formatY(v) : String(val);
+              }
+            },
+            grid: { color: 'rgba(255,255,255,0.06)' }
+          },
+          x: {
+            ticks: { maxTicksLimit: 7, color: 'rgba(255,255,255,0.55)' },
+            grid: { display: false }
+          }
+        },
         onClick: (_evt, elements, chart) => {
           if (!onPointClick) return;
           const el = elements?.[0];
@@ -118,13 +146,19 @@ export function SimpleBarChart({
   values,
   height = 180,
   label = 'Amount',
-  onBarClick
+  onBarClick,
+  indexAxis = 'x',
+  formatValue,
+  tickMax = 8
 }: {
   labels: string[];
   values: number[];
   height?: number;
   label?: string;
   onBarClick?: (label: string) => void;
+  indexAxis?: 'x' | 'y';
+  formatValue?: (v: number) => string;
+  tickMax?: number;
 }) {
   return (
     <Bar
@@ -144,8 +178,60 @@ export function SimpleBarChart({
       options={{
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true }, x: { ticks: { autoSkip: true, maxTicksLimit: 6 } } },
+        indexAxis,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const v = Number(ctx.parsed?.[indexAxis === 'y' ? 'x' : 'y'] ?? 0);
+                return formatValue ? formatValue(v) : String(v);
+              }
+            }
+          }
+        },
+        scales:
+          indexAxis === 'y'
+            ? {
+                x: {
+                  beginAtZero: true,
+                  ticks: {
+                    color: 'rgba(255,255,255,0.65)',
+                    callback: (val) => {
+                      const v = Number(val);
+                      return formatValue ? formatValue(v) : String(val);
+                    }
+                  },
+                  grid: { color: 'rgba(255,255,255,0.06)' }
+                },
+                y: {
+                  ticks: { color: 'rgba(255,255,255,0.60)', autoSkip: true, maxTicksLimit: tickMax },
+                  grid: { display: false }
+                }
+              }
+            : {
+                y: {
+                  beginAtZero: true,
+                  ticks: {
+                    color: 'rgba(255,255,255,0.65)',
+                    callback: (val) => {
+                      const v = Number(val);
+                      return formatValue ? formatValue(v) : String(val);
+                    }
+                  },
+                  grid: { color: 'rgba(255,255,255,0.06)' }
+                },
+                x: {
+                  ticks: {
+                    color: 'rgba(255,255,255,0.60)',
+                    autoSkip: true,
+                    maxTicksLimit: tickMax,
+                    maxRotation: 30,
+                    minRotation: 0
+                  },
+                  grid: { display: false }
+                }
+              },
         onClick: (_evt, elements, chart) => {
           if (!onBarClick) return;
           const el = elements?.[0];
