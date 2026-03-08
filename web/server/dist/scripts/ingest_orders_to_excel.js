@@ -106,12 +106,13 @@ async function main() {
         const type = String(r?.type || '');
         const merch = String(r?.merchant_code || '');
         const source = String(r?.source || '');
+        const tags = String(r?.tags || '');
         const txn_id = String(r?.txn_id || '');
         if (!d || !amt)
             continue;
         if (!byDate.has(d))
             byDate.set(d, []);
-        byDate.get(d).push({ txn_id, amount: amt, type, merchant: merch.toUpperCase(), source });
+        byDate.get(d).push({ txn_id, amount: amt, type, merchant: merch.toUpperCase(), source, tags });
     }
     const withinBuffer = (d0, d1) => {
         const t0 = Date.parse(d0 + 'T00:00:00Z');
@@ -139,6 +140,7 @@ async function main() {
     let considered = 0;
     let skippedDup = 0;
     const alreadyImportedMessageIds = new Set(existing.map((r) => String(r?.messageId || '')).filter(Boolean));
+    const supersedePatches = [];
     for (const o of orders) {
         const merchant = String(o?.merchant || '').toUpperCase();
         if (!merchant)
@@ -168,6 +170,13 @@ async function main() {
         const group_id = `mail_${mid || ''}_${Date.now()}`;
         const inheritedSource = String(match?.source || '').trim() || 'UNKNOWN';
         const linkedTxnId = String(match?.txn_id || '').trim();
+        if (linkedTxnId) {
+            const curTags = String(match?.tags || '');
+            const parts = curTags.split(',').map(s => s.trim()).filter(Boolean);
+            if (!parts.includes('superseded'))
+                parts.push('superseded');
+            supersedePatches.push({ txn_id: linkedTxnId, tags: parts.join(',') });
+        }
         for (const it of items) {
             const cat = categorizeMailItem(merchant, it.name);
             outRows.push({
@@ -203,6 +212,23 @@ async function main() {
     // CommonJS module
     const { storeAppend } = require(path.join(process.cwd(), 'src', 'excel', 'workbook_store'));
     const outputs = storeAppend({ baseDir, headers, rows: outRows });
+    // Mark matched overall Hisab transactions as superseded (excluded from dashboard) to avoid double counting.
+    const patchedTxnIds = new Set();
+    for (const p of supersedePatches) {
+        if (!p.txn_id || patchedTxnIds.has(p.txn_id))
+            continue;
+        patchedTxnIds.add(p.txn_id);
+        const patchFile = path.join(baseDir, 'cache', `txn_patch_${p.txn_id}_${Date.now()}.json`);
+        fs.mkdirSync(path.dirname(patchFile), { recursive: true });
+        fs.writeFileSync(patchFile, JSON.stringify({ tags: p.tags, parse_status: 'superseded_by_mail' }, null, 2), 'utf8');
+        const editScript = path.join(process.cwd(), 'web', 'server', 'dist', 'scripts', 'edit_txn.js');
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { spawnSync } = require('node:child_process');
+        const er = spawnSync(process.execPath, [editScript, '--base-dir', baseDir, '--txn-id', p.txn_id, '--patch-file', patchFile], { encoding: 'utf8' });
+        if (er.status !== 0) {
+            // non-fatal; continue
+        }
+    }
     // Auto rebuild dashboard cache for the same range (so UI updates without manual rebuild).
     const outJsonRel = path.join('cache', `hisab_data_${from}_${to}.json`);
     const outHtmlRel = path.join('cache', `hisab_dashboard_${from}_${to}.html`);

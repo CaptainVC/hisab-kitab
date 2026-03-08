@@ -133,7 +133,11 @@ function buildData(baseDir) {
     for (const r of rows) r._file = path.basename(f);
     all.push(...rows);
   }
-  enrichRows(all, refs);
+
+  // Exclude transactions that have been superseded by an item-level breakdown import.
+  const filtered = all.filter(r => !(Array.isArray(r._tags) && r._tags.includes('superseded')));
+
+  enrichRows(filtered, refs);
   return {
     generatedAt: new Date().toISOString(),
     baseDir,
@@ -146,7 +150,7 @@ function buildData(baseDir) {
       tags: refs.tags,
       locations: refs.locations
     },
-    rows: all
+    rows: filtered
   };
 }
 
