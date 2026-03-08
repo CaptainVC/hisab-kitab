@@ -148,7 +148,18 @@ export default function DashboardPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
 
+  function inSelectedRange(dateStr: string) {
+    const d = String(dateStr || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+    // from/to are inclusive months (YYYY-MM)
+    const start = `${from}-01`;
+    const [ty, tm] = to.split('-').map(Number);
+    const endExclusive = new Date(Date.UTC(ty, tm, 1)).toISOString().slice(0, 10); // first day of next month
+    return d >= start && d < endExclusive;
+  }
+
   const filteredRows = rows.filter((r: any) => {
+    if (!inSelectedRange(String(r.date || ''))) return false;
     if (fDate && String(r.date || '') !== fDate) return false;
     if (fType && r.type !== fType) return false;
     if (fSource) {
