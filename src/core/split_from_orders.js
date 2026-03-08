@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 /* Split workbook transactions into item-level rows using orders_parsed.json.
- * Currently supports: Blinkit PDF invoices (merchant=BLINKIT) where we have item totals.
+ * Currently supports: Blinkit-style PDF invoices (merchant=BLINKIT) and Instamart breakdown (merchant=SWIGGY_INSTAMART).
  *
  * Strategy:
- * - Find rows with merchant_code=BLINKIT and amount ~= invoice_total and date matches invoice_date.
+ * - Find rows with supported merchant_code and amount ~= invoice_total and date matches invoice_date.
  * - Replace that single row with multiple item rows:
  *   - Each item row: amount=item.total, raw_text=item.name, merchant_code preserved.
  *   - group_id kept (or generated) to tie them together.
  * - If item totals don't sum exactly, add a final "Other charges" row for the remainder.
+ * - For Instamart: only split if ALL items can be categorized cleanly; otherwise keep original row intact.
  *
  * Usage:
  *   node src/core/split_from_orders.js --base-dir ~/HisabKitab --file ~/HisabKitab/HK_2026-01-Week2.xlsx
@@ -175,11 +176,29 @@ function pickOrdersForAmount(byDate, date, amt, tol){
   return best;
 }
 
+function categorizeInstamartItem(name){
+  const t = String(name||'').toLowerCase();
+  const rules = [
+    { re: /\bwater\b|\bcan\b|\bbottle\b/, cat: 'FOOD_DINING', sub: 'FOOD_WATER' },
+    { re: /\bmilk\b|\bcurd\b|\byogurt\b|\bpaneer\b|\bcheese\b/, cat: 'FOOD_DINING', sub: 'FOOD_MILK' },
+    { re: /\bbanana\b|\bapple\b|\bmango\b|\borange\b|\bgrape\b|\bwatermelon\b|\bfruit\b/, cat: 'FOOD_DINING', sub: 'FOOD_FRUITS' },
+    { re: /\bprotein\b|\bwhey\b|\bgatorade\b|\belectrolyte\b/, cat: 'FOOD_DINING', sub: 'FOOD_PROTEIN' },
+    { re: /\bchips\b|\bchocolate\b|\bbiscuit\b|\bcookie\b|\bnoodles\b|\bsnack\b/, cat: 'FOOD_DINING', sub: 'FOOD_SNACKS' },
+    { re: /\bsoap\b|\bshampoo\b|\btoothpaste\b|\bdetergent\b|\bcleaner\b/, cat: 'SHOPPING', sub: 'SHOP_TOILETRIES' },
+    { re: /\bnotebook\b|\bpen\b|\bpencil\b|\bstationery\b/, cat: 'SHOPPING', sub: 'SHOP_STATIONERY' },
+    { re: /\bflask\b/, cat: 'SHOPPING', sub: 'SHOP_BOTTLES' },
+    { re: /\bvegetable\b|\bpotato\b|\bonion\b|\btomato\b|\bcarrot\b|\bspinach\b|\blettuce\b/, cat: 'SHOPPING', sub: 'SHOP_GROCERIES' },
+    { re: /\bmasala\b|\brice\b|\bdal\b|\bflour\b|\batta\b|\boil\b|\bsugar\b|\bsalt\b/, cat: 'SHOPPING', sub: 'SHOP_GROCERIES' },
+  ];
+  for(const r of rules){ if(r.re.test(t)) return { category:r.cat, subcategory:r.sub }; }
+  return null;
+}
+
 function splitWorkbook(filePath, baseDir, tol){
   const ordersPath = path.join(baseDir, 'orders_parsed.json');
   const ordersDoc = readJsonSafe(ordersPath, { orders: [] });
   const orders = (ordersDoc.orders || [])
-    .filter(o => ['BLINKIT','AMAZON','SWIGGY','ZOMATO'].includes(String(o.merchant||'').toUpperCase()));
+    .filter(o => ['BLINKIT','AMAZON','SWIGGY','ZOMATO','SWIGGY_INSTAMART'].includes(String(o.merchant||'').toUpperCase()));
 
   const byDate = new Map();
   for(const o of orders){
@@ -219,6 +238,8 @@ function splitWorkbook(filePath, baseDir, tol){
     const kGroupId = key('group_id', 'Group ID');
     const kParseStatus = key('parse_status', 'Parse Status');
     const kParseError = key('parse_error', 'Parse Error');
+    const kCategory = key('category', 'Category');
+    const kSubcategory = key('subcategory', 'Subcategory');
 
     const out = [];
 
@@ -226,7 +247,7 @@ function splitWorkbook(filePath, baseDir, tol){
       totalIn++;
       // Only split expense rows with supported merchant codes
       const mc = String(r[kMerchant] || '').toUpperCase();
-      if (!['BLINKIT', 'AMAZON', 'SWIGGY', 'ZOMATO'].includes(mc)) { out.push(r); continue; }
+      if (!['BLINKIT', 'AMAZON', 'SWIGGY', 'ZOMATO', 'SWIGGY_INSTAMART'].includes(mc)) { out.push(r); continue; }
 
       const date = String(r[kDate] || '');
       const amt = Number(r[kAmount]);
@@ -240,10 +261,22 @@ function splitWorkbook(filePath, baseDir, tol){
       for (const o of picked.orders) items = items.concat(flattenItems(o));
       if (!items.length) { out.push(r); continue; }
 
+      // Special: Instamart should only be split if ALL items categorize cleanly.
+      let categorized = null;
+      if (mc === 'SWIGGY_INSTAMART') {
+        categorized = [];
+        for (const it of items) {
+          const cat = categorizeInstamartItem(it.name);
+          if (!cat) { categorized = null; break; }
+          categorized.push({ ...it, ...cat });
+        }
+        if (!categorized) { out.push(r); continue; }
+      }
+
       const groupId = r[kGroupId] ? String(r[kGroupId]) : nanoid();
       const sum = items.reduce((s, x) => s + (Number(x.amount) || 0), 0);
 
-      for (const it of items) {
+      for (const it of (categorized || items)) {
         out.push({
           ...r,
           [kTxnId]: nanoid(),
@@ -251,7 +284,9 @@ function splitWorkbook(filePath, baseDir, tol){
           [kAmount]: Number(it.amount),
           [kRaw]: it.name,
           [kNotes]: (String(r[kRaw] || '') + ' | ' + it.name).slice(0, 300),
-          [kParseStatus]: 'split_from_invoice',
+          [kCategory]: it.category || r[kCategory] || '',
+          [kSubcategory]: it.subcategory || r[kSubcategory] || '',
+          [kParseStatus]: mc === 'SWIGGY_INSTAMART' ? 'split_instamart' : 'split_from_invoice',
           [kParseError]: picked.mode === 'subset' ? 'matched_multiple_invoices' : ''
         });
       }
