@@ -26,8 +26,11 @@ function TabLink({ to, label }: { to: string; label: string }) {
 
 type MeResp = { ok: true; authenticated: boolean };
 
+type HealthResp = { ok: true; appVersion: string };
+
 export default function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
+  const [appVersion, setAppVersion] = useState<string>('');
 
   async function refreshAuth() {
     try {
@@ -40,6 +43,7 @@ export default function App() {
 
   useEffect(() => {
     refreshAuth();
+    apiGet<HealthResp>('/api/v1/health').then(h => setAppVersion(h.appVersion)).catch(() => {});
   }, []);
 
   if (authed === null) {
@@ -54,7 +58,7 @@ export default function App() {
     <div className="min-h-screen">
       <header className="border-b border-zinc-800">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="font-semibold">Hisab Kitab</div>
+          <div className="font-semibold">Hisab Kitab {appVersion ? <span className="text-xs text-zinc-500 font-mono">v{appVersion}</span> : null}</div>
           <div className="flex items-center gap-3">
             <nav className="flex gap-2">
             <TabLink to="/dashboard" label="Dashboard" />
