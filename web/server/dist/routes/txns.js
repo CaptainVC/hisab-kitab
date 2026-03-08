@@ -11,7 +11,7 @@ export async function registerTxnRoutes(app, opts) {
             return reply.code(400).send({ ok: false, error: 'missing_txn_id' });
         const body = (req.body || {});
         const patch = {};
-        const allowed = ['merchant_code', 'category', 'subcategory', 'tags', 'notes'];
+        const allowed = ['merchant_code', 'category', 'subcategory', 'tags', 'notes', 'source', 'location'];
         for (const k of allowed) {
             if (body[k] !== undefined)
                 patch[k] = String(body[k] ?? '');

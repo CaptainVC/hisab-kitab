@@ -32,6 +32,8 @@ export default function DashboardPage() {
   const [merchantOptions, setMerchantOptions] = useState<Array<{ code: string; name: string; archived?: boolean }>>([]);
   const [categoryOptions, setCategoryOptions] = useState<Array<{ code: string; name: string; archived?: boolean }>>([]);
   const [subcategoryOptions, setSubcategoryOptions] = useState<Array<{ code: string; name: string; category: string; archived?: boolean }>>([]);
+  const [sourceOptions, setSourceOptions] = useState<Array<{ code: string; display: string }>>([]);
+  const [locationOptions, setLocationOptions] = useState<Array<{ code: string; name: string }>>([]);
 
   const [editTxnOpen, setEditTxnOpen] = useState(false);
   const [editTxn, setEditTxn] = useState<any | null>(null);
@@ -40,6 +42,8 @@ export default function DashboardPage() {
   const [editSubcategory, setEditSubcategory] = useState('');
   const [editTags, setEditTags] = useState('');
   const [editNotes, setEditNotes] = useState('');
+  const [editSource, setEditSource] = useState('');
+  const [editLocation, setEditLocation] = useState('');
 
   function openEditTxn(r: any) {
     setEditTxn(r);
@@ -50,19 +54,25 @@ export default function DashboardPage() {
 
     setEditTags(String(r.tags || ''));
     setEditNotes(String(r.notes || ''));
+    setEditSource(String(r.source || ''));
+    setEditLocation(String(r.location || ''));
     setEditTxnOpen(true);
   }
 
   async function loadRefs() {
     try {
-      const [m, c, s] = await Promise.all([
+      const [m, c, s, so, lo] = await Promise.all([
         apiGet<{ ok: true; merchants: any[] }>('/api/v1/refs/merchants'),
         apiGet<{ ok: true; categories: any[] }>('/api/v1/refs/categories'),
-        apiGet<{ ok: true; subcategories: any[] }>('/api/v1/refs/subcategories')
+        apiGet<{ ok: true; subcategories: any[] }>('/api/v1/refs/subcategories'),
+        apiGet<{ ok: true; sources: any[] }>('/api/v1/meta/sources'),
+        apiGet<{ ok: true; locations: any[] }>('/api/v1/meta/locations')
       ]);
       setMerchantOptions((m.merchants || []).filter((x: any) => !x.archived));
       setCategoryOptions((c.categories || []).filter((x: any) => !x.archived));
       setSubcategoryOptions((s.subcategories || []).filter((x: any) => !x.archived));
+      setSourceOptions(so.sources || []);
+      setLocationOptions(lo.locations || []);
     } catch {
       // non-fatal
     }
@@ -665,6 +675,25 @@ export default function DashboardPage() {
                 <label className="text-xs text-[color:var(--hk-muted)]">Tags</label>
                 <input className="mt-1 w-full hk-input" value={editTags} onChange={(e) => setEditTags(e.target.value)} />
               </div>
+
+              <div>
+                <label className="text-xs text-[color:var(--hk-muted)]">Source</label>
+                <SearchSelect
+                  value={editSource}
+                  onChange={setEditSource}
+                  options={sourceOptions.map((s) => ({ value: s.code, label: s.display }))}
+                  placeholder="(none)"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-[color:var(--hk-muted)]">Location</label>
+                <SearchSelect
+                  value={editLocation}
+                  onChange={setEditLocation}
+                  options={locationOptions.map((l) => ({ value: l.code, label: l.name }))}
+                  placeholder="(none)"
+                />
+              </div>
             </div>
             <div className="mt-3">
               <label className="text-xs text-[color:var(--hk-muted)]">Notes</label>
@@ -687,6 +716,8 @@ export default function DashboardPage() {
                       merchant_code: editMerchant,
                       category: editCategory,
                       subcategory: editSubcategory,
+                      source: editSource,
+                      location: editLocation,
                       tags: editTags,
                       notes: editNotes
                     });
@@ -751,6 +782,7 @@ export default function DashboardPage() {
                 <th className="text-left px-3 py-2">Type</th>
                 <th className="text-right px-3 py-2">Amount</th>
                 <th className="text-left px-3 py-2">Merchant</th>
+                <th className="text-left px-3 py-2">Source</th>
                 <th className="text-left px-3 py-2">Category</th>
                 <th className="text-left px-3 py-2">Subcategory</th>
                 <th className="text-left px-3 py-2">Notes</th>
@@ -763,6 +795,7 @@ export default function DashboardPage() {
                   <td className="px-3 py-2">{r.type}</td>
                   <td className="px-3 py-2 text-right">{formatINR(r.amount)}</td>
                   <td className="px-3 py-2">{r.merchant_name || r.merchant_code || ''}</td>
+                  <td className="px-3 py-2">{r.messageId ? 'Mail' : (r.source_name || r.source || '')}</td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
                       <span>{r.category_name || r.category || ''}</span>
