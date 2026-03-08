@@ -48,6 +48,8 @@ export default function RefsPage() {
 
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [coverage, setCoverage] = useState<Record<string, CoverageRow>>({});
+  const [merchantQuery, setMerchantQuery] = useState('');
+  const [showArchivedMerchants, setShowArchivedMerchants] = useState(false);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
@@ -195,7 +197,16 @@ export default function RefsPage() {
       </div>
 
       {tab === 'merchants' ? (
-        <div className="mt-4 flex items-end gap-2">
+        <div className="mt-4 flex items-end gap-2 flex-wrap">
+          <div>
+            <label className="text-xs text-zinc-400">Search merchants</label>
+            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800 w-64" value={merchantQuery} onChange={e => setMerchantQuery(e.target.value)} placeholder="code or name" />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-zinc-300 mb-1">
+            <input type="checkbox" checked={showArchivedMerchants} onChange={e => setShowArchivedMerchants(e.target.checked)} />
+            Show archived
+          </label>
+          <div className="flex-1" />
           <div>
             <label className="text-xs text-zinc-400">Coverage from</label>
             <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={from} onChange={e => { const v = e.target.value; setFrom(v); saveRange({ from: v, to }); }} />
@@ -234,28 +245,41 @@ export default function RefsPage() {
               </tr>
             </thead>
             <tbody>
-              {merchants.filter(m => !m.archived).map((m) => {
-                const c = coverage[m.code];
-                return (
-                  <tr key={m.code} className="border-t border-zinc-800">
-                    <td className="px-3 py-2 font-mono text-xs">{m.code}</td>
-                    <td className="px-3 py-2">{m.name}</td>
-                    <td className="px-3 py-2 text-xs text-zinc-400">
-                      {m.default?.category || '—'}{m.default?.subcategory ? ` / ${m.default.subcategory}` : ''}
-                    </td>
-                    <td className="px-3 py-2">{c?.emailSupport || '—'}</td>
-                    <td className="px-3 py-2 text-right">{c ? c.emailSeenCount : '—'}</td>
-                    <td className="px-3 py-2 text-xs text-zinc-400">{c?.lastEmailAt ? new Date(c.lastEmailAt).toLocaleString() : '—'}</td>
-                    <td className="px-3 py-2">{c ? (c.ruleConfigured ? 'configured' : '—') : '—'}</td>
-                    <td className="px-3 py-2">
-                      <div className="flex gap-2">
-                        <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => openEditMerchant(m.code)}>Edit</button>
-                        <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => archiveMerchant(m.code).catch(() => {})}>Archive</button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {merchants
+                .filter((m) => (showArchivedMerchants ? true : !m.archived))
+                .filter((m) => {
+                  const q = merchantQuery.trim().toLowerCase();
+                  if (!q) return true;
+                  return String(m.code).toLowerCase().includes(q) || String(m.name || '').toLowerCase().includes(q);
+                })
+                .sort((a, b) => a.code.localeCompare(b.code))
+                .map((m) => {
+                  const c = coverage[m.code];
+                  return (
+                    <tr key={m.code} className={`border-t border-zinc-800 ${m.archived ? 'opacity-50' : ''}`}>
+                      <td className="px-3 py-2 font-mono text-xs">{m.code}</td>
+                      <td className="px-3 py-2">{m.name}</td>
+                      <td className="px-3 py-2 text-xs text-zinc-400">
+                        {m.default?.category || '—'}{m.default?.subcategory ? ` / ${m.default.subcategory}` : ''}
+                        {m.default?.tags?.length ? (
+                          <div className="mt-1 text-[11px] text-zinc-500">tags: {m.default.tags.join(', ')}</div>
+                        ) : null}
+                      </td>
+                      <td className="px-3 py-2">{c?.emailSupport || '—'}</td>
+                      <td className="px-3 py-2 text-right">{c ? c.emailSeenCount : '—'}</td>
+                      <td className="px-3 py-2 text-xs text-zinc-400">{c?.lastEmailAt ? new Date(c.lastEmailAt).toLocaleString() : '—'}</td>
+                      <td className="px-3 py-2">{c ? (c.ruleConfigured ? 'configured' : '—') : '—'}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex gap-2">
+                          <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => openEditMerchant(m.code)}>Edit</button>
+                          {!m.archived ? (
+                            <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => archiveMerchant(m.code).catch(() => {})}>Archive</button>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         </div>
