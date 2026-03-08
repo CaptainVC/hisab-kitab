@@ -40,7 +40,7 @@ async function main() {
     const repoDir = path.resolve(path.join(import.meta.dirname, '..', '..', '..'));
     await registerIngestRoutes(app, { runner, baseDir: cfg.baseDir, repoDir });
     await registerRebuildRoutes(app, { runner, baseDir: cfg.baseDir, repoDir, cacheDir: cfg.cacheDir });
-    await registerReviewRoutes(app, { cacheDir: cfg.cacheDir, reviewStateFile: cfg.reviewStateFile });
+    await registerReviewRoutes(app, { cacheDir: cfg.cacheDir, reviewStateFile: cfg.reviewStateFile, runner, baseDir: cfg.baseDir, repoDir, stagingDir: cfg.stagingDir });
     await registerStagingRoutes(app, { runner, baseDir: cfg.baseDir, repoDir, stagingDir: cfg.stagingDir });
     await registerRefsRoutes(app, { baseDir: cfg.baseDir });
     await registerMailRoutes(app, { baseDir: cfg.baseDir });

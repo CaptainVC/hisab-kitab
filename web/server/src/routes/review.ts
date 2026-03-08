@@ -14,7 +14,9 @@ function needsReview(row: any): string | null {
   return null;
 }
 
-export async function registerReviewRoutes(app: FastifyInstance, opts: { cacheDir: string; reviewStateFile: string }) {
+import type { JobRunner } from '../jobs/jobRunner.js';
+
+export async function registerReviewRoutes(app: FastifyInstance, opts: { cacheDir: string; reviewStateFile: string; runner: JobRunner; baseDir: string; repoDir: string; stagingDir: string }) {
   app.get('/api/v1/review/items', async (req, reply) => {
     if (!requireAuth(req, reply)) return;
     const q = req.query as any;
@@ -76,5 +78,62 @@ export async function registerReviewRoutes(app: FastifyInstance, opts: { cacheDi
     st.resolvedTxnIds[txn_id] = { resolvedAt: new Date().toISOString(), note };
     saveReviewState(opts.reviewStateFile, st);
     return reply.send({ ok: true });
+  });
+
+  // Add a reimbursement (income) row linked to an existing transaction.
+  // This is a lightweight way to "split" an expense when part of it was for someone else.
+  app.post('/api/v1/review/reimburse', async (req, reply) => {
+    if (!requireAuth(req, reply)) return;
+    const body = (req.body || {}) as any;
+    const from = String(body.from || '');
+    const to = String(body.to || '');
+    const txn_id = String(body.txn_id || '');
+    const amount = Number(body.amount || 0);
+    const counterparty = body.counterparty ? String(body.counterparty) : '';
+    const note = body.note ? String(body.note) : '';
+    if (!from || !to) return reply.code(400).send({ ok: false, error: 'missing_range' });
+    if (!txn_id) return reply.code(400).send({ ok: false, error: 'missing_txn_id' });
+    if (!Number.isFinite(amount) || amount <= 0) return reply.code(400).send({ ok: false, error: 'bad_amount' });
+
+    const fp = cachePath(opts.cacheDir, from, to);
+    if (!fs.existsSync(fp)) return reply.code(404).send({ ok: false, error: 'cache_missing' });
+    const data = JSON.parse(fs.readFileSync(fp, 'utf8')) as any;
+    const rows = Array.isArray(data?.rows) ? data.rows : [];
+    const base = rows.find((r: any) => String(r?.txn_id || '') === txn_id);
+    if (!base) return reply.code(404).send({ ok: false, error: 'txn_not_found_in_cache' });
+
+    const reimburseRow = {
+      ...base,
+      txn_id: `reimb_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+      type: 'INCOME',
+      amount,
+      linked_txn_id: txn_id,
+      counterparty,
+      notes: [
+        note?.trim() || null,
+        counterparty ? `reimbursed by ${counterparty}` : 'reimbursed',
+        `linked:${txn_id}`
+      ].filter(Boolean).join(' | '),
+      raw_text: base.raw_text || '',
+      parse_status: 'ok',
+      parse_error: '',
+      // keep messageId if original came from mail? no, reimbursement is manual
+      messageId: ''
+    };
+
+    fs.mkdirSync(opts.stagingDir, { recursive: true });
+    const rowsFile = path.join(opts.stagingDir, `review_reimburse_${txn_id}_${Date.now()}.json`);
+    fs.writeFileSync(rowsFile, JSON.stringify([reimburseRow], null, 2), 'utf8');
+
+    const script = path.join(opts.repoDir, 'web', 'server', 'dist', 'scripts', 'staging_commit_rows.js');
+    const args = [script, '--base-dir', opts.baseDir, '--rows-file', rowsFile];
+
+    try {
+      const job = await opts.runner.startJob('reviewReimburse', { txn_id, amount, counterparty, rowsFile }, process.execPath, args, { cwd: opts.repoDir });
+      return reply.send({ ok: true, jobId: job.jobId });
+    } catch (e: any) {
+      if (String(e?.message || e) === 'job_already_running') return reply.code(409).send({ ok: false, error: 'job_already_running' });
+      return reply.code(500).send({ ok: false, error: 'start_failed', detail: String(e?.message || e) });
+    }
   });
 }

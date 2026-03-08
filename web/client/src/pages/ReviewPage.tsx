@@ -63,6 +63,26 @@ export default function ReviewPage() {
     setItems((xs) => xs.filter((x) => x.txn_id !== txn_id));
   }
 
+  async function reimburse(x: ReviewItem) {
+    const amtStr = prompt('Reimbursement amount (INR):', '');
+    if (amtStr === null) return;
+    const amount = Number(amtStr);
+    if (!Number.isFinite(amount) || amount <= 0) throw new Error('bad_amount');
+    const counterparty = prompt('Reimbursed by (name):', '') ?? '';
+    if (counterparty === null) return;
+    const note = prompt('Note (optional):', '') ?? '';
+
+    const r = await apiPost<{ ok: true; jobId: string }>('/api/v1/review/reimburse', {
+      from,
+      to,
+      txn_id: x.txn_id,
+      amount,
+      counterparty,
+      note
+    });
+    alert(`Reimbursement queued as job ${r.jobId}. It will appear as an INCOME entry linked to this txn.`);
+  }
+
   async function saveAndResolve(x: ReviewItem) {
     const ed = editing[x.txn_id] || { merchant: x.merchant, category: x.category, subcategory: x.subcategory, tags: '' };
     const merchant = String(ed.merchant || '').trim();
@@ -306,6 +326,9 @@ export default function ReviewPage() {
                       onClick={() => saveAndResolve(x).catch((e) => setErr(String(e?.message || e)))}
                     >
                       {savingId === x.txn_id ? 'Saving…' : 'Save + resolve'}
+                    </button>
+                    <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => reimburse(x).catch((e) => setErr(String(e?.message || e)))}>
+                      Add reimbursement
                     </button>
                     <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => resolve(x.txn_id).catch(() => {})}>
                       Resolve only
