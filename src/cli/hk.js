@@ -773,6 +773,7 @@ async function main() {
   if (cmd === 'import') {
     const textFile = getArg('--text-file');
     const textArg = getArg('--text');
+    const dryRun = args.includes('--dry-run');
     let text = '';
     if (textFile) text = fs.readFileSync(expandHome(textFile), 'utf8');
     else if (textArg) text = textArg;
@@ -792,6 +793,19 @@ async function main() {
     // Ensure every parsed row has messageId (reserved for email-linked rows).
     for (const r of parsed.rows) {
       if (r.messageId === undefined) r.messageId = '';
+    }
+
+    if (dryRun) {
+      const result = {
+        ok: true,
+        dryRun: true,
+        imported: parsed.rows.length,
+        rows: parsed.rows,
+        errors: parsed.errors
+      };
+      process.stdout.write(JSON.stringify(result, null, 2));
+      process.stdout.write('\n');
+      return;
     }
 
     const { storeAppend } = require('../excel/workbook_store');

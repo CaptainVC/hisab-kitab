@@ -15,6 +15,7 @@ import { registerDataRoutes } from './routes/data.js';
 import { registerIngestRoutes } from './routes/ingest.js';
 import { registerRebuildRoutes } from './routes/rebuild.js';
 import { registerReviewRoutes } from './routes/review.js';
+import { registerStagingRoutes } from './routes/staging.js';
 
 import { JobRunner } from './jobs/jobRunner.js';
 
@@ -48,6 +49,7 @@ async function main() {
   await registerIngestRoutes(app, { runner, baseDir: cfg.baseDir, repoDir });
   await registerRebuildRoutes(app, { runner, baseDir: cfg.baseDir, repoDir, cacheDir: cfg.cacheDir });
   await registerReviewRoutes(app, { cacheDir: cfg.cacheDir, reviewStateFile: cfg.reviewStateFile });
+  await registerStagingRoutes(app, { runner, baseDir: cfg.baseDir, repoDir, stagingDir: cfg.stagingDir });
 
   // Serve frontend build (once we build it)
   const clientDist = path.join(repoDir, 'web', 'client', 'dist');
