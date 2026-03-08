@@ -568,12 +568,14 @@ export default function DashboardPage() {
               <div>
                 <label className="text-xs text-[color:var(--hk-muted)]">Merchant code</label>
                 <select className="mt-1 w-full hk-input" value={editMerchant} onChange={(e) => setEditMerchant(e.target.value)}>
-                  <option value={editMerchant || ''}>{editMerchant || '—'}</option>
+                  <option value={editMerchant || ''}>
+                    {merchantOptions.find((m) => m.code === editMerchant)?.name || editMerchant || '—'}
+                  </option>
                   {merchantOptions
                     .filter((m) => m.code !== editMerchant)
                     .map((m) => (
                       <option key={m.code} value={m.code}>
-                        {m.code} — {m.name}
+                        {m.name}
                       </option>
                     ))}
                 </select>
@@ -594,7 +596,7 @@ export default function DashboardPage() {
                   <option value="">—</option>
                   {categoryOptions.map((c) => (
                     <option key={c.code} value={c.code}>
-                      {c.code} — {c.name}
+                      {c.name}
                     </option>
                   ))}
                 </select>
@@ -607,7 +609,7 @@ export default function DashboardPage() {
                     .filter((s) => !editCategory || s.category === editCategory)
                     .map((s) => (
                       <option key={s.code} value={s.code}>
-                        {s.code} — {s.name}
+                        {s.name}
                       </option>
                     ))}
                 </select>
