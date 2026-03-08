@@ -575,26 +575,26 @@ export default function DashboardPage() {
         </div>
 
         <div className="p-4 hk-card">
-          <div className="text-sm font-semibold">By source (count)</div>
+          <div className="text-sm font-semibold">By source (amount)</div>
           <div className="mt-2 h-[220px]">
             {(() => {
-              const counts: Record<string, number> = {};
-              for (const r of filteredRows) {
-                // If a row comes from mail ingest, treat its source as "Mail" (otherwise we'd hide it and the chart goes empty).
+              const sums: Record<string, number> = {};
+              for (const r of expenseRows) {
+                // If a row comes from mail ingest, treat its source as "Mail".
                 const k = r.messageId ? 'Mail' : (r.source_name || r.source || 'Unknown');
-                counts[k] = (counts[k] || 0) + 1;
+                sums[k] = (sums[k] || 0) + Number(r.amount || 0);
               }
-              const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+              const top = Object.entries(sums).sort((a, b) => b[1] - a[1]).slice(0, 10);
               return (
                 <SimpleBarChart
                   labels={top.map(x => x[0])}
-                  values={top.map(x => x[1])}
+                  values={top.map(x => Math.round(x[1]))}
                   height={Math.max(260, top.length * 28)}
-                  label="Txns"
+                  label="Expense"
                   indexAxis="y"
                   tickMax={50}
                   showValueLabels
-                  formatValue={(v) => String(Math.round(v))}
+                  formatValue={(v) => formatINR(v)}
                   onBarClick={(label) => { setFSource(label); setPage(1); }}
                 />
               );
