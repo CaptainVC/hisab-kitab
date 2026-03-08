@@ -55,23 +55,23 @@ export default function MailPage() {
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-xl font-semibold">Mail Stats</h1>
-          <p className="text-zinc-400 mt-1">Derived from HisabKitab-labeled parsed emails.</p>
+          <p className="text-[color:var(--hk-muted)] mt-1">Derived from HisabKitab-labeled parsed emails.</p>
           {data ? (
-            <div className="mt-1 text-xs text-zinc-500">
+            <div className="mt-1 text-xs text-[color:var(--hk-faint)]">
               Oldest in range: orders {data.oldestOrderMs ? new Date(data.oldestOrderMs).toISOString().slice(0, 10) : '—'} • payments {data.oldestPaymentMs ? new Date(data.oldestPaymentMs).toISOString().slice(0, 10) : '—'}
             </div>
           ) : null}
         </div>
         <div className="flex items-end gap-2">
           <div>
-            <label className="text-xs text-zinc-400">From</label>
-            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={from} onChange={e => { const v = e.target.value; setFrom(v); saveRange({ from: v, to }); }} />
+            <label className="text-xs text-[color:var(--hk-muted)]">From</label>
+            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={from} onChange={e => { const v = e.target.value; setFrom(v); saveRange({ from: v, to }); }} />
           </div>
           <div>
-            <label className="text-xs text-zinc-400">To</label>
-            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={to} onChange={e => { const v = e.target.value; setTo(v); saveRange({ from, to: v }); }} />
+            <label className="text-xs text-[color:var(--hk-muted)]">To</label>
+            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={to} onChange={e => { const v = e.target.value; setTo(v); saveRange({ from, to: v }); }} />
           </div>
-          <button className="px-3 py-2 rounded-md bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50" disabled={busy} onClick={() => load().catch(() => {})}>
+          <button className="px-3 py-2 hk-btn-primary disabled:opacity-50" disabled={busy} onClick={() => load().catch(() => {})}>
             {busy ? 'Loading…' : 'Load'}
           </button>
         </div>
@@ -81,30 +81,30 @@ export default function MailPage() {
 
       {data ? (
         <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 border border-zinc-800 rounded-lg">
-            <div className="text-sm text-zinc-400">Orders parsed (range)</div>
+          <div className="p-4 hk-card">
+            <div className="text-sm text-[color:var(--hk-muted)]">Orders parsed (range)</div>
             <div className="text-2xl font-semibold mt-1">{data.totals.orders}</div>
           </div>
-          <div className="p-4 border border-zinc-800 rounded-lg">
-            <div className="text-sm text-zinc-400">Payments parsed (range)</div>
+          <div className="p-4 hk-card">
+            <div className="text-sm text-[color:var(--hk-muted)]">Payments parsed (range)</div>
             <div className="text-2xl font-semibold mt-1">{data.totals.payments}</div>
           </div>
-          <div className="p-4 border border-zinc-800 rounded-lg">
-            <div className="text-sm text-zinc-400">Totals (all time)</div>
-            <div className="text-sm mt-2 text-zinc-300">Orders: {data.totals.orders_total}</div>
-            <div className="text-sm text-zinc-300">Payments: {data.totals.payments_total}</div>
+          <div className="p-4 hk-card">
+            <div className="text-sm text-[color:var(--hk-muted)]">Totals (all time)</div>
+            <div className="text-sm mt-2 text-[color:var(--hk-muted)]">Orders: {data.totals.orders_total}</div>
+            <div className="text-sm text-[color:var(--hk-muted)]">Payments: {data.totals.payments_total}</div>
           </div>
         </div>
       ) : null}
 
       {data ? (
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="border border-zinc-800 rounded-lg overflow-auto">
-            <div className="px-3 py-2 bg-zinc-900 text-zinc-300 text-sm font-semibold">Top merchants (orders)</div>
+          <div className="hk-card overflow-auto">
+            <div className="px-3 py-2 hk-table-head text-sm font-semibold">Top merchants (orders)</div>
             <table className="w-full text-sm">
               <tbody>
                 {topMerchants.map(([k, v]) => (
-                  <tr key={k} className="border-t border-zinc-800">
+                  <tr key={k} className="border-t [var(--hk-border)]">
                     <td className="px-3 py-2 font-mono text-xs">{k}</td>
                     <td className="px-3 py-2 text-right">{v}</td>
                   </tr>
@@ -113,12 +113,12 @@ export default function MailPage() {
             </table>
           </div>
 
-          <div className="border border-zinc-800 rounded-lg overflow-auto">
-            <div className="px-3 py-2 bg-zinc-900 text-zinc-300 text-sm font-semibold">Top payment sources</div>
+          <div className="hk-card overflow-auto">
+            <div className="px-3 py-2 hk-table-head text-sm font-semibold">Top payment sources</div>
             <table className="w-full text-sm">
               <tbody>
                 {topSources.map(([k, v]) => (
-                  <tr key={k} className="border-t border-zinc-800">
+                  <tr key={k} className="border-t [var(--hk-border)]">
                     <td className="px-3 py-2 font-mono text-xs">{k}</td>
                     <td className="px-3 py-2 text-right">{v}</td>
                   </tr>
@@ -130,10 +130,10 @@ export default function MailPage() {
       ) : null}
 
       {data ? (
-        <div className="mt-6 border border-zinc-800 rounded-lg overflow-auto">
-          <div className="px-3 py-2 bg-zinc-900 text-zinc-300 text-sm font-semibold">Recent payment emails</div>
+        <div className="mt-6 hk-card overflow-auto">
+          <div className="px-3 py-2 hk-table-head text-sm font-semibold">Recent payment emails</div>
           <table className="w-full text-sm">
-            <thead className="bg-zinc-950 text-zinc-400">
+            <thead className="hk-table-head">
               <tr>
                 <th className="text-left px-3 py-2">When</th>
                 <th className="text-left px-3 py-2">Source</th>
@@ -143,8 +143,8 @@ export default function MailPage() {
             </thead>
             <tbody>
               {data.recentPayments.map((p, idx) => (
-                <tr key={idx} className="border-t border-zinc-800">
-                  <td className="px-3 py-2 text-xs text-zinc-400 whitespace-nowrap">{new Date(p.internalDateMs).toLocaleString()}</td>
+                <tr key={idx} className="border-t [var(--hk-border)]">
+                  <td className="px-3 py-2 text-xs text-[color:var(--hk-muted)] whitespace-nowrap">{new Date(p.internalDateMs).toLocaleString()}</td>
                   <td className="px-3 py-2 font-mono text-xs">{p.source}</td>
                   <td className="px-3 py-2">{p.subject}</td>
                   <td className="px-3 py-2 text-right">{formatINR(p.amount)}</td>

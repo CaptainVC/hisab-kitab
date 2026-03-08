@@ -79,12 +79,12 @@ export default function JobsPage() {
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-xl font-semibold">Jobs</h1>
-          <p className="text-zinc-400 mt-1">Background jobs (ingest, rebuild, staging commit).</p>
-          <div className="mt-1 text-xs text-zinc-500">
+          <p className="text-[color:var(--hk-muted)] mt-1">Background jobs (ingest, rebuild, staging commit).</p>
+          <div className="mt-1 text-xs text-[color:var(--hk-faint)]">
             Oldest visible job: {jobs.length ? new Date(jobs.reduce((min, j) => (j.createdAt < min ? j.createdAt : min), jobs[0].createdAt)).toLocaleString() : '—'}
           </div>
         </div>
-        <button className="px-3 py-2 rounded-md bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50" disabled={busy} onClick={() => refresh().catch(() => {})}>
+        <button className="px-3 py-2 hk-btn-primary disabled:opacity-50" disabled={busy} onClick={() => refresh().catch(() => {})}>
           {busy ? 'Loading…' : 'Refresh'}
         </button>
       </div>
@@ -92,9 +92,9 @@ export default function JobsPage() {
       {err ? <div className="mt-3 text-sm text-red-400">{err}</div> : null}
 
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="border border-zinc-800 rounded-lg overflow-auto max-h-[520px]">
+        <div className="hk-card overflow-auto max-h-[520px]">
           <table className="w-full text-sm">
-            <thead className="bg-zinc-900 text-zinc-300">
+            <thead className="hk-table-head">
               <tr>
                 <th className="text-left px-3 py-2">When</th>
                 <th className="text-left px-3 py-2">Type</th>
@@ -103,29 +103,29 @@ export default function JobsPage() {
             </thead>
             <tbody>
               {jobs.map((j) => (
-                <tr key={j.jobId} className={`border-t border-zinc-800 cursor-pointer ${selectedJobId === j.jobId ? 'bg-zinc-900/40' : 'hover:bg-zinc-900/30'}`} onClick={() => selectJob(j.jobId).catch(() => {})}>
-                  <td className="px-3 py-2 text-xs text-zinc-400 whitespace-nowrap">{new Date(j.createdAt).toLocaleString()}</td>
+                <tr key={j.jobId} className={`border-t [var(--hk-border)] cursor-pointer ${selectedJobId === j.jobId ? 'bg-zinc-900/40' : 'hover:bg-zinc-900/30'}`} onClick={() => selectJob(j.jobId).catch(() => {})}>
+                  <td className="px-3 py-2 text-xs text-[color:var(--hk-muted)] whitespace-nowrap">{new Date(j.createdAt).toLocaleString()}</td>
                   <td className="px-3 py-2 font-mono text-xs">{j.type}</td>
                   <td className="px-3 py-2">
                     {j.status}
-                    {j.exitCode !== undefined ? <span className="text-xs text-zinc-500"> (code {j.exitCode})</span> : null}
+                    {j.exitCode !== undefined ? <span className="text-xs text-[color:var(--hk-faint)]"> (code {j.exitCode})</span> : null}
                   </td>
                 </tr>
               ))}
               {jobs.length === 0 ? (
-                <tr><td className="px-3 py-3 text-zinc-500" colSpan={3}>No jobs yet.</td></tr>
+                <tr><td className="px-3 py-3 text-[color:var(--hk-faint)]" colSpan={3}>No jobs yet.</td></tr>
               ) : null}
             </tbody>
           </table>
         </div>
 
-        <div className="border border-zinc-800 rounded-lg p-3">
+        <div className="hk-card p-3">
           <div className="flex items-center justify-between gap-2">
-            <div className="text-sm font-semibold">Job details {selectedJobId ? <span className="font-mono text-xs text-zinc-400">({selectedJobId})</span> : null}</div>
+            <div className="text-sm font-semibold">Job details {selectedJobId ? <span className="font-mono text-xs text-[color:var(--hk-muted)]">({selectedJobId})</span> : null}</div>
             {selectedJobId ? (
               <div className="flex gap-2">
                 <button
-                  className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs"
+                  className="px-2 py-1 hk-btn-secondary text-xs"
                   onClick={async () => {
                     try {
                       await navigator.clipboard.writeText(selectedJobId);
@@ -139,7 +139,7 @@ export default function JobsPage() {
                   {copied ? 'Copied' : 'Copy jobId'}
                 </button>
                 <a
-                  className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs"
+                  className="px-2 py-1 hk-btn-secondary text-xs"
                   href={`/api/v1/jobs/${selectedJobId}/log?offset=0`}
                   target="_blank"
                   rel="noreferrer"
@@ -151,13 +151,13 @@ export default function JobsPage() {
           </div>
 
           {selectedJob ? (
-            <pre className="mt-2 text-xs overflow-auto max-h-[160px] whitespace-pre-wrap text-zinc-300">{JSON.stringify(selectedJob.params || {}, null, 2)}</pre>
+            <pre className="mt-2 text-xs overflow-auto max-h-[160px] whitespace-pre-wrap text-[color:var(--hk-muted)]">{JSON.stringify(selectedJob.params || {}, null, 2)}</pre>
           ) : (
-            <div className="mt-2 text-xs text-zinc-500">(select a job)</div>
+            <div className="mt-2 text-xs text-[color:var(--hk-faint)]">(select a job)</div>
           )}
 
           <div className="mt-3 text-sm font-semibold">Log</div>
-          <pre className="mt-2 text-xs overflow-auto max-h-[300px] whitespace-pre-wrap text-zinc-300">{selectedJobId ? (log || '(loading...)') : '(select a job)'}</pre>
+          <pre className="mt-2 text-xs overflow-auto max-h-[300px] whitespace-pre-wrap text-[color:var(--hk-muted)]">{selectedJobId ? (log || '(loading...)') : '(select a job)'}</pre>
         </div>
       </div>
     </div>

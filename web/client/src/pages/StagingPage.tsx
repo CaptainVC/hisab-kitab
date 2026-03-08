@@ -206,64 +206,64 @@ export default function StagingPage() {
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-xl font-semibold">Staging</h1>
-          <p className="text-zinc-400 mt-1">Paste a /hisab block. Parse preview first, then commit to Excel.</p>
+          <p className="text-[color:var(--hk-muted)] mt-1">Paste a /hisab block. Parse preview first, then commit to Excel.</p>
         </div>
         <div className="flex items-end gap-2">
           <div>
-            <label className="text-xs text-zinc-400">Rebuild from</label>
-            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={from} onChange={(e) => { const v = e.target.value; setFrom(v); saveRange({ from: v, to }); }} />
+            <label className="text-xs text-[color:var(--hk-muted)]">Rebuild from</label>
+            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={from} onChange={(e) => { const v = e.target.value; setFrom(v); saveRange({ from: v, to }); }} />
           </div>
           <div>
-            <label className="text-xs text-zinc-400">Rebuild to</label>
-            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={to} onChange={(e) => { const v = e.target.value; setTo(v); saveRange({ from, to: v }); }} />
+            <label className="text-xs text-[color:var(--hk-muted)]">Rebuild to</label>
+            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={to} onChange={(e) => { const v = e.target.value; setTo(v); saveRange({ from, to: v }); }} />
           </div>
         </div>
       </div>
 
       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="p-4 border border-zinc-800 rounded-lg">
-          <label className="text-xs text-zinc-400">Hisab text</label>
+        <div className="p-4 hk-card">
+          <label className="text-xs text-[color:var(--hk-muted)]">Hisab text</label>
           <textarea
-            className="mt-1 w-full h-56 px-3 py-2 rounded bg-zinc-900 border border-zinc-800 font-mono text-xs"
+            className="mt-1 w-full h-56 px-3 py-2 rounded bg-zinc-900 border [var(--hk-border)] font-mono text-xs"
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="/hisab Day (08/03/26)\n260/- Something (mk)"
           />
           {err ? <div className="mt-3 text-sm text-red-400">{err}</div> : null}
           <div className="mt-3 flex gap-2 flex-wrap">
-            <button className="px-3 py-2 rounded-md bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50" disabled={busy || !text.trim()} onClick={() => doParse()}>
+            <button className="px-3 py-2 rounded-md hk-btn-secondary disabled:opacity-50" disabled={busy || !text.trim()} onClick={() => doParse()}>
               {busy ? 'Working…' : 'Parse preview'}
             </button>
-            <button className="px-3 py-2 rounded-md bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50" disabled={busy || !text.trim()} onClick={() => doCommitText(false)}>
+            <button className="px-3 py-2 hk-btn-primary disabled:opacity-50" disabled={busy || !text.trim()} onClick={() => doCommitText(false)}>
               Commit text
             </button>
             <button
-              className="px-3 py-2 rounded-md bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-100"
+              className="px-3 py-2 rounded-md hk-btn-secondary disabled:opacity-50 text-zinc-100"
               disabled={busy || parseRows.length === 0}
               onClick={() => setParseRows((xs) => xs.map((r) => ({ ...r, tags: normalizeTagsCsv(r.tags || '') })))}
             >
               Normalize tags
             </button>
-            <button className="px-3 py-2 rounded-md bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50" disabled={busy || parseRows.length === 0} onClick={() => doCommitRows(false)}>
+            <button className="px-3 py-2 hk-btn-primary disabled:opacity-50" disabled={busy || parseRows.length === 0} onClick={() => doCommitRows(false)}>
               Commit edited rows
             </button>
-            <button className="px-3 py-2 rounded-md bg-emerald-500 text-emerald-950 font-semibold disabled:opacity-50" disabled={busy || parseRows.length === 0} onClick={() => doCommitRows(true)}>
+            <button className="px-3 py-2 rounded-md hk-btn-primary disabled:opacity-50" disabled={busy || parseRows.length === 0} onClick={() => doCommitRows(true)}>
               Commit rows + rebuild cache
             </button>
           </div>
         </div>
 
-        <div className="p-4 border border-zinc-800 rounded-lg">
+        <div className="p-4 hk-card">
           <div className="text-sm font-semibold">Preview</div>
-          <div className="mt-2 text-xs text-zinc-500">Rows: {parseRows.length} • Errors: {parseErrors.length}</div>
+          <div className="mt-2 text-xs text-[color:var(--hk-faint)]">Rows: {parseRows.length} • Errors: {parseErrors.length}</div>
 
           {parseErrors.length ? (
-            <pre className="mt-2 p-2 rounded bg-zinc-950 border border-zinc-800 text-xs overflow-auto max-h-40 whitespace-pre-wrap">{JSON.stringify(parseErrors, null, 2)}</pre>
+            <pre className="mt-2 p-2 rounded bg-zinc-950 border [var(--hk-border)] text-xs overflow-auto max-h-40 whitespace-pre-wrap">{JSON.stringify(parseErrors, null, 2)}</pre>
           ) : null}
 
-          <div className="mt-3 border border-zinc-800 rounded overflow-auto max-h-64">
+          <div className="mt-3 border [var(--hk-border)] rounded overflow-auto max-h-64">
             <table className="w-full text-xs">
-              <thead className="bg-zinc-900 text-zinc-300">
+              <thead className="hk-table-head">
                 <tr>
                   <th className="text-left px-2 py-1">Date</th>
                   <th className="text-right px-2 py-1">Amt</th>
@@ -276,7 +276,7 @@ export default function StagingPage() {
               </thead>
               <tbody>
                 {parseRows.slice(0, 200).map((r) => (
-                  <tr key={r.txn_id} className="border-t border-zinc-800">
+                  <tr key={r.txn_id} className="border-t [var(--hk-border)]">
                     <td className="px-2 py-1 whitespace-nowrap">{r.date}</td>
                     <td className="px-2 py-1 text-right">{formatINR(r.amount)}</td>
                     <td className="px-2 py-1">{r.source}</td>
@@ -284,7 +284,7 @@ export default function StagingPage() {
                       <div className="flex items-center gap-1">
                         <input
                           list="hk_merchants"
-                          className={`w-28 px-1 py-0.5 rounded bg-zinc-950 border ${isValidMerchant(r.merchant_code || '') ? 'border-zinc-800' : 'border-amber-500'}`}
+                          className={`w-28 px-1 py-0.5 rounded bg-zinc-950 border ${isValidMerchant(r.merchant_code || '') ? '[var(--hk-border)]' : 'border-amber-500'}`}
                           value={r.merchant_code || ''}
                           onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, merchant_code: e.target.value } : it))}
                         />
@@ -299,7 +299,7 @@ export default function StagingPage() {
                       <div className="flex items-center gap-1">
                         <input
                           list="hk_categories"
-                          className={`w-24 px-1 py-0.5 rounded bg-zinc-950 border ${isValidCategory(r.category || '') ? 'border-zinc-800' : 'border-amber-500'}`}
+                          className={`w-24 px-1 py-0.5 rounded bg-zinc-950 border ${isValidCategory(r.category || '') ? '[var(--hk-border)]' : 'border-amber-500'}`}
                           value={r.category || ''}
                           onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, category: e.target.value } : it))}
                         />
@@ -314,7 +314,7 @@ export default function StagingPage() {
                       <div className="flex items-center gap-1">
                         <input
                           list={`hk_subcats_${r.txn_id}`}
-                          className={`w-28 px-1 py-0.5 rounded bg-zinc-950 border ${isValidSubcategory(r.category || '', r.subcategory || '') ? 'border-zinc-800' : 'border-amber-500'}`}
+                          className={`w-28 px-1 py-0.5 rounded bg-zinc-950 border ${isValidSubcategory(r.category || '', r.subcategory || '') ? '[var(--hk-border)]' : 'border-amber-500'}`}
                           value={r.subcategory || ''}
                           onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, subcategory: e.target.value } : it))}
                         />
@@ -332,16 +332,16 @@ export default function StagingPage() {
                           ))}
                       </datalist>
                       <div className="mt-1">
-                        <input className="w-28 px-1 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-[11px]" value={r.tags || ''} placeholder="tags" onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, tags: e.target.value } : it))} />
+                        <input className="w-28 px-1 py-0.5 rounded bg-zinc-950 border [var(--hk-border)] text-[11px]" value={r.tags || ''} placeholder="tags" onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, tags: e.target.value } : it))} />
                       </div>
                     </td>
                     <td className="px-2 py-1">
-                      <input className="w-40 px-1 py-0.5 rounded bg-zinc-950 border border-zinc-800" value={r.notes || ''} onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, notes: e.target.value } : it))} />
+                      <input className="w-40 px-1 py-0.5 rounded bg-zinc-950 border [var(--hk-border)]" value={r.notes || ''} onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, notes: e.target.value } : it))} />
                     </td>
                   </tr>
                 ))}
                 {parseRows.length === 0 ? (
-                  <tr><td className="px-2 py-2 text-zinc-500" colSpan={7}>Parse something to see preview.</td></tr>
+                  <tr><td className="px-2 py-2 text-[color:var(--hk-faint)]" colSpan={7}>Parse something to see preview.</td></tr>
                 ) : null}
               </tbody>
             </table>
@@ -362,7 +362,7 @@ export default function StagingPage() {
 
       <div className="mt-6">
         <h2 className="text-sm font-semibold text-zinc-200">Commit job log {jobId ? `(job ${jobId})` : ''}</h2>
-        <pre className="mt-2 p-3 border border-zinc-800 rounded-lg bg-zinc-950 text-xs overflow-auto max-h-[320px] whitespace-pre-wrap">{jobLog || '(no commit run yet)'}</pre>
+        <pre className="mt-2 p-3 hk-card bg-zinc-950 text-xs overflow-auto max-h-[320px] whitespace-pre-wrap">{jobLog || '(no commit run yet)'}</pre>
       </div>
     </div>
   );

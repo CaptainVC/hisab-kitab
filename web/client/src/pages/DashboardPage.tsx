@@ -152,26 +152,26 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-xl font-semibold">Dashboard</h1>
           {meta ? (
-            <div className="text-sm text-zinc-400 mt-1">
+            <div className="text-sm text-[color:var(--hk-muted)] mt-1">
               {meta.generatedAt ? <>Generated: {meta.generatedAt}</> : null}{' '}
               {meta ? <>({meta.stale ? 'stale' : 'fresh'}; age {msToAge(meta.ageMs)})</> : null}
             </div>
           ) : (
-            <div className="text-sm text-zinc-500 mt-1">No cache loaded yet.</div>
+            <div className="text-sm text-[color:var(--hk-faint)] mt-1">No cache loaded yet.</div>
           )}
         </div>
 
         <div className="flex items-end gap-2">
           <div>
-            <label className="text-xs text-zinc-400">From (YYYY-MM)</label>
-            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={from} onChange={e => { const v = e.target.value; setFrom(v); saveRange({ from: v, to }); }} />
+            <label className="text-xs text-[color:var(--hk-muted)]">From (YYYY-MM)</label>
+            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={from} onChange={e => { const v = e.target.value; setFrom(v); saveRange({ from: v, to }); }} />
           </div>
           <div>
-            <label className="text-xs text-zinc-400">To (YYYY-MM)</label>
-            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={to} onChange={e => { const v = e.target.value; setTo(v); saveRange({ from, to: v }); }} />
+            <label className="text-xs text-[color:var(--hk-muted)]">To (YYYY-MM)</label>
+            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={to} onChange={e => { const v = e.target.value; setTo(v); saveRange({ from, to: v }); }} />
           </div>
           <button
-            className="px-3 py-2 rounded-md bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50"
+            className="px-3 py-2 hk-btn-primary disabled:opacity-50"
             disabled={busy}
             onClick={rebuild}
           >
@@ -195,8 +195,8 @@ export default function DashboardPage() {
       ) : null}
 
       <div className="mt-6 flex items-center justify-between">
-        <div className="text-sm text-zinc-400">Filters</div>
-        <button className="px-3 py-2 rounded-md bg-zinc-800 hover:bg-zinc-700" onClick={() => setFiltersOpen(true)}>
+        <div className="text-sm text-[color:var(--hk-muted)]">Filters</div>
+        <button className="px-3 py-2 rounded-md hk-btn-secondary" onClick={() => setFiltersOpen(true)}>
           Open filters
         </button>
       </div>
@@ -204,16 +204,16 @@ export default function DashboardPage() {
       {filtersOpen ? (
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/60" onClick={() => setFiltersOpen(false)} />
-          <div className="absolute left-0 top-0 h-full w-[320px] md:w-[380px] bg-zinc-950 border-r border-zinc-800 p-4 overflow-auto">
+          <div className="absolute left-0 top-0 h-full w-[320px] md:w-[380px] bg-zinc-950 border-r [var(--hk-border)] p-4 overflow-auto">
             <div className="flex items-center justify-between">
               <div className="text-sm font-semibold">Filters</div>
-              <button className="text-zinc-400 hover:text-white" onClick={() => setFiltersOpen(false)}>✕</button>
+              <button className="text-[color:var(--hk-muted)] hover:text-white" onClick={() => setFiltersOpen(false)}>✕</button>
             </div>
 
             <div className="mt-3 grid grid-cols-1 gap-3">
           <div>
-            <label className="text-xs text-zinc-400">Type</label>
-            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={fType} onChange={(e) => setFType(e.target.value)}>
+            <label className="text-xs text-[color:var(--hk-muted)]">Type</label>
+            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={fType} onChange={(e) => setFType(e.target.value)}>
               <option value="">(all)</option>
               {Array.from(new Set(rows.map((r:any)=>r.type))).filter(Boolean).sort().map((t) => (
                 <option key={t} value={t}>{t}</option>
@@ -221,26 +221,26 @@ export default function DashboardPage() {
             </select>
             <div className="mt-2 flex gap-2">
               <button
-                className={`px-2 py-1 rounded border border-zinc-800 text-xs ${fType===''?'bg-zinc-800':'bg-zinc-900 hover:bg-zinc-800'}`}
+                className={`px-2 py-1 rounded border [var(--hk-border)] text-xs ${fType===''?'bg-zinc-800':'hk-btn-secondary'}`}
                 onClick={() => setFType('')}
               >All</button>
               <button
-                className={`px-2 py-1 rounded border border-zinc-800 text-xs ${fType==='EXPENSE'?'bg-zinc-800':'bg-zinc-900 hover:bg-zinc-800'}`}
+                className={`px-2 py-1 rounded border [var(--hk-border)] text-xs ${fType==='EXPENSE'?'bg-zinc-800':'hk-btn-secondary'}`}
                 onClick={() => setFType('EXPENSE')}
               >Expense</button>
               <button
-                className={`px-2 py-1 rounded border border-zinc-800 text-xs ${fType==='INCOME'?'bg-zinc-800':'bg-zinc-900 hover:bg-zinc-800'}`}
+                className={`px-2 py-1 rounded border [var(--hk-border)] text-xs ${fType==='INCOME'?'bg-zinc-800':'hk-btn-secondary'}`}
                 onClick={() => setFType('INCOME')}
               >Income</button>
               <button
-                className={`px-2 py-1 rounded border border-zinc-800 text-xs ${fType==='TRANSFER'?'bg-zinc-800':'bg-zinc-900 hover:bg-zinc-800'}`}
+                className={`px-2 py-1 rounded border [var(--hk-border)] text-xs ${fType==='TRANSFER'?'bg-zinc-800':'hk-btn-secondary'}`}
                 onClick={() => setFType('TRANSFER')}
               >Transfer</button>
             </div>
           </div>
           <div>
-            <label className="text-xs text-zinc-400">Source</label>
-            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={fSource} onChange={(e) => setFSource(e.target.value)}>
+            <label className="text-xs text-[color:var(--hk-muted)]">Source</label>
+            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={fSource} onChange={(e) => setFSource(e.target.value)}>
               <option value="">(all)</option>
               {Array.from(new Set(rows.map((r:any)=>r.source_name || r.source))).filter(Boolean).sort().map((s) => (
                 <option key={s} value={s}>{s}</option>
@@ -248,8 +248,8 @@ export default function DashboardPage() {
             </select>
           </div>
           <div>
-            <label className="text-xs text-zinc-400">Location</label>
-            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={fLocation} onChange={(e) => setFLocation(e.target.value)}>
+            <label className="text-xs text-[color:var(--hk-muted)]">Location</label>
+            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={fLocation} onChange={(e) => setFLocation(e.target.value)}>
               <option value="">(all)</option>
               {Array.from(new Set(rows.map((r:any)=>r.location_name || r.location))).filter(Boolean).sort().map((l) => (
                 <option key={l} value={l}>{l}</option>
@@ -257,10 +257,10 @@ export default function DashboardPage() {
             </select>
           </div>
           <div>
-            <label className="text-xs text-zinc-400">Tags (any)</label>
+            <label className="text-xs text-[color:var(--hk-muted)]">Tags (any)</label>
             <select
               multiple
-              className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800 h-24"
+              className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)] h-24"
               value={fTags}
               onChange={(e) => {
                 const sel = Array.from(e.target.selectedOptions).map((o) => o.value);
@@ -287,11 +287,11 @@ export default function DashboardPage() {
                   </option>
                 ))}
             </select>
-            <div className="mt-1 text-[11px] text-zinc-500">Hold Ctrl/Cmd to select multiple</div>
+            <div className="mt-1 text-[11px] text-[color:var(--hk-faint)]">Hold Ctrl/Cmd to select multiple</div>
           </div>
           <div>
-            <label className="text-xs text-zinc-400">Merchant</label>
-            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={fMerchant} onChange={(e) => setFMerchant(e.target.value)}>
+            <label className="text-xs text-[color:var(--hk-muted)]">Merchant</label>
+            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={fMerchant} onChange={(e) => setFMerchant(e.target.value)}>
               <option value="">(all)</option>
               {Array.from(new Set(rows.map((r:any)=>r.merchant_name || r.merchant_code).filter(Boolean))).sort().map((m) => (
                 <option key={m} value={m}>{m}</option>
@@ -299,8 +299,8 @@ export default function DashboardPage() {
             </select>
           </div>
           <div>
-            <label className="text-xs text-zinc-400">Category</label>
-            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={fCategory} onChange={(e) => { setFCategory(e.target.value); setFSubcategory(''); }}>
+            <label className="text-xs text-[color:var(--hk-muted)]">Category</label>
+            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={fCategory} onChange={(e) => { setFCategory(e.target.value); setFSubcategory(''); }}>
               <option value="">(all)</option>
               {Array.from(new Set(rows.map((r:any)=>r.category_name || r.category).filter(Boolean))).sort().map((c) => (
                 <option key={c} value={c}>{c}</option>
@@ -308,8 +308,8 @@ export default function DashboardPage() {
             </select>
           </div>
           <div>
-            <label className="text-xs text-zinc-400">Subcategory</label>
-            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={fSubcategory} onChange={(e) => setFSubcategory(e.target.value)}>
+            <label className="text-xs text-[color:var(--hk-muted)]">Subcategory</label>
+            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={fSubcategory} onChange={(e) => setFSubcategory(e.target.value)}>
               <option value="">(all)</option>
               {Array.from(new Set(rows.filter((r:any)=>!fCategory || (r.category_name||r.category)===fCategory || r.category===fCategory).map((r:any)=>r.subcategory_name || r.subcategory).filter(Boolean))).sort().map((s) => (
                 <option key={s} value={s}>{s}</option>
@@ -317,36 +317,36 @@ export default function DashboardPage() {
             </select>
           </div>
           <div className="flex items-end">
-            <button className="w-full px-3 py-2 rounded-md bg-zinc-800 hover:bg-zinc-700" onClick={() => { setFType(''); setFSource(''); setFLocation(''); setFMerchant(''); setFCategory(''); setFSubcategory(''); setFTags([]); }}>
+            <button className="w-full px-3 py-2 rounded-md hk-btn-secondary" onClick={() => { setFType(''); setFSource(''); setFLocation(''); setFMerchant(''); setFCategory(''); setFSubcategory(''); setFTags([]); }}>
               Clear filters
             </button>
           </div>
         </div>
 
             <div className="mt-4">
-              <button className="w-full px-3 py-2 rounded-md bg-zinc-800 hover:bg-zinc-700" onClick={() => setFiltersOpen(false)}>
+              <button className="w-full px-3 py-2 rounded-md hk-btn-secondary" onClick={() => setFiltersOpen(false)}>
                 Close
               </button>
             </div>
 
-            <div className="mt-3 text-xs text-zinc-500">Showing {filteredRows.length} / {rows.length} transactions</div>
+            <div className="mt-3 text-xs text-[color:var(--hk-faint)]">Showing {filteredRows.length} / {rows.length} transactions</div>
           </div>
         </div>
       ) : null}
 
-      <div className="mt-3 text-xs text-zinc-500">
+      <div className="mt-3 text-xs text-[color:var(--hk-faint)]">
         Oldest loaded: {rows.length ? String(rows.reduce((min:any, r:any)=>{ const d=String(r.date||''); if(!d) return min; if(!min) return d; return d<min?d:min; }, null)) : '—'} • Showing {filteredRows.length} / {rows.length} transactions (filters). Transactions table paginates.
       </div>
 
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="p-4 border border-zinc-800 rounded-lg">
+        <div className="p-4 hk-card">
           <div className="text-sm font-semibold">Daily expense (trend)</div>
           <div className="mt-2 h-[220px]">
             <DailyLineChart labels={daily.map(x => x[0])} values={daily.map(x => Math.round(x[1]))} height={220} />
           </div>
         </div>
 
-        <div className="p-4 border border-zinc-800 rounded-lg">
+        <div className="p-4 hk-card">
           <div className="text-sm font-semibold">Top categories (click to filter)</div>
           <div className="mt-2 h-[220px]">
             <CategoryDoughnut
@@ -358,7 +358,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="p-4 border border-zinc-800 rounded-lg">
+        <div className="p-4 hk-card">
           <div className="text-sm font-semibold">Top merchants (expense)</div>
           <div className="mt-2 h-[220px]">
             {(() => {
@@ -373,7 +373,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="p-4 border border-zinc-800 rounded-lg">
+        <div className="p-4 hk-card">
           <div className="text-sm font-semibold">By source (count)</div>
           <div className="mt-2 h-[220px]">
             {(() => {
@@ -390,11 +390,11 @@ export default function DashboardPage() {
       </div>
 
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="p-4 border border-zinc-800 rounded-lg">
+        <div className="p-4 hk-card">
           <div className="text-sm font-semibold">Top subcategories (expense only)</div>
-          <div className="mt-2 border border-zinc-800 rounded overflow-auto max-h-72">
+          <div className="mt-2 border [var(--hk-border)] rounded overflow-auto max-h-72">
             <table className="w-full text-sm">
-              <thead className="bg-zinc-900 text-zinc-300">
+              <thead className="hk-table-head">
                 <tr>
                   <th className="text-left px-3 py-2">Subcategory</th>
                   <th className="text-right px-3 py-2">Amount</th>
@@ -411,7 +411,7 @@ export default function DashboardPage() {
                     .sort((a, b) => b[1] - a[1])
                     .slice(0, 20)
                     .map(([k, v]) => (
-                      <tr key={k} className="border-t border-zinc-800">
+                      <tr key={k} className="border-t [var(--hk-border)]">
                         <td className="px-3 py-2">{k}</td>
                         <td className="px-3 py-2 text-right">{formatINR(v)}</td>
                       </tr>
@@ -422,11 +422,11 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="p-4 border border-zinc-800 rounded-lg">
+        <div className="p-4 hk-card">
           <div className="text-sm font-semibold">Top merchants (expense only)</div>
-          <div className="mt-2 border border-zinc-800 rounded overflow-auto max-h-72">
+          <div className="mt-2 border [var(--hk-border)] rounded overflow-auto max-h-72">
             <table className="w-full text-sm">
-              <thead className="bg-zinc-900 text-zinc-300">
+              <thead className="hk-table-head">
                 <tr>
                   <th className="text-left px-3 py-2">Merchant</th>
                   <th className="text-right px-3 py-2">Amount</th>
@@ -443,7 +443,7 @@ export default function DashboardPage() {
                     .sort((a, b) => b[1] - a[1])
                     .slice(0, 20)
                     .map(([k, v]) => (
-                      <tr key={k} className="border-t border-zinc-800">
+                      <tr key={k} className="border-t [var(--hk-border)]">
                         <td className="px-3 py-2">{k}</td>
                         <td className="px-3 py-2 text-right">{formatINR(v)}</td>
                       </tr>
@@ -458,10 +458,10 @@ export default function DashboardPage() {
       <div className="mt-6">
         <div className="flex items-end justify-between gap-3 flex-wrap">
           <h2 className="text-sm font-semibold text-zinc-200">Transactions</h2>
-          <div className="flex items-center gap-2 text-sm text-zinc-300">
-            <span className="text-zinc-500">Page size</span>
+          <div className="flex items-center gap-2 text-sm text-[color:var(--hk-muted)]">
+            <span className="text-[color:var(--hk-faint)]">Page size</span>
             <select
-              className="px-2 py-1 rounded bg-zinc-900 border border-zinc-800"
+              className="px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]"
               value={pageSize}
               onChange={(e) => { setPage(1); setPageSize(Number(e.target.value)); }}
             >
@@ -469,14 +469,14 @@ export default function DashboardPage() {
                 <option key={n} value={n}>{n}</option>
               ))}
             </select>
-            <button className="px-2 py-1 rounded bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 disabled:opacity-50" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</button>
-            <div className="text-zinc-500">{page} / {totalPages}</div>
-            <button className="px-2 py-1 rounded bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 disabled:opacity-50" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</button>
+            <button className="px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)] hover:bg-zinc-800 disabled:opacity-50" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</button>
+            <div className="text-[color:var(--hk-faint)]">{page} / {totalPages}</div>
+            <button className="px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)] hover:bg-zinc-800 disabled:opacity-50" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</button>
           </div>
         </div>
-        <div className="mt-2 border border-zinc-800 rounded-lg overflow-auto max-h-[520px]">
+        <div className="mt-2 hk-card overflow-auto max-h-[520px]">
           <table className="w-full text-sm">
-            <thead className="bg-zinc-900 text-zinc-300 sticky top-0 z-10">
+            <thead className="hk-table-head sticky top-0 z-10">
               <tr>
                 <th className="text-left px-3 py-2">Date</th>
                 <th className="text-left px-3 py-2">Type</th>
@@ -489,7 +489,7 @@ export default function DashboardPage() {
             </thead>
             <tbody>
               {pageRows.map((r) => (
-                <tr key={r.txn_id} className="border-t border-zinc-800">
+                <tr key={r.txn_id} className="border-t [var(--hk-border)]">
                   <td className="px-3 py-2 whitespace-nowrap">{r.date}</td>
                   <td className="px-3 py-2">{r.type}</td>
                   <td className="px-3 py-2 text-right">{formatINR(r.amount)}</td>
@@ -501,7 +501,7 @@ export default function DashboardPage() {
               ))}
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td className="px-3 py-3 text-zinc-500" colSpan={7}>No rows loaded (run rebuild).</td>
+                  <td className="px-3 py-3 text-[color:var(--hk-faint)]" colSpan={7}>No rows loaded (run rebuild).</td>
                 </tr>
               ) : null}
             </tbody>

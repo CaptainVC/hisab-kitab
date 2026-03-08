@@ -154,19 +154,19 @@ export default function ReviewPage() {
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-xl font-semibold">Needs Review</h1>
-          <p className="text-zinc-400 mt-1">Auto-generated list: parse errors + missing category/subcategory (excluding resolved).</p>
-          <div className="mt-1 text-xs text-zinc-500">Oldest pending item: {oldestDate || '—'}</div>
+          <p className="text-[color:var(--hk-muted)] mt-1">Auto-generated list: parse errors + missing category/subcategory (excluding resolved).</p>
+          <div className="mt-1 text-xs text-[color:var(--hk-faint)]">Oldest pending item: {oldestDate || '—'}</div>
         </div>
         <div className="flex items-end gap-2">
           <div>
-            <label className="text-xs text-zinc-400">From</label>
-            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={from} onChange={e => { const v = e.target.value; setFrom(v); saveRange({ from: v, to }); }} />
+            <label className="text-xs text-[color:var(--hk-muted)]">From</label>
+            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={from} onChange={e => { const v = e.target.value; setFrom(v); saveRange({ from: v, to }); }} />
           </div>
           <div>
-            <label className="text-xs text-zinc-400">To</label>
-            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={to} onChange={e => { const v = e.target.value; setTo(v); saveRange({ from, to: v }); }} />
+            <label className="text-xs text-[color:var(--hk-muted)]">To</label>
+            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={to} onChange={e => { const v = e.target.value; setTo(v); saveRange({ from, to: v }); }} />
           </div>
-          <button className="px-3 py-2 rounded-md bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50" disabled={busy} onClick={() => load().catch(() => {})}>
+          <button className="px-3 py-2 hk-btn-primary disabled:opacity-50" disabled={busy} onClick={() => load().catch(() => {})}>
             {busy ? 'Loading…' : 'Load'}
           </button>
         </div>
@@ -181,9 +181,9 @@ export default function ReviewPage() {
 
       {/* Save+resolve removed; resolve actions are per-item. */}
 
-      <div className="mt-6 border border-zinc-800 rounded-lg overflow-auto">
+      <div className="mt-6 hk-card overflow-auto">
         <table className="w-full text-sm min-w-[1400px]">
-          <thead className="bg-zinc-900 text-zinc-300">
+          <thead className="hk-table-head">
             <tr>
               <th className="text-left px-3 py-2">Date</th>
               <th className="text-right px-3 py-2">Amt</th>
@@ -198,17 +198,17 @@ export default function ReviewPage() {
           </thead>
           <tbody>
             {items.map((x) => (
-              <tr key={x.txn_id} className="border-t border-zinc-800">
+              <tr key={x.txn_id} className="border-t [var(--hk-border)]">
                 <td className="px-3 py-2 whitespace-nowrap">{x.date}</td>
                 <td className="px-3 py-2 text-right">{formatINR(x.amount)}</td>
-                <td className="px-3 py-2 text-xs text-zinc-400 whitespace-nowrap">
+                <td className="px-3 py-2 text-xs text-[color:var(--hk-muted)] whitespace-nowrap">
                   <div>{x.origin || (x.messageId ? 'MAIL' : 'HISAB')}</div>
-                  {x.source ? <div className="text-[11px] text-zinc-500 font-mono">{x.source}</div> : null}
+                  {x.source ? <div className="text-[11px] text-[color:var(--hk-faint)] font-mono">{x.source}</div> : null}
                 </td>
                 <td className="px-3 py-2">
                   <input
                     list="hk_merchants"
-                    className="w-36 px-2 py-1 rounded bg-zinc-900 border border-zinc-800"
+                    className="w-36 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]"
                     value={(editing[x.txn_id]?.merchant ?? x.merchant) || ''}
                     placeholder="Merchant"
                     onChange={(e) =>
@@ -226,7 +226,7 @@ export default function ReviewPage() {
                 </td>
                 <td className="px-3 py-2">
                   <select
-                    className="w-40 px-2 py-1 rounded bg-zinc-900 border border-zinc-800"
+                    className="w-40 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]"
                     value={(editing[x.txn_id]?.category ?? x.category) || ''}
                     onChange={(e) =>
                       setEditing((m) => ({
@@ -254,7 +254,7 @@ export default function ReviewPage() {
                     return (
                       <>
                         <select
-                          className="w-44 px-2 py-1 rounded bg-zinc-900 border border-zinc-800 disabled:opacity-50"
+                          className="w-44 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)] disabled:opacity-50"
                           disabled={!cat}
                           value={subVal}
                           onChange={(e) =>
@@ -276,7 +276,7 @@ export default function ReviewPage() {
                         </select>
                         <div className="mt-1">
                           <input
-                            className="w-44 px-2 py-1 rounded bg-zinc-900 border border-zinc-800 text-xs"
+                            className="w-44 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)] text-xs"
                             value={editing[x.txn_id]?.tags ?? ''}
                             placeholder="tags (comma-separated)"
                             onChange={(e) =>
@@ -296,17 +296,17 @@ export default function ReviewPage() {
                     );
                   })()}
                 </td>
-                <td className="px-3 py-2 text-zinc-400">{x.reason}</td>
-                <td className="px-3 py-2 text-xs text-zinc-400">
+                <td className="px-3 py-2 text-[color:var(--hk-muted)]">{x.reason}</td>
+                <td className="px-3 py-2 text-xs text-[color:var(--hk-muted)]">
                   <div className="max-w-[280px] truncate" title={x.notes || ''}>{x.notes || '—'}</div>
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex gap-2">
                     {/* Save + resolve removed */}
-                    <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => openReimburse(x)}>
+                    <button className="px-2 py-1 hk-btn-secondary" onClick={() => openReimburse(x)}>
                       Add reimbursement
                     </button>
-                    <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => resolve(x.txn_id).catch(() => {})}>
+                    <button className="px-2 py-1 hk-btn-secondary" onClick={() => resolve(x.txn_id).catch(() => {})}>
                       Resolve
                     </button>
                   </div>
@@ -315,7 +315,7 @@ export default function ReviewPage() {
             ))}
             {items.length === 0 ? (
               <tr>
-                <td className="px-3 py-3 text-zinc-500" colSpan={9}>Nothing to review.</td>
+                <td className="px-3 py-3 text-[color:var(--hk-faint)]" colSpan={9}>Nothing to review.</td>
               </tr>
             ) : null}
           </tbody>
@@ -323,38 +323,38 @@ export default function ReviewPage() {
       </div>
       {reimbOpen ? (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" onClick={() => setReimbOpen(false)}>
-          <div className="w-full max-w-md bg-zinc-950 border border-zinc-800 rounded-lg p-4" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-md bg-zinc-950 hk-card p-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-zinc-400">Add reimbursement</div>
-                <div className="text-xs text-zinc-500 font-mono">txn {reimbTxn?.txn_id}</div>
+                <div className="text-sm text-[color:var(--hk-muted)]">Add reimbursement</div>
+                <div className="text-xs text-[color:var(--hk-faint)] font-mono">txn {reimbTxn?.txn_id}</div>
               </div>
-              <button className="text-zinc-400 hover:text-white" onClick={() => setReimbOpen(false)}>✕</button>
+              <button className="text-[color:var(--hk-muted)] hover:text-white" onClick={() => setReimbOpen(false)}>✕</button>
             </div>
 
-            <div className="mt-3 text-sm text-zinc-300">
+            <div className="mt-3 text-sm text-[color:var(--hk-muted)]">
               Base: {reimbTxn ? `${reimbTxn.date} • ${formatINR(reimbTxn.amount)} • ${reimbTxn.merchant}` : ''}
             </div>
 
             <div className="mt-4 grid grid-cols-1 gap-3">
               <div>
-                <label className="text-xs text-zinc-400">Amount (INR)</label>
-                <input className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={reimbAmount} onChange={(e) => setReimbAmount(e.target.value)} placeholder="30" />
+                <label className="text-xs text-[color:var(--hk-muted)]">Amount (INR)</label>
+                <input className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={reimbAmount} onChange={(e) => setReimbAmount(e.target.value)} placeholder="30" />
               </div>
               <div>
-                <label className="text-xs text-zinc-400">Reimbursed by</label>
-                <input className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={reimbCounterparty} onChange={(e) => setReimbCounterparty(e.target.value)} placeholder="Name" />
+                <label className="text-xs text-[color:var(--hk-muted)]">Reimbursed by</label>
+                <input className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={reimbCounterparty} onChange={(e) => setReimbCounterparty(e.target.value)} placeholder="Name" />
               </div>
               <div>
-                <label className="text-xs text-zinc-400">Note (optional)</label>
-                <input className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={reimbNote} onChange={(e) => setReimbNote(e.target.value)} placeholder="Split with ..." />
+                <label className="text-xs text-[color:var(--hk-muted)]">Note (optional)</label>
+                <input className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={reimbNote} onChange={(e) => setReimbNote(e.target.value)} placeholder="Split with ..." />
               </div>
             </div>
 
             <div className="mt-4 flex justify-end gap-2">
-              <button className="px-3 py-2 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => setReimbOpen(false)}>Cancel</button>
+              <button className="px-3 py-2 hk-btn-secondary" onClick={() => setReimbOpen(false)}>Cancel</button>
               <button
-                className="px-3 py-2 rounded bg-emerald-500 text-emerald-950 font-semibold"
+                className="px-3 py-2 rounded hk-btn-primary"
                 onClick={() => submitReimbursement().catch((e) => setErr(String(e?.message || e)))}
               >
                 Queue reimbursement + resolve
