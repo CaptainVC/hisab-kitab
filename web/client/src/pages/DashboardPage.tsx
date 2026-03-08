@@ -92,6 +92,74 @@ export default function DashboardPage() {
 
       {err ? <div className="mt-3 text-sm text-red-400">{err}</div> : null}
 
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="p-4 border border-zinc-800 rounded-lg">
+          <div className="text-sm font-semibold">Top categories (expense only)</div>
+          <div className="mt-2 border border-zinc-800 rounded overflow-auto max-h-72">
+            <table className="w-full text-sm">
+              <thead className="bg-zinc-900 text-zinc-300">
+                <tr>
+                  <th className="text-left px-3 py-2">Category</th>
+                  <th className="text-right px-3 py-2">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const sums: Record<string, number> = {};
+                  for (const r of rows) {
+                    if (r.type !== 'EXPENSE') continue;
+                    const k = r.category_name || r.category || 'Uncategorized';
+                    sums[k] = (sums[k] || 0) + Number(r.amount || 0);
+                  }
+                  return Object.entries(sums)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 20)
+                    .map(([k, v]) => (
+                      <tr key={k} className="border-t border-zinc-800">
+                        <td className="px-3 py-2">{k}</td>
+                        <td className="px-3 py-2 text-right">{Math.round(v)}</td>
+                      </tr>
+                    ));
+                })()}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="p-4 border border-zinc-800 rounded-lg">
+          <div className="text-sm font-semibold">Daily expense (top 20 days)</div>
+          <div className="mt-2 border border-zinc-800 rounded overflow-auto max-h-72">
+            <table className="w-full text-sm">
+              <thead className="bg-zinc-900 text-zinc-300">
+                <tr>
+                  <th className="text-left px-3 py-2">Date</th>
+                  <th className="text-right px-3 py-2">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const sums: Record<string, number> = {};
+                  for (const r of rows) {
+                    if (r.type !== 'EXPENSE') continue;
+                    const k = r.date;
+                    sums[k] = (sums[k] || 0) + Number(r.amount || 0);
+                  }
+                  return Object.entries(sums)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 20)
+                    .map(([k, v]) => (
+                      <tr key={k} className="border-t border-zinc-800">
+                        <td className="px-3 py-2 whitespace-nowrap">{k}</td>
+                        <td className="px-3 py-2 text-right">{Math.round(v)}</td>
+                      </tr>
+                    ));
+                })()}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <div className="mt-6">
         <h2 className="text-sm font-semibold text-zinc-200">Transactions (first 200)</h2>
         <div className="mt-2 border border-zinc-800 rounded-lg overflow-auto">
