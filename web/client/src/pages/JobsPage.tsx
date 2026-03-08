@@ -23,6 +23,8 @@ export default function JobsPage() {
   const [selectedJob, setSelectedJob] = useState<any | null>(null);
   const [log, setLog] = useState('');
   const [offset, setOffset] = useState(0);
+
+  const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -115,12 +117,42 @@ export default function JobsPage() {
         </div>
 
         <div className="border border-zinc-800 rounded-lg p-3">
-          <div className="text-sm font-semibold">Job details {selectedJobId ? <span className="font-mono text-xs text-zinc-400">({selectedJobId})</span> : null}</div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-sm font-semibold">Job details {selectedJobId ? <span className="font-mono text-xs text-zinc-400">({selectedJobId})</span> : null}</div>
+            {selectedJobId ? (
+              <div className="flex gap-2">
+                <button
+                  className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(selectedJobId);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 1200);
+                    } catch {
+                      // ignore
+                    }
+                  }}
+                >
+                  {copied ? 'Copied' : 'Copy jobId'}
+                </button>
+                <a
+                  className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs"
+                  href={`/api/v1/jobs/${selectedJobId}/log?offset=0`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open raw log
+                </a>
+              </div>
+            ) : null}
+          </div>
+
           {selectedJob ? (
             <pre className="mt-2 text-xs overflow-auto max-h-[160px] whitespace-pre-wrap text-zinc-300">{JSON.stringify(selectedJob.params || {}, null, 2)}</pre>
           ) : (
             <div className="mt-2 text-xs text-zinc-500">(select a job)</div>
           )}
+
           <div className="mt-3 text-sm font-semibold">Log</div>
           <pre className="mt-2 text-xs overflow-auto max-h-[300px] whitespace-pre-wrap text-zinc-300">{selectedJobId ? (log || '(loading...)') : '(select a job)'}</pre>
         </div>
