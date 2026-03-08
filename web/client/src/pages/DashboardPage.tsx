@@ -249,13 +249,67 @@ export default function DashboardPage() {
         <div className="mt-3 text-sm text-red-400">{err}</div>
       ) : null}
 
-      <div className="mt-6 flex items-center justify-between">
-        <div className="text-sm text-[color:var(--hk-muted)]">
-          Filters
-          {fDate ? <span className="ml-2 hk-badge-good">Date {fDate}</span> : null}
-          {fMerchant === MISSING ? <span className="ml-2 hk-badge-good">Merchant missing</span> : null}
-          {fSubcategory === MISSING ? <span className="ml-2 hk-badge-good">Subcategory missing</span> : null}
+      <div className="mt-6 flex items-center justify-between gap-3 flex-wrap">
+        <div className="text-sm text-[color:var(--hk-muted)] flex items-center gap-2 flex-wrap">
+          <span>Filters</span>
+
+          {fDate ? (
+            <button className="hk-badge-good group" onClick={() => { setFDate(''); setPage(1); }}>
+              <span>Date {fDate}</span>
+              <span className="ml-2 opacity-0 group-hover:opacity-100">✕</span>
+            </button>
+          ) : null}
+
+          {fType ? (
+            <button className="hk-badge-good group" onClick={() => { setFType(''); setPage(1); }}>
+              <span>Type {fType}</span>
+              <span className="ml-2 opacity-0 group-hover:opacity-100">✕</span>
+            </button>
+          ) : null}
+
+          {fSource ? (
+            <button className="hk-badge-good group" onClick={() => { setFSource(''); setPage(1); }}>
+              <span>Source {fSource}</span>
+              <span className="ml-2 opacity-0 group-hover:opacity-100">✕</span>
+            </button>
+          ) : null}
+
+          {fLocation ? (
+            <button className="hk-badge-good group" onClick={() => { setFLocation(''); setPage(1); }}>
+              <span>Location {fLocation}</span>
+              <span className="ml-2 opacity-0 group-hover:opacity-100">✕</span>
+            </button>
+          ) : null}
+
+          {fMerchant ? (
+            <button className="hk-badge-good group" onClick={() => { setFMerchant(''); setPage(1); }}>
+              <span>{fMerchant === MISSING ? 'Merchant missing' : `Merchant ${fMerchant}`}</span>
+              <span className="ml-2 opacity-0 group-hover:opacity-100">✕</span>
+            </button>
+          ) : null}
+
+          {fCategory ? (
+            <button className="hk-badge-good group" onClick={() => { setFCategory(''); setPage(1); }}>
+              <span>{fCategory === MISSING ? 'Category missing' : `Category ${fCategory}`}</span>
+              <span className="ml-2 opacity-0 group-hover:opacity-100">✕</span>
+            </button>
+          ) : null}
+
+          {fSubcategory ? (
+            <button className="hk-badge-good group" onClick={() => { setFSubcategory(''); setPage(1); }}>
+              <span>{fSubcategory === MISSING ? 'Subcategory missing' : `Subcategory ${fSubcategory}`}</span>
+              <span className="ml-2 opacity-0 group-hover:opacity-100">✕</span>
+            </button>
+          ) : null}
+
+          {fTags.length ? (
+            <button className="hk-badge-good group" onClick={() => { setFTags([]); setPage(1); }}>
+              <span>Tags {fTags.join(', ')}</span>
+              <span className="ml-2 opacity-0 group-hover:opacity-100">✕</span>
+            </button>
+          ) : null}
         </div>
+
         <div className="flex gap-2">
           <button className="px-3 py-2 rounded-md hk-btn-secondary" onClick={() => { setFDate(''); setFType(''); setFSource(''); setFLocation(''); setFMerchant(''); setFCategory(''); setFSubcategory(''); setFTags([]); setPage(1); }}>
             Clear filters
