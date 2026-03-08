@@ -23,8 +23,8 @@ export function DailyLineChart({ labels, values, height = 180 }: { labels: strin
           {
             label: 'Expense',
             data: values,
-            borderColor: 'rgb(148, 163, 184)',
-            backgroundColor: 'rgba(148, 163, 184, 0.15)',
+            borderColor: '#DAA520',
+            backgroundColor: 'rgba(218, 165, 32, 0.12)',
             tension: 0.25,
             pointRadius: 1.5
           }
@@ -61,21 +61,19 @@ export function CategoryDoughnut({
             label: 'Spend',
             data: values,
             backgroundColor: [
-              '#2563eb', // blue
-              '#7c3aed', // violet
-              '#059669', // emerald
-              '#d97706', // amber
-              '#dc2626', // red
-              '#0891b2', // cyan
-              '#db2777', // pink
-              '#16a34a', // green
-              '#9333ea', // purple
-              '#ea580c', // orange
-              '#64748b', // slate
-              '#c026d3', // fuchsia
-              '#0f766e', // teal
-              '#ca8a04', // yellow
-              '#0284c7' // sky
+              '#8E4585', // plum
+              '#DAA520', // goldenrod
+              '#2E6F40', // forest
+              '#660033', // burgundy
+              // repeats w/ slight variations for extra slices
+              '#A05A99',
+              '#E3B33D',
+              '#3C8250',
+              '#7A0040',
+              '#7B3B76',
+              '#C9961C',
+              '#255D35',
+              '#540029'
             ]
           }
         ]
@@ -117,8 +115,8 @@ export function SimpleBarChart({
           {
             label,
             data: values,
-            backgroundColor: 'rgba(148, 163, 184, 0.35)',
-            borderColor: 'rgba(148, 163, 184, 0.9)',
+            backgroundColor: 'rgba(46, 111, 64, 0.35)',
+            borderColor: 'rgba(46, 111, 64, 0.9)',
             borderWidth: 1
           }
         ]
