@@ -82,7 +82,7 @@ export default function MailPage() {
 
       <div className="mt-4 p-4 hk-card">
         <div className="text-sm font-semibold">Ingest from mail (orders → Excel)</div>
-        <div className="mt-1 text-xs text-[color:var(--hk-muted)]">Best-effort categorization (unknown → SHOP_MISC). Dedupe uses date±buffer and amount tolerance.</div>
+        <div className="mt-1 text-xs text-[color:var(--hk-muted)]">Imports only when a matching overall Hisab expense exists (date±buffer + amount tol). Unknown items → SHOP_MISC.</div>
         <div className="mt-3 flex items-end gap-2 flex-wrap">
           <div>
             <label className="text-xs text-[color:var(--hk-muted)]">Buffer days</label>

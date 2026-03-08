@@ -165,9 +165,13 @@ async function main() {
     considered++;
 
     // Cross-reference with an existing Hisab expense entry (overall txn) to inherit its payment source.
-    // If a match is found, we still import the breakdown, but we copy `source` and set `linked_txn_id`.
+    // IMPORTANT: If no match is found, we do NOT import to Excel (to avoid duplicates).
     const total = Number(o?.total || 0) || items.reduce((s, it) => s + it.amount, 0);
     const match = findMatch(date, total);
+    if (!match) {
+      skippedDup++;
+      continue;
+    }
 
     const group_id = `mail_${mid || ''}_${Date.now()}`;
     const inheritedSource = String(match?.source || '').trim() || 'UNKNOWN';
