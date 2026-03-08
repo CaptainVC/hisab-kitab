@@ -57,6 +57,14 @@ export default function RefsPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  // merchant edit modal
+  const [editOpen, setEditOpen] = useState(false);
+  const [editCode, setEditCode] = useState<string>('');
+  const [editName, setEditName] = useState<string>('');
+  const [editCategory, setEditCategory] = useState<string>('');
+  const [editSubcategory, setEditSubcategory] = useState<string>('');
+  const [editTagsCsv, setEditTagsCsv] = useState<string>('');
+
   async function loadMerchants() {
     const m = await apiGet<MerchantsResp>('/api/v1/refs/merchants');
     const c = await apiGet<CoverageResp>(`/api/v1/refs/merchants/coverage?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
@@ -96,28 +104,31 @@ export default function RefsPage() {
     }
   }
 
-  async function editMerchant(code: string) {
+  function openEditMerchant(code: string) {
+    // Ensure category/subcategory lists are present so the dropdowns have options.
+    if (categories.length === 0) loadCategories().catch(() => {});
+    if (subcategories.length === 0) loadSubcategories().catch(() => {});
+
     const cur = merchants.find(x => x.code === code);
-    const name = prompt(`Merchant name for ${code}:`, cur?.name || code);
-    if (name === null) return;
+    setEditCode(code);
+    setEditName(cur?.name || code);
+    setEditCategory(cur?.default?.category || '');
+    setEditSubcategory(cur?.default?.subcategory || '');
+    setEditTagsCsv((cur?.default?.tags || []).join(','));
+    setEditOpen(true);
+  }
 
-    const defaultCategory = prompt(`Default category code for ${code} (blank to keep):`, cur?.default?.category || '');
-    if (defaultCategory === null) return;
-
-    const defaultSubcategory = prompt(`Default subcategory code for ${code} (blank to keep):`, cur?.default?.subcategory || '');
-    if (defaultSubcategory === null) return;
-
-    const tagsCsv = prompt(`Default tags CSV for ${code} (blank to keep):`, (cur?.default?.tags || []).join(','));
-    if (tagsCsv === null) return;
-
-    const payload: any = { name };
-    payload.default = {
-      category: defaultCategory,
-      subcategory: defaultSubcategory,
-      tags: tagsCsv.trim() ? tagsCsv.split(',').map(s => s.trim()).filter(Boolean) : []
-    };
-
-    await apiPost(`/api/v1/refs/merchants/${encodeURIComponent(code)}`, payload);
+  async function saveEditMerchant() {
+    if (!editCode) return;
+    await apiPost(`/api/v1/refs/merchants/${encodeURIComponent(editCode)}`, {
+      name: editName,
+      default: {
+        category: editCategory,
+        subcategory: editSubcategory,
+        tags: editTagsCsv.trim() ? editTagsCsv.split(',').map(s => s.trim()).filter(Boolean) : []
+      }
+    });
+    setEditOpen(false);
     await refresh();
   }
 
@@ -238,7 +249,7 @@ export default function RefsPage() {
                     <td className="px-3 py-2">{c ? (c.ruleConfigured ? 'configured' : '—') : '—'}</td>
                     <td className="px-3 py-2">
                       <div className="flex gap-2">
-                        <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => editMerchant(m.code).catch(() => {})}>Edit</button>
+                        <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => openEditMerchant(m.code)}>Edit</button>
                         <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => archiveMerchant(m.code).catch(() => {})}>Archive</button>
                       </div>
                     </td>
@@ -318,6 +329,59 @@ export default function RefsPage() {
           <div className="border border-zinc-800 rounded-lg p-3">
             <div className="text-sm font-semibold">email_payments.json (view-only)</div>
             <pre className="mt-2 text-xs overflow-auto max-h-[420px] whitespace-pre-wrap text-zinc-300">{emailRules ? JSON.stringify(emailRules.payments, null, 2) : '(load to view)'}</pre>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Merchant edit modal */}
+      {editOpen ? (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4" onClick={() => setEditOpen(false)}>
+          <div className="w-full max-w-lg bg-zinc-950 border border-zinc-800 rounded-lg p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-zinc-400">Edit merchant</div>
+                <div className="font-mono text-sm">{editCode}</div>
+              </div>
+              <button className="text-zinc-400 hover:text-white" onClick={() => setEditOpen(false)}>✕</button>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3">
+              <div>
+                <label className="text-xs text-zinc-400">Name</label>
+                <input className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={editName} onChange={(e) => setEditName(e.target.value)} />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-zinc-400">Default category</label>
+                  <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={editCategory} onChange={(e) => setEditCategory(e.target.value)}>
+                    <option value="">(none)</option>
+                    {categories.filter(c => !c.archived).map(c => (
+                      <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400">Default subcategory</label>
+                  <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={editSubcategory} onChange={(e) => setEditSubcategory(e.target.value)}>
+                    <option value="">(none)</option>
+                    {subcategories.filter(s => !s.archived && (!editCategory || s.category === editCategory)).map(s => (
+                      <option key={s.code} value={s.code}>{s.code} — {s.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-zinc-400">Default tags (CSV)</label>
+                <input className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={editTagsCsv} onChange={(e) => setEditTagsCsv(e.target.value)} placeholder="food,online_order" />
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button className="px-3 py-2 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => setEditOpen(false)}>Cancel</button>
+              <button className="px-3 py-2 rounded bg-zinc-100 text-zinc-950 font-medium" onClick={() => saveEditMerchant().catch(() => {})}>Save</button>
+            </div>
           </div>
         </div>
       ) : null}
