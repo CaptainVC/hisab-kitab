@@ -50,6 +50,8 @@ export default function RefsPage() {
   const [coverage, setCoverage] = useState<Record<string, CoverageRow>>({});
   const [merchantQuery, setMerchantQuery] = useState('');
   const [showArchivedMerchants, setShowArchivedMerchants] = useState(false);
+  const [onlyEmailNo, setOnlyEmailNo] = useState(false);
+  const [onlyNeedsRule, setOnlyNeedsRule] = useState(false);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
@@ -206,6 +208,14 @@ export default function RefsPage() {
             <input type="checkbox" checked={showArchivedMerchants} onChange={e => setShowArchivedMerchants(e.target.checked)} />
             Show archived
           </label>
+          <label className="flex items-center gap-2 text-sm text-zinc-300 mb-1">
+            <input type="checkbox" checked={onlyEmailNo} onChange={e => setOnlyEmailNo(e.target.checked)} />
+            Email support = NO
+          </label>
+          <label className="flex items-center gap-2 text-sm text-zinc-300 mb-1">
+            <input type="checkbox" checked={onlyNeedsRule} onChange={e => setOnlyNeedsRule(e.target.checked)} />
+            Needs rule
+          </label>
           <div className="flex-1" />
           <div>
             <label className="text-xs text-zinc-400">Coverage from</label>
@@ -252,11 +262,32 @@ export default function RefsPage() {
                   if (!q) return true;
                   return String(m.code).toLowerCase().includes(q) || String(m.name || '').toLowerCase().includes(q);
                 })
-                .sort((a, b) => a.code.localeCompare(b.code))
+                .filter((m) => {
+                  const c = coverage[m.code];
+                  if (onlyEmailNo) return (c?.emailSupport || '—') === 'NO';
+                  return true;
+                })
+                .filter((m) => {
+                  if (!onlyNeedsRule) return true;
+                  const c = coverage[m.code];
+                  // Needs rule = emails seen but not configured.
+                  return (c?.emailSeenCount || 0) > 0 && !c?.ruleConfigured;
+                })
+                .sort((a, b) => {
+                  // Sort by lastEmailAt desc, then code
+                  const ca = coverage[a.code];
+                  const cb = coverage[b.code];
+                  const ma = ca?.lastEmailAt ? Date.parse(ca.lastEmailAt) : 0;
+                  const mb = cb?.lastEmailAt ? Date.parse(cb.lastEmailAt) : 0;
+                  if (mb !== ma) return mb - ma;
+                  return a.code.localeCompare(b.code);
+                })
                 .map((m) => {
                   const c = coverage[m.code];
+                  const needsRule = (c?.emailSeenCount || 0) > 0 && !c?.ruleConfigured;
+                  const rowClass = needsRule ? 'bg-amber-950/20' : '';
                   return (
-                    <tr key={m.code} className={`border-t border-zinc-800 ${m.archived ? 'opacity-50' : ''}`}>
+                    <tr key={m.code} className={`border-t border-zinc-800 ${m.archived ? 'opacity-50' : ''} ${rowClass}`}>
                       <td className="px-3 py-2 font-mono text-xs">{m.code}</td>
                       <td className="px-3 py-2">{m.name}</td>
                       <td className="px-3 py-2 text-xs text-zinc-400">
@@ -268,7 +299,7 @@ export default function RefsPage() {
                       <td className="px-3 py-2">{c?.emailSupport || '—'}</td>
                       <td className="px-3 py-2 text-right">{c ? c.emailSeenCount : '—'}</td>
                       <td className="px-3 py-2 text-xs text-zinc-400">{c?.lastEmailAt ? new Date(c.lastEmailAt).toLocaleString() : '—'}</td>
-                      <td className="px-3 py-2">{c ? (c.ruleConfigured ? 'configured' : '—') : '—'}</td>
+                      <td className="px-3 py-2">{c ? (c.ruleConfigured ? 'configured' : (needsRule ? 'NEEDED' : '—')) : '—'}</td>
                       <td className="px-3 py-2">
                         <div className="flex gap-2">
                           <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => openEditMerchant(m.code)}>Edit</button>
