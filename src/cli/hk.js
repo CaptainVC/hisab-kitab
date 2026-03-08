@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-/* Hisab Kitab v0
+/* Hisab Kitab
  * - Parse /hisab text blocks
- * - Append to weekly Excel workbook in ~/HisabKitab
- * - Generate a simple HTML dashboard for that week
+ * - Append to quarterly Excel workbooks in ~/HisabKitab
+ *   (HK_YYYY_QN.xlsx, with monthly sheets like Jan-2026)
  */
 
 const fs = require('fs');
@@ -781,43 +781,21 @@ async function main() {
     const refs = loadRefs(baseDir);
     const parsed = parseHisabText(text, refs);
 
-    // Determine week file based on parsed date (or today IST)
-    // Group rows by week-of-month so a single /hisab message spanning multiple days
-    // ends up in the correct weekly workbooks.
+    // Storage: quarterly workbooks (calendar quarters) + monthly sheets.
+    // A single /hisab message can span multiple days/months; we fan out accordingly.
     const headers = [
       'txn_id','group_id','date','type','amount','source','location','merchant_code','category','subcategory','tags',
-      'beneficiary','reimb_status','counterparty','linked_txn_id','notes','raw_text','parse_status','parse_error'
+      'beneficiary','reimb_status','counterparty','linked_txn_id','notes','raw_text','parse_status','parse_error',
+      'messageId'
     ];
 
-    const byWeek = new Map();
+    // Ensure every parsed row has messageId (reserved for email-linked rows).
     for (const r of parsed.rows) {
-      const dt = DateTime.fromISO(r.date, { zone: IST });
-      const wom = weekOfMonth(dt, 1);
-      const weekName = `Week${wom}`;
-      const key = `${dt.toFormat('yyyy-LL')}-${weekName}`;
-      if (!byWeek.has(key)) byWeek.set(key, []);
-      byWeek.get(key).push(r);
+      if (r.messageId === undefined) r.messageId = '';
     }
 
-    const outputs = [];
-    for (const [key, rows] of byWeek.entries()) {
-      const excelName = `HK_${key}.xlsx`;
-      const htmlName = `HK_${key}_dashboard.html`;
-      const excelPath = path.join(baseDir, excelName);
-      const htmlPath = path.join(baseDir, htmlName);
-
-      const wb = ensureWorkbook(excelPath, headers);
-      appendRowsToWorkbook(wb, rows, headers);
-      XLSX.writeFile(wb, excelPath);
-
-      const wb2 = XLSX.readFile(excelPath);
-      const ws2 = wb2.Sheets['Transactions'] || wb2.Sheets[wb2.SheetNames[0]];
-      const allRows = XLSX.utils.sheet_to_json(ws2, { defval: '' });
-      const dash = computeDashboard(allRows);
-      writeDashboardHTML(htmlPath, `Hisab Kitab — ${key}`, dash);
-
-      outputs.push({ excelPath, htmlPath, imported: rows.length });
-    }
+    const { storeAppend } = require('../excel/workbook_store');
+    const outputs = storeAppend({ baseDir, headers, rows: parsed.rows });
 
     const result = {
       ok: true,

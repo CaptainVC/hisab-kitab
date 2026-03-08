@@ -104,44 +104,64 @@ function defaultLocationKey(refs) {
   return def ? def[0] : 'BENGALURU';
 }
 
+function isMonthlySheetName(name) {
+  return /^[A-Z][a-z]{2}-\d{4}$/.test(String(name || ''));
+}
+
 function normalizeWorkbook(filePath, baseDir) {
   const refs = loadRefs(baseDir);
   const wb = XLSX.readFile(filePath);
-  const ws = wb.Sheets['Transactions'] || wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+  const sheets = wb.Sheets['Transactions']
+    ? ['Transactions']
+    : (wb.SheetNames.filter(isMonthlySheetName).length ? wb.SheetNames.filter(isMonthlySheetName) : [wb.SheetNames[0]]);
 
   const defLoc = defaultLocationKey(refs);
   let changed = 0;
 
-  for (const r of rows) {
-    const before = JSON.stringify(r);
+  for (const sheetName of sheets) {
+    const ws = wb.Sheets[sheetName];
+    if (!ws) continue;
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    if (!rows.length) continue;
 
-    // ensure location
-    if (!r.location) r.location = defLoc;
+    // Preserve existing header order; ensure messageId exists.
+    const headers = Object.keys(rows[0]);
+    if (!headers.includes('messageId')) headers.push('messageId');
 
-    // type: income heuristic
-    const body = String(r.raw_text || r.notes || '');
-    if (r.type === 'EXPENSE' && /\breceived\s+from\b/i.test(body)) r.type = 'INCOME';
+    for (const r of rows) {
+      const before = JSON.stringify(r);
 
-    // infer merchant
-    if (!r.merchant_code) {
-      const mc = inferMerchantCode(body, refs);
-      if (mc) r.merchant_code = mc;
+      // ensure messageId column exists
+      if (r.messageId === undefined) r.messageId = '';
+
+      // ensure location
+      if (!r.location) r.location = defLoc;
+
+      // type: income heuristic
+      const body = String(r.raw_text || r.notes || '');
+      if (r.type === 'EXPENSE' && /\breceived\s+from\b/i.test(body)) r.type = 'INCOME';
+
+      // infer merchant
+      if (!r.merchant_code) {
+        const mc = inferMerchantCode(body, refs);
+        if (mc) r.merchant_code = mc;
+      }
+
+      applyMerchantDefaults(r, refs);
+      applyHeuristicTags(r, refs);
+
+      const after = JSON.stringify(r);
+      if (before !== after) changed++;
     }
 
-    applyMerchantDefaults(r, refs);
-    applyHeuristicTags(r, refs);
-
-    const after = JSON.stringify(r);
-    if (before !== after) changed++;
+    const outWs = XLSX.utils.json_to_sheet(rows, { header: headers });
+    wb.Sheets[sheetName] = outWs;
   }
 
-  const newWs = XLSX.utils.json_to_sheet(rows, { header: Object.keys(rows[0] || {}) });
-  wb.Sheets['Transactions'] = newWs;
-  if (!wb.SheetNames.includes('Transactions')) wb.SheetNames.unshift('Transactions');
   XLSX.writeFile(wb, filePath);
 
-  return { rows: rows.length, changed };
+  return { changed, sheetsProcessed: sheets.length };
 }
 
 function main() {

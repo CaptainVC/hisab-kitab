@@ -342,43 +342,61 @@ function defaultLocationKey(refs) {
   return def ? def[0] : 'BENGALURU';
 }
 
+function isMonthlySheetName(name) {
+  return /^[A-Z][a-z]{2}-\d{4}$/.test(String(name || ''));
+}
+
 function run(filePath, baseDir) {
   const refs = loadRefs(baseDir);
   const wb = XLSX.readFile(filePath);
-  const ws = wb.Sheets['Transactions'] || wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+  const sheets = wb.Sheets['Transactions']
+    ? ['Transactions']
+    : (wb.SheetNames.filter(isMonthlySheetName).length ? wb.SheetNames.filter(isMonthlySheetName) : [wb.SheetNames[0]]);
 
   const defLoc = defaultLocationKey(refs);
   let changed = 0;
+  let rowCount = 0;
 
-  for (const r of rows) {
-    const before = JSON.stringify(r);
+  for (const sheetName of sheets) {
+    const ws = wb.Sheets[sheetName];
+    if (!ws) continue;
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    if (!rows.length) continue;
 
-    if (!r.location) r.location = defLoc;
+    const headers = Object.keys(rows[0] || {});
+    if (!headers.includes('messageId')) headers.push('messageId');
 
-    // Merchant defaults
-    applyMerchantDefaults(r, refs);
+    for (const r of rows) {
+      rowCount++;
+      const before = JSON.stringify(r);
 
-    // Keyword categorization:
-    // - For Zepto/Blinkit/Amazon item-level rows we *always* run (it may override merchant defaults).
-    // - Otherwise, only if still missing.
-    if (r.merchant_code === 'ZEPTO' || r.merchant_code === 'BLINKIT' || r.merchant_code === 'AMAZON') keywordCategorize(r, refs);
-    else if (!r.category || !r.subcategory) keywordCategorize(r, refs);
+      if (r.messageId === undefined) r.messageId = '';
+      if (!r.location) r.location = defLoc;
 
-    // Tags
-    applyTagsFromText(r);
+      // Merchant defaults
+      applyMerchantDefaults(r, refs);
 
-    const after = JSON.stringify(r);
-    if (before !== after) changed++;
+      // Keyword categorization:
+      // - For Zepto/Blinkit/Amazon item-level rows we *always* run (it may override merchant defaults).
+      // - Otherwise, only if still missing.
+      if (r.merchant_code === 'ZEPTO' || r.merchant_code === 'BLINKIT' || r.merchant_code === 'AMAZON') keywordCategorize(r, refs);
+      else if (!r.category || !r.subcategory) keywordCategorize(r, refs);
+
+      // Tags
+      applyTagsFromText(r);
+
+      const after = JSON.stringify(r);
+      if (before !== after) changed++;
+    }
+
+    const outWs = XLSX.utils.json_to_sheet(rows, { header: headers });
+    wb.Sheets[sheetName] = outWs;
   }
 
-  const headers = Object.keys(rows[0] || {});
-  const newWs = XLSX.utils.json_to_sheet(rows, { header: headers });
-  wb.Sheets['Transactions'] = newWs;
-  if (!wb.SheetNames.includes('Transactions')) wb.SheetNames.unshift('Transactions');
   XLSX.writeFile(wb, filePath);
 
-  return { rows: rows.length, changed };
+  return { rows: rowCount, changed, sheetsProcessed: sheets.length };
 }
 
 function main() {

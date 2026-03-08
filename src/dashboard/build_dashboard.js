@@ -18,36 +18,41 @@ function readJson(fp, fallback) {
   try { return JSON.parse(fs.readFileSync(fp, 'utf8')); } catch { return fallback; }
 }
 
-function listWeeklyExcels(baseDir) {
-  // Prefer the most-processed file for each week.
+function listHisabExcels(baseDir) {
+  // Prefer the most-processed file for each logical workbook.
   // Order preference: .ai.xlsx > .rebuild.xlsx > plain .xlsx (latest mtime wins within same kind)
   const entries = fs.readdirSync(baseDir);
 
-  const weekRe = /^(HK_\d{4}-\d{2}-Week\d+)(?:\.(ai|rebuild))?\.xlsx$/i;
+  // Accept both legacy weekly and new quarterly formats.
+  // Examples:
+  // - HK_2026-01-Week5.xlsx
+  // - HK_2026_Q1.xlsx
+  const hkRe = /^(HK_[^/\\]+?)(?:\.(ai|rebuild))?\.xlsx$/i;
+
   const candidates = [];
   for (const f of entries) {
-    const m = f.match(weekRe);
+    const m = f.match(hkRe);
     if (!m) continue;
-    const weekKey = m[1];
+    const key = m[1];
     const kind = (m[2] || 'plain').toLowerCase();
     const full = path.join(baseDir, f);
     const st = fs.statSync(full);
-    candidates.push({ weekKey, kind, full, mtimeMs: st.mtimeMs });
+    candidates.push({ key, kind, full, mtimeMs: st.mtimeMs });
   }
 
   const kindRank = { ai: 3, rebuild: 2, plain: 1 };
   const best = new Map();
   for (const c of candidates) {
-    const cur = best.get(c.weekKey);
-    if (!cur) { best.set(c.weekKey, c); continue; }
+    const cur = best.get(c.key);
+    if (!cur) { best.set(c.key, c); continue; }
     const r1 = kindRank[c.kind] || 0;
     const r2 = kindRank[cur.kind] || 0;
-    if (r1 > r2) { best.set(c.weekKey, c); continue; }
-    if (r1 === r2 && c.mtimeMs > cur.mtimeMs) { best.set(c.weekKey, c); }
+    if (r1 > r2) { best.set(c.key, c); continue; }
+    if (r1 === r2 && c.mtimeMs > cur.mtimeMs) { best.set(c.key, c); }
   }
 
   return [...best.values()]
-    .sort((a,b)=>a.weekKey.localeCompare(b.weekKey))
+    .sort((a,b)=>a.key.localeCompare(b.key))
     .map(x=>x.full);
 }
 
@@ -78,11 +83,35 @@ function normalizeRow(r) {
   return out;
 }
 
+function isMonthlySheetName(name) {
+  return /^[A-Z][a-z]{2}-\d{4}$/.test(String(name || ''));
+}
+
 function loadTransactionsFromExcel(filePath) {
   const wb = XLSX.readFile(filePath);
-  const ws = wb.Sheets['Transactions'] || wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-  return rows.map(normalizeRow);
+
+  // Legacy: single Transactions sheet
+  if (wb.Sheets['Transactions']) {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets['Transactions'], { defval: '' });
+    return rows.map(normalizeRow);
+  }
+
+  // New: monthly sheets like Jan-2026
+  const monthSheets = wb.SheetNames.filter(isMonthlySheetName);
+  const sheets = monthSheets.length ? monthSheets : wb.SheetNames.slice(0, 1);
+
+  const out = [];
+  for (const s of sheets) {
+    const ws = wb.Sheets[s];
+    if (!ws) continue;
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    for (const r of rows) {
+      const nr = normalizeRow(r);
+      nr._sheet = s;
+      out.push(nr);
+    }
+  }
+  return out;
 }
 
 function enrichRows(rows, refs) {
@@ -98,7 +127,7 @@ function enrichRows(rows, refs) {
 
 function buildData(baseDir) {
   const refs = loadRefs(baseDir);
-  const files = listWeeklyExcels(baseDir);
+  const files = listHisabExcels(baseDir);
   const all = [];
   for (const f of files) {
     const rows = loadTransactionsFromExcel(f);
