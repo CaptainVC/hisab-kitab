@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { apiGet, apiPost, apiPut } from '../api/client';
+import { apiGet, apiPost } from '../api/client';
 import { loadRange, saveRange } from '../app/range';
 import { formatINR } from '../app/format';
 
@@ -41,8 +41,7 @@ export default function ReviewPage() {
   const [merchRefs, setMerchRefs] = useState<MerchantRef[]>([]);
   const [catRefs, setCatRefs] = useState<CategoryRef[]>([]);
   const [subRefs, setSubRefs] = useState<SubcategoryRef[]>([]);
-  const [savingId, setSavingId] = useState<string | null>(null);
-  const [bulkMode, setBulkMode] = useState<'off' | 'merchant'>('merchant');
+  // Save+resolve removed: resolving is explicit per item.
 
   async function load() {
     setBusy(true);
@@ -59,8 +58,7 @@ export default function ReviewPage() {
   }
 
   async function resolve(txn_id: string) {
-    await apiPost('/api/v1/review/resolve', { txn_id });
-    setItems((xs) => xs.filter((x) => x.txn_id !== txn_id));
+    await resolveOne(txn_id);
   }
 
   const [reimbOpen, setReimbOpen] = useState(false);
@@ -105,47 +103,14 @@ export default function ReviewPage() {
     setReimbOpen(true);
   }
 
-  async function saveAndResolve(x: ReviewItem) {
-    const ed = editing[x.txn_id] || { merchant: x.merchant, category: x.category, subcategory: x.subcategory, tags: '' };
-    const merchant = String(ed.merchant || '').trim();
-    const category = String(ed.category || '').trim();
-    const subcategory = String(ed.subcategory || '').trim();
-    const tags = String(ed.tags || '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    if (!merchant) throw new Error('missing_merchant');
-    if (!category || !subcategory) throw new Error('missing_category');
-
-    const toResolve = bulkMode === 'merchant'
-      ? items.filter((it) => (editing[it.txn_id]?.merchant ?? it.merchant) === merchant).map((it) => it.txn_id)
-      : [x.txn_id];
-
-    setSavingId(x.txn_id);
-    try {
-      // Persist as merchant default mapping so future imports auto-classify.
-      await apiPut(`/api/v1/refs/merchants/${encodeURIComponent(merchant)}`, {
-        defaultCategory: category,
-        defaultSubcategory: subcategory,
-        defaultTags: tags
-      });
-
-      // Resolve current (and optionally other items for same merchant)
-      for (const id of toResolve) {
-        // eslint-disable-next-line no-await-in-loop
-        await apiPost('/api/v1/review/resolve', { txn_id: id });
-      }
-
-      setItems((xs) => xs.filter((it) => !toResolve.includes(it.txn_id)));
-      setEditing((m) => {
-        const n = { ...m };
-        for (const id of toResolve) delete n[id];
-        return n;
-      });
-    } finally {
-      setSavingId(null);
-    }
+  async function resolveOne(txn_id: string) {
+    await apiPost('/api/v1/review/resolve', { txn_id });
+    setItems((xs) => xs.filter((x) => x.txn_id !== txn_id));
+    setEditing((m) => {
+      const n = { ...m };
+      delete n[txn_id];
+      return n;
+    });
   }
 
   async function ensureRefsLoaded() {
@@ -214,17 +179,7 @@ export default function ReviewPage() {
       ) : null}
       {err ? <div className="mt-3 text-sm text-red-400">{err}</div> : null}
 
-      <div className="mt-4 flex items-center gap-3 text-sm">
-        <div className="text-zinc-400">Bulk resolve on Save:</div>
-        <label className="flex items-center gap-2">
-          <input type="radio" name="bulk" checked={bulkMode === 'merchant'} onChange={() => setBulkMode('merchant')} />
-          <span>Same merchant</span>
-        </label>
-        <label className="flex items-center gap-2">
-          <input type="radio" name="bulk" checked={bulkMode === 'off'} onChange={() => setBulkMode('off')} />
-          <span>Only this item</span>
-        </label>
-      </div>
+      {/* Save+resolve removed; resolve actions are per-item. */}
 
       <div className="mt-6 border border-zinc-800 rounded-lg overflow-auto">
         <table className="w-full text-sm min-w-[1400px]">
@@ -347,13 +302,7 @@ export default function ReviewPage() {
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex gap-2">
-                    <button
-                      className="px-2 py-1 rounded bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50"
-                      disabled={savingId === x.txn_id}
-                      onClick={() => saveAndResolve(x).catch((e) => setErr(String(e?.message || e)))}
-                    >
-                      {savingId === x.txn_id ? 'Saving…' : 'Save + resolve'}
-                    </button>
+                    {/* Save + resolve removed */}
                     <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => openReimburse(x)}>
                       Add reimbursement
                     </button>
