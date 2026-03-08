@@ -89,6 +89,25 @@ export default function MailPage() {
             <input className="block mt-1 hk-input w-24" type="number" value={bufferDays} onChange={(e) => setBufferDays(Number(e.target.value))} />
           </div>
           <button
+            className="hk-btn-secondary disabled:opacity-50"
+            disabled={busy}
+            onClick={async () => {
+              try {
+                setBusy(true);
+                setErr(null);
+                const r = await apiPost<{ ok: true; jobId: string }>('/api/v1/mail/matchReport', { from, to, bufferDays });
+                alert(`Started match report job ${r.jobId}. Check Jobs page for output.`);
+              } catch (e: any) {
+                setErr(String(e?.message || e));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Match report (dry-run)
+          </button>
+
+          <button
             className="hk-btn-primary disabled:opacity-50"
             disabled={busy}
             onClick={async () => {
