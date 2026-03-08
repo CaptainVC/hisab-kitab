@@ -141,7 +141,13 @@ export default function DashboardPage() {
   const filteredRows = rows.filter((r: any) => {
     if (fDate && String(r.date || '') !== fDate) return false;
     if (fType && r.type !== fType) return false;
-    if (fSource && (r.source_name || r.source) !== fSource && r.source !== fSource) return false;
+    if (fSource) {
+      if (fSource === 'Mail') {
+        if (!r.messageId) return false;
+      } else if ((r.source_name || r.source) !== fSource && r.source !== fSource) {
+        return false;
+      }
+    }
     if (fLocation && (r.location_name || r.location) !== fLocation && r.location !== fLocation) return false;
 
     const merch = r.merchant_name || r.merchant_code || '';
