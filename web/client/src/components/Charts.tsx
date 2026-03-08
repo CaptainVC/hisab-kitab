@@ -174,8 +174,9 @@ export function SimpleBarChart({
       ctx.font = '11px system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
       ctx.textBaseline = 'middle';
 
+      const ds = chart?.data?.datasets?.[0]?.data || [];
       meta.data.forEach((bar: any, i: number) => {
-        const v = Number(values[i] ?? 0);
+        const v = Number(ds[i] ?? 0);
         const txt = formatValue ? formatValue(v) : String(v);
         const w = ctx.measureText(txt).width;
 
