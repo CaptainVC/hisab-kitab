@@ -5,6 +5,18 @@ export default function LoginPage({ onAuthed }: { onAuthed: () => void }) {
   const [password, setPassword] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [expiredMsg, setExpiredMsg] = useState(false);
+
+  // show session expired banner if redirected due to 401
+  if (!expiredMsg) {
+    try {
+      const v = localStorage.getItem('hk:sessionExpired');
+      if (v) {
+        localStorage.removeItem('hk:sessionExpired');
+        setExpiredMsg(true);
+      }
+    } catch {}
+  }
 
   async function submit() {
     setBusy(true);
@@ -23,6 +35,12 @@ export default function LoginPage({ onAuthed }: { onAuthed: () => void }) {
     <div className="max-w-md mx-auto mt-12 p-6 border border-zinc-800 rounded-lg bg-zinc-950">
       <h1 className="text-xl font-semibold">Hisab Kitab</h1>
       <p className="text-zinc-400 mt-1">Login</p>
+      {expiredMsg ? (
+        <div className="mt-4 p-3 border border-yellow-800 rounded bg-yellow-950/20 text-yellow-200 text-sm">
+          Session expired. Please login again.
+        </div>
+      ) : null}
+
       <div className="mt-4">
         <label className="text-sm text-zinc-300">Password</label>
         <input
