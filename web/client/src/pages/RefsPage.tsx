@@ -181,39 +181,83 @@ export default function RefsPage() {
     await refresh();
   }
 
-  async function addMerchant() {
-    const code = prompt('New merchant code (unique):', '');
-    if (!code) return;
-    const c = code.trim();
-    if (!c) return;
-    // Create with defaults via existing edit modal
-    if (!merchants.find((m) => m.code === c)) {
-      setMerchants((xs) => [...xs, { code: c, name: c } as any]);
+  const [addOpen, setAddOpen] = useState<null | 'merchant' | 'category' | 'subcategory'>(null);
+
+  // Add merchant fields
+  const [addMerchantCode, setAddMerchantCode] = useState('');
+  const [addMerchantName, setAddMerchantName] = useState('');
+  const [addMerchantCategory, setAddMerchantCategory] = useState('');
+  const [addMerchantSubcategory, setAddMerchantSubcategory] = useState('');
+  const [addMerchantTagsCsv, setAddMerchantTagsCsv] = useState('');
+
+  // Add category fields
+  const [addCategoryCode, setAddCategoryCode] = useState('');
+  const [addCategoryName, setAddCategoryName] = useState('');
+
+  // Add subcategory fields
+  const [addSubCode, setAddSubCode] = useState('');
+  const [addSubName, setAddSubName] = useState('');
+  const [addSubCategory, setAddSubCategory] = useState('');
+
+  function openAdd(kind: 'merchant' | 'category' | 'subcategory') {
+    // ensure refs are loaded for dropdowns
+    if (categories.length === 0) loadCategories().catch(() => {});
+    if (subcategories.length === 0) loadSubcategories().catch(() => {});
+
+    setErr(null);
+    setAddOpen(kind);
+
+    if (kind === 'merchant') {
+      setAddMerchantCode('');
+      setAddMerchantName('');
+      setAddMerchantCategory('');
+      setAddMerchantSubcategory('');
+      setAddMerchantTagsCsv('');
     }
-    openEditMerchant(c);
+    if (kind === 'category') {
+      setAddCategoryCode('');
+      setAddCategoryName('');
+    }
+    if (kind === 'subcategory') {
+      setAddSubCode('');
+      setAddSubName('');
+      setAddSubCategory('');
+    }
   }
 
-  async function addCategory() {
-    const code = prompt('New category code:', '');
-    if (!code) return;
-    const c = code.trim();
-    if (!c) return;
-    const name = prompt(`Name for ${c}:`, c) ?? '';
-    if (name === null) return;
-    await apiPut(`/api/v1/refs/categories/${encodeURIComponent(c)}`, { name });
+  async function submitAddMerchant() {
+    const code = addMerchantCode.trim();
+    const name = (addMerchantName.trim() || code).trim();
+    if (!code) throw new Error('missing_code');
+    await apiPut(`/api/v1/refs/merchants/${encodeURIComponent(code)}`, {
+      name,
+      default: {
+        category: addMerchantCategory || '',
+        subcategory: addMerchantSubcategory || '',
+        tags: addMerchantTagsCsv.trim() ? addMerchantTagsCsv.split(',').map(s => s.trim()).filter(Boolean) : []
+      }
+    });
+    setAddOpen(null);
     await refresh();
   }
 
-  async function addSubcategory() {
-    const code = prompt('New subcategory code:', '');
-    if (!code) return;
-    const c = code.trim();
-    if (!c) return;
-    const name = prompt(`Name for ${c}:`, c) ?? '';
-    if (name === null) return;
-    const cat = prompt(`Parent category code for ${c}:`, '') ?? '';
-    if (cat === null) return;
-    await apiPut(`/api/v1/refs/subcategories/${encodeURIComponent(c)}`, { name, category: cat.trim() });
+  async function submitAddCategory() {
+    const code = addCategoryCode.trim();
+    const name = addCategoryName.trim() || code;
+    if (!code) throw new Error('missing_code');
+    await apiPut(`/api/v1/refs/categories/${encodeURIComponent(code)}`, { name });
+    setAddOpen(null);
+    await refresh();
+  }
+
+  async function submitAddSubcategory() {
+    const code = addSubCode.trim();
+    const name = addSubName.trim() || code;
+    const cat = addSubCategory.trim();
+    if (!code) throw new Error('missing_code');
+    if (!cat) throw new Error('missing_category');
+    await apiPut(`/api/v1/refs/subcategories/${encodeURIComponent(code)}`, { name, category: cat });
+    setAddOpen(null);
     await refresh();
   }
 
@@ -245,7 +289,7 @@ export default function RefsPage() {
       {tab === 'merchants' ? (
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
           <div className="flex flex-wrap items-end gap-2">
-            <button className="hk-btn-primary" onClick={() => addMerchant().catch(() => {})}>
+            <button className="hk-btn-primary" onClick={() => openAdd('merchant')}>
               + Merchant
             </button>
             <div>
@@ -282,7 +326,7 @@ export default function RefsPage() {
         </div>
       ) : tab === 'categories' ? (
         <div className="mt-4 flex items-center gap-2">
-          <button className="px-3 py-2 rounded-md hk-btn-primary" onClick={() => addCategory().catch(() => {})}>
+          <button className="px-3 py-2 rounded-md hk-btn-primary" onClick={() => openAdd('category')}>
             + Category
           </button>
           <button className="px-3 py-2 hk-btn-primary disabled:opacity-50" disabled={busy} onClick={() => refresh().catch(() => {})}>
@@ -291,7 +335,7 @@ export default function RefsPage() {
         </div>
       ) : tab === 'subcategories' ? (
         <div className="mt-4 flex items-center gap-2">
-          <button className="px-3 py-2 rounded-md hk-btn-primary" onClick={() => addSubcategory().catch(() => {})}>
+          <button className="px-3 py-2 rounded-md hk-btn-primary" onClick={() => openAdd('subcategory')}>
             + Subcategory
           </button>
           <button className="px-3 py-2 hk-btn-primary disabled:opacity-50" disabled={busy} onClick={() => refresh().catch(() => {})}>
@@ -503,8 +547,108 @@ export default function RefsPage() {
             </div>
 
             <div className="mt-4 flex justify-end gap-2">
-              <button className="px-3 py-2 hk-btn-secondary" onClick={() => setEditOpen(false)}>Cancel</button>
-              <button className="px-3 py-2 rounded bg-zinc-100 text-zinc-950 font-medium" onClick={() => saveEditMerchant().catch(() => {})}>Save</button>
+              <button className="hk-btn-secondary" onClick={() => setEditOpen(false)}>Cancel</button>
+              <button className="hk-btn-primary" onClick={() => saveEditMerchant().catch(() => {})}>Save</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Add refs modal */}
+      {addOpen ? (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" onClick={() => setAddOpen(null)}>
+          <div className="w-full max-w-lg hk-card p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold">
+                {addOpen === 'merchant' ? 'Add merchant' : addOpen === 'category' ? 'Add category' : 'Add subcategory'}
+              </div>
+              <button className="text-[color:var(--hk-muted)] hover:text-white" onClick={() => setAddOpen(null)}>✕</button>
+            </div>
+
+            {addOpen === 'merchant' ? (
+              <div className="mt-4 grid grid-cols-1 gap-3">
+                <div>
+                  <label className="text-xs text-[color:var(--hk-muted)]">Merchant code (unique)</label>
+                  <input className="mt-1 w-full hk-input font-mono" value={addMerchantCode} onChange={(e) => setAddMerchantCode(e.target.value)} placeholder="SWIGGY_FOOD" />
+                </div>
+                <div>
+                  <label className="text-xs text-[color:var(--hk-muted)]">Name</label>
+                  <input className="mt-1 w-full hk-input" value={addMerchantName} onChange={(e) => setAddMerchantName(e.target.value)} placeholder="Swiggy" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-[color:var(--hk-muted)]">Default category</label>
+                    <select className="mt-1 w-full hk-input" value={addMerchantCategory} onChange={(e) => { setAddMerchantCategory(e.target.value); setAddMerchantSubcategory(''); }}>
+                      <option value="">(none)</option>
+                      {categories.filter(c => !c.archived).map(c => (
+                        <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-[color:var(--hk-muted)]">Default subcategory</label>
+                    <select className="mt-1 w-full hk-input" value={addMerchantSubcategory} onChange={(e) => setAddMerchantSubcategory(e.target.value)}>
+                      <option value="">(none)</option>
+                      {subcategories.filter(s => !s.archived && (!addMerchantCategory || s.category === addMerchantCategory)).map(s => (
+                        <option key={s.code} value={s.code}>{s.code} — {s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-[color:var(--hk-muted)]">Default tags (CSV)</label>
+                  <input className="mt-1 w-full hk-input" value={addMerchantTagsCsv} onChange={(e) => setAddMerchantTagsCsv(e.target.value)} placeholder="food,online_order" />
+                </div>
+              </div>
+            ) : null}
+
+            {addOpen === 'category' ? (
+              <div className="mt-4 grid grid-cols-1 gap-3">
+                <div>
+                  <label className="text-xs text-[color:var(--hk-muted)]">Category code</label>
+                  <input className="mt-1 w-full hk-input font-mono" value={addCategoryCode} onChange={(e) => setAddCategoryCode(e.target.value)} placeholder="FOOD_DINING" />
+                </div>
+                <div>
+                  <label className="text-xs text-[color:var(--hk-muted)]">Name</label>
+                  <input className="mt-1 w-full hk-input" value={addCategoryName} onChange={(e) => setAddCategoryName(e.target.value)} placeholder="Food & Dining" />
+                </div>
+              </div>
+            ) : null}
+
+            {addOpen === 'subcategory' ? (
+              <div className="mt-4 grid grid-cols-1 gap-3">
+                <div>
+                  <label className="text-xs text-[color:var(--hk-muted)]">Subcategory code</label>
+                  <input className="mt-1 w-full hk-input font-mono" value={addSubCode} onChange={(e) => setAddSubCode(e.target.value)} placeholder="FOOD_ONLINE_DELIVERY" />
+                </div>
+                <div>
+                  <label className="text-xs text-[color:var(--hk-muted)]">Name</label>
+                  <input className="mt-1 w-full hk-input" value={addSubName} onChange={(e) => setAddSubName(e.target.value)} placeholder="Online delivery" />
+                </div>
+                <div>
+                  <label className="text-xs text-[color:var(--hk-muted)]">Parent category</label>
+                  <select className="mt-1 w-full hk-input" value={addSubCategory} onChange={(e) => setAddSubCategory(e.target.value)}>
+                    <option value="">(select)</option>
+                    {categories.filter(c => !c.archived).map(c => (
+                      <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button className="hk-btn-secondary" onClick={() => setAddOpen(null)}>Cancel</button>
+              <button
+                className="hk-btn-primary"
+                onClick={() => {
+                  if (addOpen === 'merchant') submitAddMerchant().catch((e) => setErr(String(e?.message || e)));
+                  if (addOpen === 'category') submitAddCategory().catch((e) => setErr(String(e?.message || e)));
+                  if (addOpen === 'subcategory') submitAddSubcategory().catch((e) => setErr(String(e?.message || e)));
+                }}
+              >
+                Add
+              </button>
             </div>
           </div>
         </div>
