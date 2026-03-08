@@ -13,6 +13,37 @@ function normalizeAmt(s) {
   return Number.isFinite(v) ? v : null;
 }
 
+function cleanMerchant(s){
+  if(!s) return null;
+  let v = String(s)
+    .replace(/\s+/g,' ')
+    .replace(/\b(credit card|hdfc bank)\b/ig,' ')
+    .trim();
+  if(!v) return null;
+  return v;
+}
+
+function extractMerchant(blob, cfg){
+  const rxList = [];
+  const cfgRx = cfg?.parse?.merchantHint?.regexes || cfg?.parse?.merchantHint?.regex;
+  if(Array.isArray(cfgRx)) rxList.push(...cfgRx);
+  else if(cfgRx) rxList.push(cfgRx);
+
+  // Default HDFC patterns
+  rxList.push(
+    'towards\\s+(.+?)\\s+on\\s+\\d{1,2}\\s+[A-Za-z]{3},\\s+\\d{4}',
+    'at\\s+(.+?)\\s+on\\s+\\d{1,2}\\s+[A-Za-z]{3},\\s+\\d{4}',
+    'spent\\s+at\\s+(.+?)\\s+on\\s+\\d{1,2}\\s+[A-Za-z]{3},\\s+\\d{4}'
+  );
+
+  for(const r of rxList){
+    const m = applyRegex(blob, r, 1);
+    const c = cleanMerchant(m);
+    if(c) return c;
+  }
+  return null;
+}
+
 module.exports = {
   id: 'HDFC_INSTA_ALERTS_V1',
   kind: 'payment',
@@ -40,6 +71,10 @@ module.exports = {
     let last4 = applyRegex(blob, cfg?.parse?.cardLast4?.regex, 1);
     if (!last4) last4 = applyRegex(blob, cfg?.parse?.cardLast4?.regex, 2);
 
+    const merchantHint = extractMerchant(blob, cfg);
+
+    const confidence = (amount && merchantHint) ? 0.9 : (amount ? 0.6 : 0.2);
+
     return [{
       source: 'HDFC_INSTA_ALERT',
       messageId: msg.messageId,
@@ -50,9 +85,10 @@ module.exports = {
       direction,
       amount,
       instrument: last4 ? `HDFC_CC_${last4}` : 'HDFC_CC',
-      merchantHint: null,
+      merchantHint,
       txnId: null,
       counterparty: null,
+      confidence,
       raw: (text || '').slice(0, 2000),
       parse_status: amount ? 'ok' : 'partial'
     }];
