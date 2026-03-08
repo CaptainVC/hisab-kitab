@@ -102,7 +102,14 @@ function loadRefs(baseDir) {
   const locations = readOrInit('locations.json', defaults.locations);
   const tags = readOrInit('tags.json', defaults.tags);
 
-  return { refsDir, sources, aliases, merchants, mappings, locations, tags };
+  // Optional: parsed order cache (email/PDF parsers). Used for Instamart/Blinkit-style breakdown.
+  const ordersParsed = (() => {
+    const fp = path.join(baseDir, 'orders_parsed.json');
+    if (!fs.existsSync(fp)) return null;
+    try { return JSON.parse(fs.readFileSync(fp, 'utf8')); } catch { return null; }
+  })();
+
+  return { refsDir, sources, aliases, merchants, mappings, locations, tags, ordersParsed };
 }
 
 function inferMerchantCode(desc, refs) {
@@ -149,6 +156,110 @@ function applyMerchantMappings(row, refs) {
   return row;
 }
 
+function categorizeInstamartItem(name) {
+  const t = String(name || '').toLowerCase();
+  const rules = [
+    { re: /\bwater\b|\bcan\b|\bbottle\b/, cat: 'FOOD_DINING', sub: 'FOOD_WATER' },
+    { re: /\bmilk\b|\bcurd\b|\byogurt\b|\bpaneer\b|\bcheese\b/, cat: 'FOOD_DINING', sub: 'FOOD_MILK' },
+    { re: /\bbanana\b|\bapple\b|\bmango\b|\borange\b|\bgrape\b|\bwatermelon\b|\bfruit\b/, cat: 'FOOD_DINING', sub: 'FOOD_FRUITS' },
+    { re: /\bprotein\b|\bwhey\b|\bgatorade\b|\belectrolyte\b/, cat: 'FOOD_DINING', sub: 'FOOD_PROTEIN' },
+    { re: /\bchips\b|\bchocolate\b|\bbiscuit\b|\bcookie\b|\bnoodles\b|\bsnack\b/, cat: 'FOOD_DINING', sub: 'FOOD_SNACKS' },
+    { re: /\bsoap\b|\bshampoo\b|\btoothpaste\b|\bdetergent\b|\bcleaner\b/, cat: 'SHOPPING', sub: 'SHOP_TOILETRIES' },
+    { re: /\bnotebook\b|\bpen\b|\bpencil\b|\bstationery\b/, cat: 'SHOPPING', sub: 'SHOP_STATIONERY' },
+    { re: /\bbottle\b|\bflask\b/, cat: 'SHOPPING', sub: 'SHOP_BOTTLES' },
+    { re: /\bvegetable\b|\bpotato\b|\bonion\b|\btomato\b|\bcarrot\b|\bspinach\b|\blettuce\b/, cat: 'SHOPPING', sub: 'SHOP_GROCERIES' },
+    { re: /\bmasala\b|\brice\b|\bdal\b|\bflour\b|\batta\b|\boil\b|\bsugar\b|\bsalt\b/, cat: 'SHOPPING', sub: 'SHOP_GROCERIES' },
+  ];
+  for (const r of rules) {
+    if (r.re.test(t)) return { category: r.cat, subcategory: r.sub };
+  }
+  return null;
+}
+
+function findInstamartOrderForTxn(base, refs) {
+  const orders = refs?.ordersParsed?.orders;
+  if (!Array.isArray(orders) || !orders.length) return null;
+
+  const tol = 2;
+  const want = Number(base.amount || 0);
+  const wantDate = String(base.date || '');
+  if (!want || !wantDate) return null;
+
+  const matches = [];
+  for (const o of orders) {
+    if (String(o?.merchant || '') !== 'SWIGGY_INSTAMART') continue;
+    const total = Number(o?.total || 0);
+    if (!total) continue;
+    if (Math.abs(total - want) > tol) continue;
+
+    const ms = Number(o?.internalDateMs || 0);
+    if (!ms) continue;
+    const od = DateTime.fromMillis(ms, { zone: IST }).toISODate();
+    if (od !== wantDate) continue;
+
+    matches.push(o);
+  }
+  // if multiple, pick the first (they should be unique by date+total usually)
+  return matches[0] || null;
+}
+
+function tryInstamartBreakdown(base, refs) {
+  // If email invoice exists for this Instamart txn, break it into item-level rows.
+  if (base.merchant_code !== 'SWIGGY_INSTAMART') return null;
+  const ord = findInstamartOrderForTxn(base, refs);
+  if (!ord) return null;
+
+  const items = Array.isArray(ord.items) ? ord.items : [];
+  if (!items.length) return null;
+
+  const parsedItems = [];
+  let sum = 0;
+  for (const it of items) {
+    const name = String(it?.name || it?.title || '').trim();
+    const amt = Number(it?.total ?? it?.amount ?? 0);
+    if (!name || !amt) continue;
+    const cat = categorizeInstamartItem(name);
+    if (!cat) return null; // requirement: any issue => keep whole entry in Needs Review
+    parsedItems.push({ name, amt, ...cat });
+    sum += amt;
+  }
+  if (!parsedItems.length) return null;
+
+  const tol = 2;
+  const remainder = Number(base.amount || 0) - sum;
+  if (Math.abs(remainder) > tol && remainder < -tol) return null;
+
+  const groupId = nanoid();
+  const out = [];
+  for (const p of parsedItems) {
+    out.push({
+      ...base,
+      txn_id: nanoid(),
+      group_id: groupId,
+      amount: p.amt,
+      category: p.category,
+      subcategory: p.subcategory,
+      notes: `Instamart item: ${p.name}`,
+      raw_text: p.name,
+    });
+  }
+
+  if (remainder > tol) {
+    out.push({
+      ...base,
+      txn_id: nanoid(),
+      group_id: groupId,
+      amount: remainder,
+      category: 'SHOPPING',
+      subcategory: 'SHOP_MISC',
+      notes: 'Instamart: other charges / rounding',
+      raw_text: 'Instamart other charges'
+    });
+  }
+
+  return out;
+}
+
 function applyKeywordMappings(row, refs) {
   // If merchant_code/category/subcategory are missing, try quick keyword heuristics
   // based on the human-entered description (raw_text).
@@ -179,7 +290,8 @@ function applyKeywordMappings(row, refs) {
       { re: /\bbadminton\b/, cat: 'SPORTS', sub: 'SPORTS_BADMINTON_BOOKING' },
       { re: /\bcricket\b/, cat: 'SPORTS', sub: 'SPORTS_CRICKET_BOOKING' },
       { re: /\bpool\b|\bsnooker\b/, cat: 'SPORTS', sub: 'SPORTS_SNOOKER_BOOKING' },
-      { re: /\binstamart\b/, cat: 'SHOPPING', sub: 'SHOP_GROCERIES' },
+      // Instamart is treated like Blinkit (breakdown from email invoice). Avoid auto-subcategory here.
+      { re: /\binstamart\b/, cat: 'SHOPPING', sub: '' },
       { re: /\bwater\b/, cat: 'FOOD_DINING', sub: 'FOOD_WATER' },
       { re: /\bfruit\b|\bfruits\b|\bwatermelon\b/, cat: 'FOOD_DINING', sub: 'FOOD_FRUITS' },
       { re: /\bgatorade\b|\bprotein\b/, cat: 'FOOD_DINING', sub: 'FOOD_PROTEIN' },
@@ -633,6 +745,16 @@ function parseHisabText(text, refs) {
         });
       }
 
+      continue;
+    }
+
+    // Instamart breakdown (if email invoice exists and all items categorize cleanly)
+    const inst = tryInstamartBreakdown({ ...base }, refs);
+    if (inst && inst.length) {
+      for (const r of inst) {
+        applyKeywordMappings(r, refs);
+        rows.push(r);
+      }
       continue;
     }
 
