@@ -245,8 +245,11 @@ function splitWorkbook(filePath, baseDir, tol){
 
     for (const r of rows) {
       totalIn++;
-      // Only split expense rows with supported merchant codes
-      const mc = String(r[kMerchant] || '').toUpperCase();
+      // Only split expense rows with supported merchant codes.
+      // Special case: legacy hisab rows might have empty merchant_code but raw_text contains Instamart.
+      let mc = String(r[kMerchant] || '').toUpperCase();
+      const raw0 = String(r[kRaw] || r[kNotes] || '').toLowerCase();
+      if (!mc && raw0.includes('instamart')) mc = 'SWIGGY_INSTAMART';
       if (!['BLINKIT', 'AMAZON', 'SWIGGY', 'ZOMATO', 'SWIGGY_INSTAMART'].includes(mc)) { out.push(r); continue; }
 
       const date = String(r[kDate] || '');
@@ -281,6 +284,7 @@ function splitWorkbook(filePath, baseDir, tol){
           ...r,
           [kTxnId]: nanoid(),
           [kGroupId]: groupId,
+          [kMerchant]: mc,
           [kAmount]: Number(it.amount),
           [kRaw]: it.name,
           [kNotes]: (String(r[kRaw] || '') + ' | ' + it.name).slice(0, 300),
