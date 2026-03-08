@@ -12,6 +12,7 @@ import { registerJobRoutes } from './routes/jobs.js';
 import { registerDataRoutes } from './routes/data.js';
 import { registerIngestRoutes } from './routes/ingest.js';
 import { registerRebuildRoutes } from './routes/rebuild.js';
+import { registerReviewRoutes } from './routes/review.js';
 import { JobRunner } from './jobs/jobRunner.js';
 const appVersion = process.env.HK_APP_VERSION || 'dev';
 async function main() {
@@ -35,6 +36,7 @@ async function main() {
     const repoDir = path.resolve(path.join(import.meta.dirname, '..', '..', '..'));
     await registerIngestRoutes(app, { runner, baseDir: cfg.baseDir, repoDir });
     await registerRebuildRoutes(app, { runner, baseDir: cfg.baseDir, repoDir, cacheDir: cfg.cacheDir });
+    await registerReviewRoutes(app, { cacheDir: cfg.cacheDir, reviewStateFile: cfg.reviewStateFile });
     // Serve frontend build (once we build it)
     const clientDist = path.join(repoDir, 'web', 'client', 'dist');
     if (fs.existsSync(clientDist)) {
