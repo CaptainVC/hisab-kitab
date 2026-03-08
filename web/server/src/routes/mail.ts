@@ -65,10 +65,26 @@ export async function registerMailRoutes(app: FastifyInstance, opts: { baseDir: 
         rawSnippet: String(p.raw || '').slice(0, 160)
       }));
 
+    const oldestOrderMs = o2.reduce((min: number | null, o: any) => {
+      const ms = Number(o?.internalDateMs || 0);
+      if (!ms) return min;
+      if (min === null) return ms;
+      return ms < min ? ms : min;
+    }, null as any);
+
+    const oldestPaymentMs = p2.reduce((min: number | null, p: any) => {
+      const ms = Number(p?.internalDateMs || 0);
+      if (!ms) return min;
+      if (min === null) return ms;
+      return ms < min ? ms : min;
+    }, null as any);
+
     return reply.send({
       ok: true,
       from: from || null,
       to: to || null,
+      oldestOrderMs,
+      oldestPaymentMs,
       totals: {
         orders: o2.length,
         payments: p2.length,

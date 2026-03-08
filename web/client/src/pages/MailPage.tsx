@@ -7,6 +7,8 @@ type StatsResp = {
   ok: true;
   from: string | null;
   to: string | null;
+  oldestOrderMs?: number | null;
+  oldestPaymentMs?: number | null;
   totals: { orders: number; payments: number; orders_total: number; payments_total: number };
   byMerchant: Record<string, number>;
   byPaymentSource: Record<string, number>;
@@ -54,6 +56,11 @@ export default function MailPage() {
         <div>
           <h1 className="text-xl font-semibold">Mail Stats</h1>
           <p className="text-zinc-400 mt-1">Derived from HisabKitab-labeled parsed emails.</p>
+          {data ? (
+            <div className="mt-1 text-xs text-zinc-500">
+              Oldest in range: orders {data.oldestOrderMs ? new Date(data.oldestOrderMs).toISOString().slice(0, 10) : '—'} • payments {data.oldestPaymentMs ? new Date(data.oldestPaymentMs).toISOString().slice(0, 10) : '—'}
+            </div>
+          ) : null}
         </div>
         <div className="flex items-end gap-2">
           <div>

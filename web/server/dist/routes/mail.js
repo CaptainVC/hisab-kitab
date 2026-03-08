@@ -57,10 +57,28 @@ export async function registerMailRoutes(app, opts) {
             instrument: p.instrument,
             rawSnippet: String(p.raw || '').slice(0, 160)
         }));
+        const oldestOrderMs = o2.reduce((min, o) => {
+            const ms = Number(o?.internalDateMs || 0);
+            if (!ms)
+                return min;
+            if (min === null)
+                return ms;
+            return ms < min ? ms : min;
+        }, null);
+        const oldestPaymentMs = p2.reduce((min, p) => {
+            const ms = Number(p?.internalDateMs || 0);
+            if (!ms)
+                return min;
+            if (min === null)
+                return ms;
+            return ms < min ? ms : min;
+        }, null);
         return reply.send({
             ok: true,
             from: from || null,
             to: to || null,
+            oldestOrderMs,
+            oldestPaymentMs,
             totals: {
                 orders: o2.length,
                 payments: p2.length,

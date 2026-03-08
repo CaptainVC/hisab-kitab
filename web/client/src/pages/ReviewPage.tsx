@@ -27,7 +27,7 @@ export default function ReviewPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const [editing, setEditing] = useState<Record<string, { category: string; subcategory: string; tags: string }>>({});
+  const [editing, setEditing] = useState<Record<string, { merchant: string; category: string; subcategory: string; tags: string }>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [bulkMode, setBulkMode] = useState<'off' | 'merchant'>('merchant');
 
@@ -51,7 +51,8 @@ export default function ReviewPage() {
   }
 
   async function saveAndResolve(x: ReviewItem) {
-    const ed = editing[x.txn_id] || { category: x.category, subcategory: x.subcategory, tags: '' };
+    const ed = editing[x.txn_id] || { merchant: x.merchant, category: x.category, subcategory: x.subcategory, tags: '' };
+    const merchant = String(ed.merchant || '').trim();
     const category = String(ed.category || '').trim();
     const subcategory = String(ed.subcategory || '').trim();
     const tags = String(ed.tags || '')
@@ -59,12 +60,11 @@ export default function ReviewPage() {
       .map((s) => s.trim())
       .filter(Boolean);
 
-    if (!x.merchant) throw new Error('missing_merchant');
+    if (!merchant) throw new Error('missing_merchant');
     if (!category || !subcategory) throw new Error('missing_category');
 
-    const merchant = x.merchant;
     const toResolve = bulkMode === 'merchant'
-      ? items.filter((it) => it.merchant === merchant).map((it) => it.txn_id)
+      ? items.filter((it) => (editing[it.txn_id]?.merchant ?? it.merchant) === merchant).map((it) => it.txn_id)
       : [x.txn_id];
 
     setSavingId(x.txn_id);
@@ -97,6 +97,15 @@ export default function ReviewPage() {
     load().catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Auto reload when range changes (debounced)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      load().catch(() => {});
+    }, 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [from, to]);
 
   return (
     <div>
@@ -145,6 +154,7 @@ export default function ReviewPage() {
               <th className="text-left px-3 py-2">Category</th>
               <th className="text-left px-3 py-2">Subcategory</th>
               <th className="text-left px-3 py-2">Reason</th>
+              <th className="text-left px-3 py-2">Note</th>
               <th className="text-left px-3 py-2">Actions</th>
             </tr>
           </thead>
@@ -153,7 +163,24 @@ export default function ReviewPage() {
               <tr key={x.txn_id} className="border-t border-zinc-800">
                 <td className="px-3 py-2 whitespace-nowrap">{x.date}</td>
                 <td className="px-3 py-2 text-right">{formatINR(x.amount)}</td>
-                <td className="px-3 py-2">{x.merchant}</td>
+                <td className="px-3 py-2">
+                  <input
+                    className="w-36 px-2 py-1 rounded bg-zinc-900 border border-zinc-800"
+                    value={(editing[x.txn_id]?.merchant ?? x.merchant) || ''}
+                    placeholder="Merchant"
+                    onChange={(e) =>
+                      setEditing((m) => ({
+                        ...m,
+                        [x.txn_id]: {
+                          merchant: e.target.value,
+                          category: m[x.txn_id]?.category ?? x.category,
+                          subcategory: m[x.txn_id]?.subcategory ?? x.subcategory,
+                          tags: m[x.txn_id]?.tags ?? ''
+                        }
+                      }))
+                    }
+                  />
+                </td>
                 <td className="px-3 py-2">
                   <input
                     className="w-40 px-2 py-1 rounded bg-zinc-900 border border-zinc-800"
@@ -163,6 +190,7 @@ export default function ReviewPage() {
                       setEditing((m) => ({
                         ...m,
                         [x.txn_id]: {
+                          merchant: m[x.txn_id]?.merchant ?? x.merchant,
                           category: e.target.value,
                           subcategory: m[x.txn_id]?.subcategory ?? x.subcategory,
                           tags: m[x.txn_id]?.tags ?? ''
@@ -180,6 +208,7 @@ export default function ReviewPage() {
                       setEditing((m) => ({
                         ...m,
                         [x.txn_id]: {
+                          merchant: m[x.txn_id]?.merchant ?? x.merchant,
                           category: m[x.txn_id]?.category ?? x.category,
                           subcategory: e.target.value,
                           tags: m[x.txn_id]?.tags ?? ''
@@ -196,6 +225,7 @@ export default function ReviewPage() {
                         setEditing((m) => ({
                           ...m,
                           [x.txn_id]: {
+                            merchant: m[x.txn_id]?.merchant ?? x.merchant,
                             category: m[x.txn_id]?.category ?? x.category,
                             subcategory: m[x.txn_id]?.subcategory ?? x.subcategory,
                             tags: e.target.value
@@ -206,6 +236,9 @@ export default function ReviewPage() {
                   </div>
                 </td>
                 <td className="px-3 py-2 text-zinc-400">{x.reason}</td>
+                <td className="px-3 py-2 text-xs text-zinc-400">
+                  <div className="max-w-[280px] truncate" title={x.notes || ''}>{x.notes || '—'}</div>
+                </td>
                 <td className="px-3 py-2">
                   <div className="flex gap-2">
                     <button
@@ -224,7 +257,7 @@ export default function ReviewPage() {
             ))}
             {items.length === 0 ? (
               <tr>
-                <td className="px-3 py-3 text-zinc-500" colSpan={7}>Nothing to review.</td>
+                <td className="px-3 py-3 text-zinc-500" colSpan={8}>Nothing to review.</td>
               </tr>
             ) : null}
           </tbody>

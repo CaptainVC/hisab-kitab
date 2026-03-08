@@ -334,7 +334,9 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
-      <div className="mt-3 text-xs text-zinc-500">Showing {filteredRows.length} / {rows.length} transactions (filters). Transactions table paginates.</div>
+      <div className="mt-3 text-xs text-zinc-500">
+        Oldest loaded: {rows.length ? String(rows.reduce((min:any, r:any)=>{ const d=String(r.date||''); if(!d) return min; if(!min) return d; return d<min?d:min; }, null)) : '—'} • Showing {filteredRows.length} / {rows.length} transactions (filters). Transactions table paginates.
+      </div>
 
       <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="p-4 border border-zinc-800 rounded-lg md:col-span-2">
