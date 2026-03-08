@@ -636,11 +636,9 @@ export default function DashboardPage() {
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
                       <span>{r.category_name || r.category || ''}</span>
-                      {String(r.subcategory || '') === 'SHOP_MISC' ? (
-                        <button className="hk-btn-secondary px-2 py-1 text-xs" onClick={() => openEditTxn(r)}>
-                          Edit
-                        </button>
-                      ) : null}
+                      <button className="hk-btn-secondary px-2 py-1 text-xs" onClick={() => openEditTxn(r)}>
+                        Edit
+                      </button>
                     </div>
                   </td>
                   <td className="px-3 py-2">{r.subcategory_name || r.subcategory || ''}</td>

@@ -194,7 +194,22 @@ async function main() {
   const { storeAppend } = require(path.join(process.cwd(), 'src', 'excel', 'workbook_store'));
   const outputs = storeAppend({ baseDir, headers, rows: outRows });
 
-  process.stdout.write(JSON.stringify({ ok: true, from, to, considered, skippedDup, imported: outRows.length, outputs }, null, 2));
+  // Auto rebuild dashboard cache for the same range (so UI updates without manual rebuild).
+  const outJsonRel = path.join('cache', `hisab_data_${from}_${to}.json`);
+  const outHtmlRel = path.join('cache', `hisab_dashboard_${from}_${to}.html`);
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { spawnSync } = require('node:child_process');
+  const dashScript = path.join(process.cwd(), 'src', 'dashboard', 'build_dashboard.js');
+  const dash = spawnSync(process.execPath, [dashScript, baseDir, outJsonRel, outHtmlRel], { encoding: 'utf8' });
+  const rebuild = {
+    ok: dash.status === 0,
+    exitCode: dash.status,
+    outJson: path.join(baseDir, outJsonRel),
+    outHtml: path.join(baseDir, outHtmlRel),
+    stderr: (dash.stderr || '').slice(0, 2000)
+  };
+
+  process.stdout.write(JSON.stringify({ ok: true, from, to, considered, skippedDup, imported: outRows.length, outputs, rebuild }, null, 2));
   process.stdout.write('\n');
 }
 
