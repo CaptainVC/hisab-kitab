@@ -63,24 +63,46 @@ export default function ReviewPage() {
     setItems((xs) => xs.filter((x) => x.txn_id !== txn_id));
   }
 
-  async function reimburse(x: ReviewItem) {
-    const amtStr = prompt('Reimbursement amount (INR):', '');
-    if (amtStr === null) return;
-    const amount = Number(amtStr);
+  const [reimbOpen, setReimbOpen] = useState(false);
+  const [reimbTxn, setReimbTxn] = useState<ReviewItem | null>(null);
+  const [reimbAmount, setReimbAmount] = useState('');
+  const [reimbCounterparty, setReimbCounterparty] = useState('');
+  const [reimbNote, setReimbNote] = useState('');
+  const [banner, setBanner] = useState<string | null>(null);
+
+  async function submitReimbursement() {
+    if (!reimbTxn) return;
+    const amount = Number(reimbAmount);
     if (!Number.isFinite(amount) || amount <= 0) throw new Error('bad_amount');
-    const counterparty = prompt('Reimbursed by (name):', '') ?? '';
-    if (counterparty === null) return;
-    const note = prompt('Note (optional):', '') ?? '';
 
     const r = await apiPost<{ ok: true; jobId: string }>('/api/v1/review/reimburse', {
       from,
       to,
-      txn_id: x.txn_id,
+      txn_id: reimbTxn.txn_id,
       amount,
-      counterparty,
-      note
+      counterparty: reimbCounterparty,
+      note: reimbNote
     });
-    alert(`Reimbursement queued as job ${r.jobId}. It will appear as an INCOME entry linked to this txn.`);
+
+    // Auto-resolve after queuing reimbursement
+    await resolve(reimbTxn.txn_id);
+
+    setReimbOpen(false);
+    setReimbTxn(null);
+    setReimbAmount('');
+    setReimbCounterparty('');
+    setReimbNote('');
+
+    setBanner(`Reimbursement queued (job ${r.jobId}). See Jobs for details.`);
+    setTimeout(() => setBanner(null), 6000);
+  }
+
+  function openReimburse(x: ReviewItem) {
+    setReimbTxn(x);
+    setReimbAmount('');
+    setReimbCounterparty('');
+    setReimbNote('');
+    setReimbOpen(true);
   }
 
   async function saveAndResolve(x: ReviewItem) {
@@ -185,6 +207,11 @@ export default function ReviewPage() {
         </div>
       </div>
 
+      {banner ? (
+        <div className="mt-3 text-sm border border-emerald-900 bg-emerald-950/20 text-emerald-200 rounded p-2">
+          {banner} <a className="underline" href="/jobs">Open Jobs</a>
+        </div>
+      ) : null}
       {err ? <div className="mt-3 text-sm text-red-400">{err}</div> : null}
 
       <div className="mt-4 flex items-center gap-3 text-sm">
@@ -327,7 +354,7 @@ export default function ReviewPage() {
                     >
                       {savingId === x.txn_id ? 'Saving…' : 'Save + resolve'}
                     </button>
-                    <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => reimburse(x).catch((e) => setErr(String(e?.message || e)))}>
+                    <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => openReimburse(x)}>
                       Add reimbursement
                     </button>
                     <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => resolve(x.txn_id).catch(() => {})}>
@@ -345,6 +372,48 @@ export default function ReviewPage() {
           </tbody>
         </table>
       </div>
+      {reimbOpen ? (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" onClick={() => setReimbOpen(false)}>
+          <div className="w-full max-w-md bg-zinc-950 border border-zinc-800 rounded-lg p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-zinc-400">Add reimbursement</div>
+                <div className="text-xs text-zinc-500 font-mono">txn {reimbTxn?.txn_id}</div>
+              </div>
+              <button className="text-zinc-400 hover:text-white" onClick={() => setReimbOpen(false)}>✕</button>
+            </div>
+
+            <div className="mt-3 text-sm text-zinc-300">
+              Base: {reimbTxn ? `${reimbTxn.date} • ${formatINR(reimbTxn.amount)} • ${reimbTxn.merchant}` : ''}
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3">
+              <div>
+                <label className="text-xs text-zinc-400">Amount (INR)</label>
+                <input className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={reimbAmount} onChange={(e) => setReimbAmount(e.target.value)} placeholder="30" />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400">Reimbursed by</label>
+                <input className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={reimbCounterparty} onChange={(e) => setReimbCounterparty(e.target.value)} placeholder="Name" />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400">Note (optional)</label>
+                <input className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={reimbNote} onChange={(e) => setReimbNote(e.target.value)} placeholder="Split with ..." />
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button className="px-3 py-2 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => setReimbOpen(false)}>Cancel</button>
+              <button
+                className="px-3 py-2 rounded bg-emerald-500 text-emerald-950 font-semibold"
+                onClick={() => submitReimbursement().catch((e) => setErr(String(e?.message || e)))}
+              >
+                Queue reimbursement + resolve
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
