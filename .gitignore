@@ -8,6 +8,10 @@ HisabKitab/
 !package.json
 !package-lock.json
 
+# tracked reference data + templates
+!refs-template/*.json
+!templates/*.xlsx
+
 # secrets
 credentials.json
 gmail_token.json

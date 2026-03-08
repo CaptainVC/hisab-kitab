@@ -1,0 +1,76 @@
+// Parser registry.
+// Parsers are small modules that implement:
+//   { id, kind: 'payment'|'order', parse(ctx) }
+// ctx varies by kind but generally includes message metadata + extracted content.
+
+const HDFC_INSTA_ALERTS_V1 = require('./payments/hdfc_insta_alerts_v1');
+const MOBIKWIK_V1 = require('./payments/mobikwik_v1');
+
+const ZEPTO_PDF_V1 = require('./orders/zepto_pdf_v1');
+const BLINKIT_PDF_V1 = require('./orders/blinkit_pdf_v1');
+const ZOMATO_PDF_V1 = require('./orders/zomato_pdf_v1');
+const SWIGGY_PDF_V1 = require('./orders/swiggy_pdf_v1');
+
+const AMAZON_ORDERED_EMAIL_V1 = require('./orders/amazon_ordered_email_v1');
+const AMAZON_ORDERED_EMAIL_V2 = require('./orders/amazon_ordered_email_v2');
+const SWIGGY_EMAIL_V1 = require('./orders/swiggy_email_v1');
+const ZOMATO_EMAIL_V1 = require('./orders/zomato_email_v1');
+
+const DOMINOS_EMAIL_V1 = require('./orders/dominos_email_v1');
+const REDBUS_PDF_V1 = require('./orders/redbus_pdf_v1');
+const DISTRICT_PDF_V1 = require('./orders/district_pdf_v1');
+
+const UBER_EMAIL_V1 = require('./orders/uber_email_v1');
+const SOULEDSTORE_EMAIL_V1 = require('./orders/souledstore_email_v1');
+const EATCLUB_PDF_V1 = require('./orders/eatclub_pdf_v1');
+
+const SHOPIFY_ORDER_EMAIL_V1 = require('./orders/shopify_order_email_v1');
+const NOBERO_EMAIL_V1 = require('./orders/nobero_email_v1');
+const BEMINIMALIST_EMAIL_V1 = require('./orders/beminimalist_email_v1');
+const NATURALTEIN_EMAIL_V1 = require('./orders/naturaltein_email_v1');
+const DRINKMISFITS_EMAIL_V1 = require('./orders/drinkmisfits_email_v1');
+
+const MUSCLEBLAZE_EMAIL_V1 = require('./orders/muscleblaze_email_v1');
+const AMUL_EMAIL_V1 = require('./orders/amul_email_v1');
+const SHIPROCKET_EMAIL_V1 = require('./orders/shiprocket_email_v1');
+
+const all = [
+  HDFC_INSTA_ALERTS_V1,
+  MOBIKWIK_V1,
+  ZEPTO_PDF_V1,
+  BLINKIT_PDF_V1,
+  ZOMATO_PDF_V1,
+  SWIGGY_PDF_V1,
+  AMAZON_ORDERED_EMAIL_V1,
+  AMAZON_ORDERED_EMAIL_V2,
+  SWIGGY_EMAIL_V1,
+  ZOMATO_EMAIL_V1,
+  DOMINOS_EMAIL_V1,
+  REDBUS_PDF_V1,
+  DISTRICT_PDF_V1,
+  UBER_EMAIL_V1,
+  SOULEDSTORE_EMAIL_V1,
+  EATCLUB_PDF_V1,
+  SHOPIFY_ORDER_EMAIL_V1,
+  NOBERO_EMAIL_V1,
+  BEMINIMALIST_EMAIL_V1,
+  NATURALTEIN_EMAIL_V1,
+  DRINKMISFITS_EMAIL_V1,
+  MUSCLEBLAZE_EMAIL_V1,
+  AMUL_EMAIL_V1,
+  SHIPROCKET_EMAIL_V1,
+];
+
+const byId = new Map(all.map(p => [p.id, p]));
+
+function getParser(id) {
+  const p = byId.get(id);
+  if (!p) throw new Error(`Unknown parser id: ${id}`);
+  return p;
+}
+
+function listParsers() {
+  return all.map(p => ({ id: p.id, kind: p.kind }));
+}
+
+module.exports = { getParser, listParsers };

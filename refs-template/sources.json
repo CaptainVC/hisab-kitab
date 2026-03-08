@@ -1,0 +1,20 @@
+{
+  "cash": {
+    "display": "Cash"
+  },
+  "SBI": {
+    "display": "SBI Bank A/C"
+  },
+  "HDFC": {
+    "display": "HDFC Bank A/C"
+  },
+  "mk": {
+    "display": "Mobikwik Wallet"
+  },
+  "pp": {
+    "display": "PhonePe Wallet"
+  },
+  "cc": {
+    "display": "Neu Infinity Credit Card"
+  }
+}
