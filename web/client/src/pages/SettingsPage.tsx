@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiGet, apiPost } from '../api/client';
+import { loadRange, saveRange, type Range } from '../app/range';
 
 type HealthResp = { ok: true; appVersion: string; startedAt: string; time: string };
 
@@ -9,6 +10,8 @@ export default function SettingsPage() {
   const [health, setHealth] = useState<HealthResp | null>(null);
   const [me, setMe] = useState<MeResp | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  const [range, setRange] = useState<Range>(() => loadRange());
 
   async function load() {
     setErr(null);
@@ -30,6 +33,12 @@ export default function SettingsPage() {
   useEffect(() => {
     load().catch(() => {});
   }, []);
+
+  function updateRange(patch: Partial<Range>) {
+    const next = { ...range, ...patch };
+    setRange(next);
+    saveRange(next);
+  }
 
   return (
     <div>
@@ -59,6 +68,21 @@ export default function SettingsPage() {
           <div className="mt-2 text-sm text-zinc-300">Authenticated: <span className="font-mono">{me ? String(me.authenticated) : '—'}</span></div>
           <div className="mt-1 text-sm text-zinc-300">Login at: <span className="font-mono">{me?.loginAt || '—'}</span></div>
         </div>
+      </div>
+
+      <div className="mt-6 p-4 border border-zinc-800 rounded-lg">
+        <div className="text-sm font-semibold">Defaults</div>
+        <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-zinc-400">Default range from (YYYY-MM)</label>
+            <input className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={range.from} onChange={(e) => updateRange({ from: e.target.value })} />
+          </div>
+          <div>
+            <label className="text-xs text-zinc-400">Default range to (YYYY-MM)</label>
+            <input className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={range.to} onChange={(e) => updateRange({ to: e.target.value })} />
+          </div>
+        </div>
+        <div className="mt-2 text-xs text-zinc-500">Used by Dashboard / Needs Review / Mail Stats / Ingest / Refs coverage.</div>
       </div>
 
       <div className="mt-6 p-4 border border-zinc-800 rounded-lg">
