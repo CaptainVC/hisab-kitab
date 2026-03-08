@@ -411,7 +411,7 @@ export default function DashboardPage() {
                     .sort((a, b) => b[1] - a[1])
                     .slice(0, 20)
                     .map(([k, v]) => (
-                      <tr key={k} className="border-t [var(--hk-border)]">
+                      <tr key={k} className="">
                         <td className="px-3 py-2">{k}</td>
                         <td className="px-3 py-2 text-right">{formatINR(v)}</td>
                       </tr>
@@ -443,7 +443,7 @@ export default function DashboardPage() {
                     .sort((a, b) => b[1] - a[1])
                     .slice(0, 20)
                     .map(([k, v]) => (
-                      <tr key={k} className="border-t [var(--hk-border)]">
+                      <tr key={k} className="">
                         <td className="px-3 py-2">{k}</td>
                         <td className="px-3 py-2 text-right">{formatINR(v)}</td>
                       </tr>
@@ -489,7 +489,7 @@ export default function DashboardPage() {
             </thead>
             <tbody>
               {pageRows.map((r) => (
-                <tr key={r.txn_id} className="border-t [var(--hk-border)]">
+                <tr key={r.txn_id} className="">
                   <td className="px-3 py-2 whitespace-nowrap">{r.date}</td>
                   <td className="px-3 py-2">{r.type}</td>
                   <td className="px-3 py-2 text-right">{formatINR(r.amount)}</td>

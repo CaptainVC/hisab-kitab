@@ -276,7 +276,7 @@ export default function StagingPage() {
               </thead>
               <tbody>
                 {parseRows.slice(0, 200).map((r) => (
-                  <tr key={r.txn_id} className="border-t [var(--hk-border)]">
+                  <tr key={r.txn_id} className="">
                     <td className="px-2 py-1 whitespace-nowrap">{r.date}</td>
                     <td className="px-2 py-1 text-right">{formatINR(r.amount)}</td>
                     <td className="px-2 py-1">{r.source}</td>

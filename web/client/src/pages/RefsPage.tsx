@@ -352,7 +352,7 @@ export default function RefsPage() {
                   const needsRule = (c?.emailSeenCount || 0) > 0 && !c?.ruleConfigured;
                   const rowClass = needsRule ? 'bg-amber-950/20' : '';
                   return (
-                    <tr key={m.code} className={`border-t [var(--hk-border)] ${m.archived ? 'opacity-50' : ''} ${rowClass}`}>
+                    <tr key={m.code} className={`${m.archived ? 'opacity-50' : ''} ${rowClass}`}>
                       <td className="px-3 py-2 font-mono text-xs">{m.code}</td>
                       <td className="px-3 py-2">{m.name}</td>
                       <td className="px-3 py-2 text-xs text-[color:var(--hk-muted)]">
@@ -393,7 +393,7 @@ export default function RefsPage() {
             </thead>
             <tbody>
               {categories.filter(c => !c.archived).map((c) => (
-                <tr key={c.code} className="border-t [var(--hk-border)]">
+                <tr key={c.code} className="">
                   <td className="px-3 py-2 font-mono text-xs">{c.code}</td>
                   <td className="px-3 py-2">{c.name}</td>
                   <td className="px-3 py-2">
@@ -422,7 +422,7 @@ export default function RefsPage() {
             </thead>
             <tbody>
               {subcategories.filter(s => !s.archived).map((s) => (
-                <tr key={s.code} className="border-t [var(--hk-border)]">
+                <tr key={s.code} className="">
                   <td className="px-3 py-2 font-mono text-xs">{s.code}</td>
                   <td className="px-3 py-2">{s.name}</td>
                   <td className="px-3 py-2 font-mono text-xs">{s.category}</td>

@@ -104,7 +104,7 @@ export default function MailPage() {
             <table className="w-full text-sm">
               <tbody>
                 {topMerchants.map(([k, v]) => (
-                  <tr key={k} className="border-t [var(--hk-border)]">
+                  <tr key={k} className="">
                     <td className="px-3 py-2 font-mono text-xs">{k}</td>
                     <td className="px-3 py-2 text-right">{v}</td>
                   </tr>
@@ -118,7 +118,7 @@ export default function MailPage() {
             <table className="w-full text-sm">
               <tbody>
                 {topSources.map(([k, v]) => (
-                  <tr key={k} className="border-t [var(--hk-border)]">
+                  <tr key={k} className="">
                     <td className="px-3 py-2 font-mono text-xs">{k}</td>
                     <td className="px-3 py-2 text-right">{v}</td>
                   </tr>
@@ -143,7 +143,7 @@ export default function MailPage() {
             </thead>
             <tbody>
               {data.recentPayments.map((p, idx) => (
-                <tr key={idx} className="border-t [var(--hk-border)]">
+                <tr key={idx} className="">
                   <td className="px-3 py-2 text-xs text-[color:var(--hk-muted)] whitespace-nowrap">{new Date(p.internalDateMs).toLocaleString()}</td>
                   <td className="px-3 py-2 font-mono text-xs">{p.source}</td>
                   <td className="px-3 py-2">{p.subject}</td>

@@ -103,7 +103,7 @@ export default function JobsPage() {
             </thead>
             <tbody>
               {jobs.map((j) => (
-                <tr key={j.jobId} className={`border-t [var(--hk-border)] cursor-pointer ${selectedJobId === j.jobId ? 'bg-zinc-900/40' : 'hover:bg-zinc-900/30'}`} onClick={() => selectJob(j.jobId).catch(() => {})}>
+                <tr key={j.jobId} className={`cursor-pointer ${selectedJobId === j.jobId ? 'bg-zinc-900/40' : 'hover:bg-zinc-900/30'}`} onClick={() => selectJob(j.jobId).catch(() => {})}>
                   <td className="px-3 py-2 text-xs text-[color:var(--hk-muted)] whitespace-nowrap">{new Date(j.createdAt).toLocaleString()}</td>
                   <td className="px-3 py-2 font-mono text-xs">{j.type}</td>
                   <td className="px-3 py-2">

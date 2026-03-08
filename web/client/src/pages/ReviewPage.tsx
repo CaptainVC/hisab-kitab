@@ -198,7 +198,7 @@ export default function ReviewPage() {
           </thead>
           <tbody>
             {items.map((x) => (
-              <tr key={x.txn_id} className="border-t [var(--hk-border)]">
+              <tr key={x.txn_id} className="">
                 <td className="px-3 py-2 whitespace-nowrap">{x.date}</td>
                 <td className="px-3 py-2 text-right">{formatINR(x.amount)}</td>
                 <td className="px-3 py-2 text-xs text-[color:var(--hk-muted)] whitespace-nowrap">
