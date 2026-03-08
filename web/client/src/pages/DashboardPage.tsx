@@ -464,9 +464,8 @@ export default function DashboardPage() {
             {(() => {
               const counts: Record<string, number> = {};
               for (const r of filteredRows) {
-                // Mail parsing sources (e.g., HDFC_INSTA_ALERT) are for cross-referencing only, not a real payment source.
-                if (r.messageId) continue;
-                const k = r.source_name || r.source || 'Unknown';
+                // If a row comes from mail ingest, treat its source as "Mail" (otherwise we'd hide it and the chart goes empty).
+                const k = r.messageId ? 'Mail' : (r.source_name || r.source || 'Unknown');
                 counts[k] = (counts[k] || 0) + 1;
               }
               const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
