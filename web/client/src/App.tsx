@@ -7,6 +7,7 @@ import MailPage from './pages/MailPage';
 import IngestPage from './pages/IngestPage';
 import StagingPage from './pages/StagingPage';
 import RefsPage from './pages/RefsPage';
+import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
 
 function TabLink({ to, label }: { to: string; label: string }) {
@@ -60,6 +61,7 @@ export default function App() {
             <TabLink to="/ingest" label="Ingest" />
             <TabLink to="/staging" label="Staging" />
             <TabLink to="/refs" label="Refs" />
+            <TabLink to="/settings" label="Settings" />
           </nav>
         </div>
       </header>
@@ -73,6 +75,7 @@ export default function App() {
           <Route path="/ingest" element={<IngestPage />} />
           <Route path="/staging" element={<StagingPage />} />
           <Route path="/refs" element={<RefsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </main>
     </div>
