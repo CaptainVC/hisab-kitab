@@ -307,7 +307,7 @@ export default function ReviewPage() {
                       Add reimbursement
                     </button>
                     <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => resolve(x.txn_id).catch(() => {})}>
-                      Resolve only
+                      Resolve
                     </button>
                   </div>
                 </td>
