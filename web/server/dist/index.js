@@ -18,6 +18,7 @@ import { registerRefsRoutes } from './routes/refs.js';
 import { registerMailRoutes } from './routes/mail.js';
 import { JobRunner } from './jobs/jobRunner.js';
 const appVersion = process.env.HK_APP_VERSION || 'dev';
+const startedAt = new Date().toISOString();
 async function main() {
     const cfg = loadConfig();
     fs.mkdirSync(cfg.cacheDir, { recursive: true });
@@ -31,7 +32,7 @@ async function main() {
     const app = Fastify({ logger: true });
     await app.register(sessionPlugin, { cookieSecret: cfg.cookieSecret });
     const runner = new JobRunner(path.join(cfg.reportsDir, 'jobs'));
-    await registerHealthRoutes(app, { appVersion });
+    await registerHealthRoutes(app, { appVersion, startedAt });
     await registerAuthRoutes(app, { authFile: cfg.authFile });
     await registerJobRoutes(app, { runner });
     await registerDataRoutes(app, { cacheDir: cfg.cacheDir, cacheFreshMs: cfg.cacheFreshMs });

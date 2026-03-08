@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiGet, apiPost } from '../api/client';
 
-type HealthResp = { ok: true; appVersion: string; time: string };
+type HealthResp = { ok: true; appVersion: string; startedAt: string; time: string };
 
 type MeResp = { ok: true; authenticated: boolean; loginAt: string | null };
 
@@ -50,6 +50,7 @@ export default function SettingsPage() {
         <div className="p-4 border border-zinc-800 rounded-lg">
           <div className="text-sm font-semibold">Server</div>
           <div className="mt-2 text-sm text-zinc-300">Version: <span className="font-mono">{health?.appVersion || '—'}</span></div>
+          <div className="mt-1 text-sm text-zinc-300">Started: <span className="font-mono">{health?.startedAt || '—'}</span></div>
           <div className="mt-1 text-sm text-zinc-300">Time: <span className="font-mono">{health?.time || '—'}</span></div>
         </div>
 
