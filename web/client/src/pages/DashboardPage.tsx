@@ -459,7 +459,7 @@ export default function DashboardPage() {
         </div>
         <div className="mt-2 border border-zinc-800 rounded-lg overflow-auto max-h-[520px]">
           <table className="w-full text-sm">
-            <thead className="bg-zinc-900 text-zinc-300">
+            <thead className="bg-zinc-900 text-zinc-300 sticky top-0 z-10">
               <tr>
                 <th className="text-left px-3 py-2">Date</th>
                 <th className="text-left px-3 py-2">Type</th>
