@@ -301,8 +301,8 @@ export default function DashboardPage() {
         <div className="mt-3 text-xs text-zinc-500">Showing {filteredRows.length} / {rows.length} transactions</div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="p-4 border border-zinc-800 rounded-lg">
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="p-4 border border-zinc-800 rounded-lg md:col-span-2">
           <div className="text-sm font-semibold">Daily expense trend</div>
           <div className="mt-2">
             <DailyLineChart labels={daily.map(x => x[0])} values={daily.map(x => Math.round(x[1]))} />
@@ -310,6 +310,49 @@ export default function DashboardPage() {
         </div>
 
         <div className="p-4 border border-zinc-800 rounded-lg">
+          <div className="text-sm font-semibold">Cashflow by month</div>
+          <div className="mt-2 border border-zinc-800 rounded overflow-auto max-h-72">
+            <table className="w-full text-sm">
+              <thead className="bg-zinc-900 text-zinc-300">
+                <tr>
+                  <th className="text-left px-3 py-2">Month</th>
+                  <th className="text-right px-3 py-2">Income</th>
+                  <th className="text-right px-3 py-2">Expense</th>
+                  <th className="text-right px-3 py-2">Net</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const by: Record<string, { income: number; expense: number }> = {};
+                  for (const r of filteredRows) {
+                    const month = String(r.date || '').slice(0, 7) || 'unknown';
+                    if (!by[month]) by[month] = { income: 0, expense: 0 };
+                    const amt = Number(r.amount || 0);
+                    if (r.type === 'INCOME') by[month].income += amt;
+                    else if (r.type === 'EXPENSE') by[month].expense += amt;
+                  }
+                  return Object.entries(by)
+                    .sort((a, b) => b[0].localeCompare(a[0]))
+                    .slice(0, 24)
+                    .map(([m, v]) => {
+                      const net = v.income - v.expense;
+                      return (
+                        <tr key={m} className="border-t border-zinc-800">
+                          <td className="px-3 py-2 font-mono text-xs">{m}</td>
+                          <td className="px-3 py-2 text-right">{formatINR(v.income)}</td>
+                          <td className="px-3 py-2 text-right">{formatINR(v.expense)}</td>
+                          <td className={`px-3 py-2 text-right ${net < 0 ? 'text-red-300' : 'text-emerald-300'}`}>{formatINR(net)}</td>
+                        </tr>
+                      );
+                    });
+                })()}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-2 text-xs text-zinc-500">Net = income − expense (transfers ignored)</div>
+        </div>
+
+        <div className="p-4 border border-zinc-800 rounded-lg md:col-span-3">
           <div className="text-sm font-semibold">Top categories (share)</div>
           <div className="mt-2">
             <CategoryDoughnut
