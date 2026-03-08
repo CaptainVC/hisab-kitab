@@ -92,6 +92,113 @@ export async function registerMailRoutes(app, opts) {
             recentPayments
         });
     });
+    function readMailStore() {
+        const fp = path.join(opts.baseDir, 'staging', 'mail_orders.json');
+        const j = readJson(fp, { schemaVersion: 1, orders: [] });
+        const orders = Array.isArray(j?.orders) ? j.orders : [];
+        return { fp, orders };
+    }
+    // Latest crossref report for range (if exists)
+    app.get('/api/v1/mail/crossrefReport', async (req, reply) => {
+        if (!requireAuth(req, reply))
+            return;
+        const q = req.query;
+        const from = String(q.from || '');
+        const to = String(q.to || '');
+        if (!from || !to)
+            return reply.code(400).send({ ok: false, error: 'missing_range' });
+        const fp = path.join(opts.baseDir, 'cache', `mail_crossref_${from}_${to}.json`);
+        const j = readJson(fp, null);
+        if (!j)
+            return reply.code(404).send({ ok: false, error: 'not_found', file: fp });
+        return reply.send({ ok: true, file: fp, report: j });
+    });
+    // List mail orders from store (filterable by status and range)
+    app.get('/api/v1/mail/crossrefOrders', async (req, reply) => {
+        if (!requireAuth(req, reply))
+            return;
+        const q = req.query;
+        const from = String(q.from || '');
+        const to = String(q.to || '');
+        const status = String(q.status || ''); // unmatched|matched|ignored|""(all)
+        if (!from || !to)
+            return reply.code(400).send({ ok: false, error: 'missing_range' });
+        const { fp, orders } = readMailStore();
+        const start = `${from}-01`;
+        const [ty, tm] = to.split('-').map(Number);
+        const endExclusive = new Date(Date.UTC(ty, tm, 1)).toISOString().slice(0, 10);
+        const filtered = orders
+            .filter((o) => {
+            const d = String(o?.date || '');
+            if (!d)
+                return false;
+            if (!(d >= start && d < endExclusive))
+                return false;
+            if (status && String(o?.status || '') !== status)
+                return false;
+            return true;
+        })
+            .sort((a, b) => (String(b.date || '').localeCompare(String(a.date || '')) || String(a.messageId || '').localeCompare(String(b.messageId || ''))));
+        return reply.send({ ok: true, storeFile: fp, from, to, status: status || null, orders: filtered });
+    });
+    // Match-report (dry run) for cross-referencing mail orders to Hisab overall entries.
+    app.post('/api/v1/mail/matchReport', async (req, reply) => {
+        if (!requireAuth(req, reply))
+            return;
+        const body = (req.body || {});
+        const from = String(body.from || '');
+        const to = String(body.to || '');
+        const bufferDays = Number(body.bufferDays ?? 2);
+        if (!from || !to)
+            return reply.code(400).send({ ok: false, error: 'missing_range' });
+        const script = path.join(opts.repoDir, 'web', 'server', 'dist', 'scripts', 'mail_match_report.js');
+        const args = [
+            script,
+            '--base-dir', opts.baseDir,
+            '--from', from,
+            '--to', to,
+            '--buffer-days', String(bufferDays),
+            '--tol', '2'
+        ];
+        try {
+            const job = await opts.runner.startJob('mailMatchReport', { from, to, bufferDays }, process.execPath, args, { cwd: opts.repoDir });
+            return reply.send({ ok: true, jobId: job.jobId });
+        }
+        catch (e) {
+            if (String(e?.message || e) === 'job_already_running')
+                return reply.code(409).send({ ok: false, error: 'job_already_running' });
+            return reply.code(500).send({ ok: false, error: 'start_failed', detail: String(e?.message || e) });
+        }
+    });
+    // Cross-reference unmatched mail orders to Hisab overall entries (no Excel edits).
+    app.post('/api/v1/mail/crossref', async (req, reply) => {
+        if (!requireAuth(req, reply))
+            return;
+        const body = (req.body || {});
+        const from = String(body.from || '');
+        const to = String(body.to || '');
+        const bufferDays = Number(body.bufferDays ?? 2);
+        if (!from || !to)
+            return reply.code(400).send({ ok: false, error: 'missing_range' });
+        const script = path.join(opts.repoDir, 'web', 'server', 'dist', 'scripts', 'mail_crossref.js');
+        const args = [
+            script,
+            '--base-dir', opts.baseDir,
+            '--from', from,
+            '--to', to,
+            '--buffer-days', String(bufferDays),
+            '--tol', '2'
+        ];
+        try {
+            const job = await opts.runner.startJob('mailCrossref', { from, to, bufferDays }, process.execPath, args, { cwd: opts.repoDir });
+            return reply.send({ ok: true, jobId: job.jobId });
+        }
+        catch (e) {
+            if (String(e?.message || e) === 'job_already_running')
+                return reply.code(409).send({ ok: false, error: 'job_already_running' });
+            return reply.code(500).send({ ok: false, error: 'start_failed', detail: String(e?.message || e) });
+        }
+    });
     // Ingest mail-derived orders into Excel (item-level) with best-effort categorization.
     app.post('/api/v1/mail/ingestOrders', async (req, reply) => {
         if (!requireAuth(req, reply))

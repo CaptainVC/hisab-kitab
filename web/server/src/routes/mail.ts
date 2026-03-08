@@ -101,6 +101,54 @@ export async function registerMailRoutes(app: FastifyInstance, opts: { baseDir: 
     });
   });
 
+  function readMailStore() {
+    const fp = path.join(opts.baseDir, 'staging', 'mail_orders.json');
+    const j = readJson<any>(fp, { schemaVersion: 1, orders: [] });
+    const orders = Array.isArray(j?.orders) ? j.orders : [];
+    return { fp, orders };
+  }
+
+  // Latest crossref report for range (if exists)
+  app.get('/api/v1/mail/crossrefReport', async (req, reply) => {
+    if (!requireAuth(req, reply)) return;
+    const q = req.query as any;
+    const from = String(q.from || '');
+    const to = String(q.to || '');
+    if (!from || !to) return reply.code(400).send({ ok: false, error: 'missing_range' });
+
+    const fp = path.join(opts.baseDir, 'cache', `mail_crossref_${from}_${to}.json`);
+    const j = readJson<any>(fp, null);
+    if (!j) return reply.code(404).send({ ok: false, error: 'not_found', file: fp });
+    return reply.send({ ok: true, file: fp, report: j });
+  });
+
+  // List mail orders from store (filterable by status and range)
+  app.get('/api/v1/mail/crossrefOrders', async (req, reply) => {
+    if (!requireAuth(req, reply)) return;
+    const q = req.query as any;
+    const from = String(q.from || '');
+    const to = String(q.to || '');
+    const status = String(q.status || ''); // unmatched|matched|ignored|""(all)
+    if (!from || !to) return reply.code(400).send({ ok: false, error: 'missing_range' });
+
+    const { fp, orders } = readMailStore();
+    const start = `${from}-01`;
+    const [ty, tm] = to.split('-').map(Number);
+    const endExclusive = new Date(Date.UTC(ty, tm, 1)).toISOString().slice(0, 10);
+
+    const filtered = orders
+      .filter((o: any) => {
+        const d = String(o?.date || '');
+        if (!d) return false;
+        if (!(d >= start && d < endExclusive)) return false;
+        if (status && String(o?.status || '') !== status) return false;
+        return true;
+      })
+      .sort((a: any, b: any) => (String(b.date || '').localeCompare(String(a.date || '')) || String(a.messageId || '').localeCompare(String(b.messageId || ''))));
+
+    return reply.send({ ok: true, storeFile: fp, from, to, status: status || null, orders: filtered });
+  });
+
   // Match-report (dry run) for cross-referencing mail orders to Hisab overall entries.
   app.post('/api/v1/mail/matchReport', async (req, reply) => {
     if (!requireAuth(req, reply)) return;

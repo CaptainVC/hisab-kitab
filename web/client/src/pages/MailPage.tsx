@@ -24,6 +24,26 @@ export default function MailPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [bufferDays, setBufferDays] = useState(2);
+  const [crossrefBusy, setCrossrefBusy] = useState(false);
+  const [crossrefReport, setCrossrefReport] = useState<any | null>(null);
+  const [crossrefOrders, setCrossrefOrders] = useState<any[]>([]);
+  const [crossrefStatus, setCrossrefStatus] = useState<'matched' | 'unmatched'>('matched');
+
+  async function loadCrossref() {
+    try {
+      const r = await apiGet<{ ok: true; file: string; report: any }>(`/api/v1/mail/crossrefReport?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+      setCrossrefReport(r.report);
+    } catch {
+      setCrossrefReport(null);
+    }
+
+    try {
+      const o = await apiGet<{ ok: true; orders: any[] }>(`/api/v1/mail/crossrefOrders?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&status=${encodeURIComponent(crossrefStatus)}`);
+      setCrossrefOrders(o.orders || []);
+    } catch {
+      setCrossrefOrders([]);
+    }
+  }
 
   async function load() {
     setBusy(true);
@@ -108,6 +128,25 @@ export default function MailPage() {
           </button>
 
           <button
+            className="hk-btn-secondary disabled:opacity-50"
+            disabled={busy || crossrefBusy}
+            onClick={async () => {
+              try {
+                setCrossrefBusy(true);
+                setErr(null);
+                const r = await apiPost<{ ok: true; jobId: string }>('/api/v1/mail/crossref', { from, to, bufferDays });
+                alert(`Started crossref job ${r.jobId}. Check Jobs page for progress.`);
+              } catch (e: any) {
+                setErr(String(e?.message || e));
+              } finally {
+                setCrossrefBusy(false);
+              }
+            }}
+          >
+            Cross-reference unmatched
+          </button>
+
+          <button
             className="hk-btn-primary disabled:opacity-50"
             disabled={busy}
             onClick={async () => {
@@ -125,6 +164,63 @@ export default function MailPage() {
           >
             Run mail ingest
           </button>
+        </div>
+      </div>
+
+      <div className="mt-4 p-4 hk-card">
+        <div className="flex items-end justify-between gap-3 flex-wrap">
+          <div>
+            <div className="text-sm font-semibold">Crossref status</div>
+            <div className="mt-1 text-xs text-[color:var(--hk-muted)]">Shows matches between unmatched mail invoices and your overall Hisab entries (no Excel edits).</div>
+          </div>
+          <div className="flex items-end gap-2">
+            <div>
+              <label className="text-xs text-[color:var(--hk-muted)]">View</label>
+              <select className="mt-1 hk-input" value={crossrefStatus} onChange={(e) => setCrossrefStatus(e.target.value as any)}>
+                <option value="matched">Matched</option>
+                <option value="unmatched">Unmatched</option>
+              </select>
+            </div>
+            <button className="hk-btn-secondary" disabled={busy} onClick={() => loadCrossref().catch(() => {})}>Refresh</button>
+          </div>
+        </div>
+
+        {crossrefReport ? (
+          <div className="mt-3 text-xs text-[color:var(--hk-faint)]">
+            Considered: <span className="font-mono">{crossrefReport.considered}</span> • Matched: <span className="font-mono">{crossrefReport.matched}</span> • Ambiguous: <span className="font-mono">{crossrefReport.ambiguous}</span> • None: <span className="font-mono">{crossrefReport.none}</span>
+          </div>
+        ) : (
+          <div className="mt-3 text-xs text-[color:var(--hk-faint)]">No crossref report found for this range yet.</div>
+        )}
+
+        <div className="mt-3 border border-zinc-800 rounded overflow-auto max-h-80">
+          <table className="w-full text-sm">
+            <thead className="hk-table-head">
+              <tr>
+                <th className="text-left px-3 py-2">Date</th>
+                <th className="text-left px-3 py-2">Merchant</th>
+                <th className="text-right px-3 py-2">Total</th>
+                <th className="text-left px-3 py-2">Status</th>
+                <th className="text-left px-3 py-2">Matched txn_id</th>
+              </tr>
+            </thead>
+            <tbody>
+              {crossrefOrders.map((o) => (
+                <tr key={o.messageId} className="hover:bg-white/5">
+                  <td className="px-3 py-2 whitespace-nowrap">{o.date}</td>
+                  <td className="px-3 py-2">{o.merchant_code}</td>
+                  <td className="px-3 py-2 text-right">{Number(o.total || 0).toFixed(0)}</td>
+                  <td className="px-3 py-2">{o.status}</td>
+                  <td className="px-3 py-2 font-mono text-xs">{o.matched_txn_id || '—'}</td>
+                </tr>
+              ))}
+              {!crossrefOrders.length ? (
+                <tr>
+                  <td className="px-3 py-4 text-center text-[color:var(--hk-faint)]" colSpan={5}>No rows</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
         </div>
       </div>
 
