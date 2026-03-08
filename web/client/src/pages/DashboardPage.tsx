@@ -39,7 +39,6 @@ export default function DashboardPage() {
   const [editSubcategory, setEditSubcategory] = useState('');
   const [editTags, setEditTags] = useState('');
   const [editNotes, setEditNotes] = useState('');
-  const [editNotice, setEditNotice] = useState<string | null>(null);
 
   function openEditTxn(r: any) {
     setEditTxn(r);
@@ -48,7 +47,6 @@ export default function DashboardPage() {
     setEditSubcategory(String(r.subcategory || ''));
     setEditTags(String(r.tags || ''));
     setEditNotes(String(r.notes || ''));
-    setEditNotice(null);
     setEditTxnOpen(true);
   }
 
@@ -564,11 +562,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="mt-3 text-sm text-[color:var(--hk-muted)]">{editTxn ? `${editTxn.date} • ${formatINR(editTxn.amount)} • ${editTxn.raw_text || ''}` : ''}</div>
-            {editNotice ? (
-              <div className="mt-3 text-xs text-[color:var(--hk-muted)] bg-zinc-900/60 border border-zinc-800 rounded px-3 py-2">
-                {editNotice}
-              </div>
-            ) : null}
+            {/* notice removed */}
 
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
@@ -635,6 +629,11 @@ export default function DashboardPage() {
                 onClick={async () => {
                   try {
                     if (!editTxn?.txn_id) return;
+                    // Close modal immediately
+                    setEditTxnOpen(false);
+
+                    // 1) Save into Excel (job)
+                    setBusy(true);
                     const r = await apiPut<{ ok: true; jobId: string }>(`/api/v1/txns/${encodeURIComponent(editTxn.txn_id)}`, {
                       merchant_code: editMerchant,
                       category: editCategory,
@@ -642,9 +641,29 @@ export default function DashboardPage() {
                       tags: editTags,
                       notes: editNotes
                     });
-                    setEditNotice(`Saved. Job queued: ${r.jobId}. It will update Excel in the background.`);
-                    // keep modal open so you can edit multiple quickly
+
+                    // Poll edit job
+                    for (let i = 0; i < 60; i++) {
+                      const jr = await apiGet<JobResp>(`/api/v1/jobs/${r.jobId}`);
+                      if (jr.job.status === 'succeeded') break;
+                      if (jr.job.status === 'failed') throw new Error('edit_failed');
+                      await new Promise(res => setTimeout(res, 1000));
+                    }
+
+                    // 2) Rebuild selected range
+                    const rb = await apiPost<RebuildResp>('/api/v1/rebuild', { from, to });
+                    setLastJobId(rb.jobId);
+                    for (let i = 0; i < 60; i++) {
+                      const jr = await apiGet<JobResp>(`/api/v1/jobs/${rb.jobId}`);
+                      if (jr.job.status === 'succeeded') break;
+                      if (jr.job.status === 'failed') throw new Error('rebuild_failed');
+                      await new Promise(res => setTimeout(res, 1000));
+                    }
+
+                    await loadData();
+                    setBusy(false);
                   } catch (e: any) {
+                    setBusy(false);
                     setErr(String(e?.message || e));
                   }
                 }}
