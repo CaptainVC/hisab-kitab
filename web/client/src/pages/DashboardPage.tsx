@@ -28,6 +28,10 @@ export default function DashboardPage() {
   const [meta, setMeta] = useState<{ stale: boolean; ageMs: number; generatedAt?: string } | null>(null);
   const [rows, setRows] = useState<any[]>([]);
 
+  const [merchantOptions, setMerchantOptions] = useState<Array<{ code: string; name: string; archived?: boolean }>>([]);
+  const [categoryOptions, setCategoryOptions] = useState<Array<{ code: string; name: string; archived?: boolean }>>([]);
+  const [subcategoryOptions, setSubcategoryOptions] = useState<Array<{ code: string; name: string; category: string; archived?: boolean }>>([]);
+
   const [editTxnOpen, setEditTxnOpen] = useState(false);
   const [editTxn, setEditTxn] = useState<any | null>(null);
   const [editMerchant, setEditMerchant] = useState('');
@@ -44,6 +48,21 @@ export default function DashboardPage() {
     setEditTags(String(r.tags || ''));
     setEditNotes(String(r.notes || ''));
     setEditTxnOpen(true);
+  }
+
+  async function loadRefs() {
+    try {
+      const [m, c, s] = await Promise.all([
+        apiGet<{ ok: true; merchants: any[] }>('/api/v1/refs/merchants'),
+        apiGet<{ ok: true; categories: any[] }>('/api/v1/refs/categories'),
+        apiGet<{ ok: true; subcategories: any[] }>('/api/v1/refs/subcategories')
+      ]);
+      setMerchantOptions((m.merchants || []).filter((x: any) => !x.archived));
+      setCategoryOptions((c.categories || []).filter((x: any) => !x.archived));
+      setSubcategoryOptions((s.subcategories || []).filter((x: any) => !x.archived));
+    } catch {
+      // non-fatal
+    }
   }
 
   async function loadData() {
@@ -91,6 +110,7 @@ export default function DashboardPage() {
       if (j) setLastJobId(j);
     } catch {}
 
+    loadRefs().catch(() => {});
     // try load if cache exists; ignore errors
     loadData().catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -546,15 +566,50 @@ export default function DashboardPage() {
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-[color:var(--hk-muted)]">Merchant code</label>
-                <input className="mt-1 w-full hk-input" value={editMerchant} onChange={(e) => setEditMerchant(e.target.value)} />
+                <select className="mt-1 w-full hk-input" value={editMerchant} onChange={(e) => setEditMerchant(e.target.value)}>
+                  <option value={editMerchant || ''}>{editMerchant || '—'}</option>
+                  {merchantOptions
+                    .filter((m) => m.code !== editMerchant)
+                    .map((m) => (
+                      <option key={m.code} value={m.code}>
+                        {m.code} — {m.name}
+                      </option>
+                    ))}
+                </select>
               </div>
               <div>
                 <label className="text-xs text-[color:var(--hk-muted)]">Category</label>
-                <input className="mt-1 w-full hk-input" value={editCategory} onChange={(e) => setEditCategory(e.target.value)} />
+                <select
+                  className="mt-1 w-full hk-input"
+                  value={editCategory}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setEditCategory(v);
+                    // If subcategory doesn't belong anymore, clear it.
+                    const ok = subcategoryOptions.some((s) => s.code === editSubcategory && s.category === v);
+                    if (!ok) setEditSubcategory('');
+                  }}
+                >
+                  <option value="">—</option>
+                  {categoryOptions.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.code} — {c.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="text-xs text-[color:var(--hk-muted)]">Subcategory</label>
-                <input className="mt-1 w-full hk-input" value={editSubcategory} onChange={(e) => setEditSubcategory(e.target.value)} />
+                <select className="mt-1 w-full hk-input" value={editSubcategory} onChange={(e) => setEditSubcategory(e.target.value)}>
+                  <option value="">—</option>
+                  {subcategoryOptions
+                    .filter((s) => !editCategory || s.category === editCategory)
+                    .map((s) => (
+                      <option key={s.code} value={s.code}>
+                        {s.code} — {s.name}
+                      </option>
+                    ))}
+                </select>
               </div>
               <div>
                 <label className="text-xs text-[color:var(--hk-muted)]">Tags</label>
