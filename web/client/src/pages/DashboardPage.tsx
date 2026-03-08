@@ -26,9 +26,18 @@ export default function DashboardPage() {
   const [rows, setRows] = useState<any[]>([]);
 
   async function loadData() {
-    const r = await apiGet<DataResp>(`/api/v1/data?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
-    setMeta({ stale: r.stale, ageMs: r.ageMs, generatedAt: r.data?.generatedAt });
-    setRows(Array.isArray(r.data?.rows) ? r.data.rows : []);
+    try {
+      const r = await apiGet<DataResp>(`/api/v1/data?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+      setMeta({ stale: r.stale, ageMs: r.ageMs, generatedAt: r.data?.generatedAt });
+      setRows(Array.isArray(r.data?.rows) ? r.data.rows : []);
+      setErr(null);
+    } catch (e: any) {
+      // If cache missing, surface it and keep UI usable.
+      setMeta(null);
+      setRows([]);
+      setErr(String(e?.message || e));
+      throw e;
+    }
   }
 
   async function rebuild() {
@@ -56,6 +65,8 @@ export default function DashboardPage() {
     loadData().catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const cacheMissing = err === 'cache_missing';
 
   const expenseRows = rows.filter(r => r.type === 'EXPENSE');
 
@@ -111,7 +122,13 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {err ? <div className="mt-3 text-sm text-red-400">{err}</div> : null}
+      {cacheMissing ? (
+        <div className="mt-3 p-3 border border-yellow-800 rounded bg-yellow-950/20 text-yellow-200 text-sm">
+          Cache is missing for this range. Click <b>Rebuild</b> to generate it.
+        </div>
+      ) : err ? (
+        <div className="mt-3 text-sm text-red-400">{err}</div>
+      ) : null}
 
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="p-4 border border-zinc-800 rounded-lg">
