@@ -93,8 +93,8 @@ export function SearchSelect({
       </div>
 
       {open ? (
-        <div className="absolute z-50 mt-1 w-full rounded border border-zinc-800 bg-zinc-950 shadow-xl overflow-hidden">
-          <div className="max-h-[420px] overflow-y-auto overflow-x-hidden">
+        <div className="absolute z-50 mt-1 w-full rounded border border-zinc-800 bg-zinc-950 shadow-xl overflow-hidden text-sm">
+          <div className="max-h-[420px] overflow-y-scroll overflow-x-hidden">
             <button
               type="button"
               className={`w-full text-left px-3 py-2 hover:bg-white/5 truncate ${value === '' ? 'bg-white/10' : ''} ${!placeholder ? 'hidden' : ''}`}
