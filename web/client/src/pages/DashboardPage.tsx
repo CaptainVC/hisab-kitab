@@ -39,6 +39,7 @@ export default function DashboardPage() {
   const [editSubcategory, setEditSubcategory] = useState('');
   const [editTags, setEditTags] = useState('');
   const [editNotes, setEditNotes] = useState('');
+  const [editNotice, setEditNotice] = useState<string | null>(null);
 
   function openEditTxn(r: any) {
     setEditTxn(r);
@@ -47,6 +48,7 @@ export default function DashboardPage() {
     setEditSubcategory(String(r.subcategory || ''));
     setEditTags(String(r.tags || ''));
     setEditNotes(String(r.notes || ''));
+    setEditNotice(null);
     setEditTxnOpen(true);
   }
 
@@ -562,6 +564,11 @@ export default function DashboardPage() {
             </div>
 
             <div className="mt-3 text-sm text-[color:var(--hk-muted)]">{editTxn ? `${editTxn.date} • ${formatINR(editTxn.amount)} • ${editTxn.raw_text || ''}` : ''}</div>
+            {editNotice ? (
+              <div className="mt-3 text-xs text-[color:var(--hk-muted)] bg-zinc-900/60 border border-zinc-800 rounded px-3 py-2">
+                {editNotice}
+              </div>
+            ) : null}
 
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
@@ -635,8 +642,8 @@ export default function DashboardPage() {
                       tags: editTags,
                       notes: editNotes
                     });
-                    alert(`Edit queued as job ${r.jobId}. After it finishes, run Rebuild to refresh the dashboard cache.`);
-                    setEditTxnOpen(false);
+                    setEditNotice(`Saved. Job queued: ${r.jobId}. It will update Excel in the background.`);
+                    // keep modal open so you can edit multiple quickly
                   } catch (e: any) {
                     setErr(String(e?.message || e));
                   }
