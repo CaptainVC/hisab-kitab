@@ -79,7 +79,37 @@ export default function DashboardPage() {
 
   const cacheMissing = err === 'cache_missing';
 
-  const expenseRows = rows.filter(r => r.type === 'EXPENSE');
+  const [fType, setFType] = useState<string>('');
+  const [fSource, setFSource] = useState<string>('');
+  const [fLocation, setFLocation] = useState<string>('');
+  const [fMerchant, setFMerchant] = useState<string>('');
+  const [fCategory, setFCategory] = useState<string>('');
+  const [fSubcategory, setFSubcategory] = useState<string>('');
+  const [fTag, setFTag] = useState<string>('');
+
+  const filteredRows = rows.filter((r: any) => {
+    if (fType && r.type !== fType) return false;
+    if (fSource && (r.source_name || r.source) !== fSource && r.source !== fSource) return false;
+    if (fLocation && (r.location_name || r.location) !== fLocation && r.location !== fLocation) return false;
+
+    const merch = r.merchant_name || r.merchant_code || '';
+    if (fMerchant && merch !== fMerchant) return false;
+
+    const cat = r.category_name || r.category || '';
+    if (fCategory && cat !== fCategory && r.category !== fCategory) return false;
+
+    const sub = r.subcategory_name || r.subcategory || '';
+    if (fSubcategory && sub !== fSubcategory && r.subcategory !== fSubcategory) return false;
+
+    if (fTag) {
+      const tags: string[] = Array.isArray(r._tags) ? r._tags : (String(r.tags || '').split(',').map((s: string) => s.trim()).filter(Boolean));
+      if (!tags.includes(fTag)) return false;
+    }
+
+    return true;
+  });
+
+  const expenseRows = filteredRows.filter((r: any) => r.type === 'EXPENSE');
 
   const daily = (() => {
     const sums: Record<string, number> = {};
@@ -146,6 +176,81 @@ export default function DashboardPage() {
       ) : err ? (
         <div className="mt-3 text-sm text-red-400">{err}</div>
       ) : null}
+
+      <div className="mt-6 p-4 border border-zinc-800 rounded-lg">
+        <div className="text-sm font-semibold">Filters</div>
+        <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div>
+            <label className="text-xs text-zinc-400">Type</label>
+            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={fType} onChange={(e) => setFType(e.target.value)}>
+              <option value="">(all)</option>
+              {Array.from(new Set(rows.map((r:any)=>r.type))).filter(Boolean).sort().map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-zinc-400">Source</label>
+            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={fSource} onChange={(e) => setFSource(e.target.value)}>
+              <option value="">(all)</option>
+              {Array.from(new Set(rows.map((r:any)=>r.source_name || r.source))).filter(Boolean).sort().map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-zinc-400">Location</label>
+            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={fLocation} onChange={(e) => setFLocation(e.target.value)}>
+              <option value="">(all)</option>
+              {Array.from(new Set(rows.map((r:any)=>r.location_name || r.location))).filter(Boolean).sort().map((l) => (
+                <option key={l} value={l}>{l}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-zinc-400">Tag</label>
+            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={fTag} onChange={(e) => setFTag(e.target.value)}>
+              <option value="">(all)</option>
+              {Array.from(new Set(rows.flatMap((r:any)=>Array.isArray(r._tags)?r._tags:String(r.tags||'').split(',').map((x:string)=>x.trim()).filter(Boolean)))).filter(Boolean).sort().map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-zinc-400">Merchant</label>
+            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={fMerchant} onChange={(e) => setFMerchant(e.target.value)}>
+              <option value="">(all)</option>
+              {Array.from(new Set(rows.map((r:any)=>r.merchant_name || r.merchant_code).filter(Boolean))).sort().map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-zinc-400">Category</label>
+            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={fCategory} onChange={(e) => { setFCategory(e.target.value); setFSubcategory(''); }}>
+              <option value="">(all)</option>
+              {Array.from(new Set(rows.map((r:any)=>r.category_name || r.category).filter(Boolean))).sort().map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-zinc-400">Subcategory</label>
+            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={fSubcategory} onChange={(e) => setFSubcategory(e.target.value)}>
+              <option value="">(all)</option>
+              {Array.from(new Set(rows.filter((r:any)=>!fCategory || (r.category_name||r.category)===fCategory || r.category===fCategory).map((r:any)=>r.subcategory_name || r.subcategory).filter(Boolean))).sort().map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button className="w-full px-3 py-2 rounded-md bg-zinc-800 hover:bg-zinc-700" onClick={() => { setFType(''); setFSource(''); setFLocation(''); setFMerchant(''); setFCategory(''); setFSubcategory(''); setFTag(''); }}>
+              Clear filters
+            </button>
+          </div>
+        </div>
+        <div className="mt-3 text-xs text-zinc-500">Showing {filteredRows.length} / {rows.length} transactions</div>
+      </div>
 
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="p-4 border border-zinc-800 rounded-lg">
@@ -245,7 +350,7 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.slice(0, 200).map((r) => (
+              {filteredRows.slice(0, 200).map((r) => (
                 <tr key={r.txn_id} className="border-t border-zinc-800">
                   <td className="px-3 py-2 whitespace-nowrap">{r.date}</td>
                   <td className="px-3 py-2">{r.type}</td>
@@ -256,7 +361,7 @@ export default function DashboardPage() {
                   <td className="px-3 py-2">{r.notes}</td>
                 </tr>
               ))}
-              {rows.length === 0 ? (
+              {filteredRows.length === 0 ? (
                 <tr>
                   <td className="px-3 py-3 text-zinc-500" colSpan={7}>No rows loaded (run rebuild).</td>
                 </tr>
