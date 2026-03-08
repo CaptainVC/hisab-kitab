@@ -227,7 +227,7 @@ export default function ReviewPage() {
       </div>
 
       <div className="mt-6 border border-zinc-800 rounded-lg overflow-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm min-w-[1400px]">
           <thead className="bg-zinc-900 text-zinc-300">
             <tr>
               <th className="text-left px-3 py-2">Date</th>
