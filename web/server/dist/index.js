@@ -15,6 +15,7 @@ import { registerRebuildRoutes } from './routes/rebuild.js';
 import { registerReviewRoutes } from './routes/review.js';
 import { registerStagingRoutes } from './routes/staging.js';
 import { registerRefsRoutes } from './routes/refs.js';
+import { registerMailRoutes } from './routes/mail.js';
 import { JobRunner } from './jobs/jobRunner.js';
 const appVersion = process.env.HK_APP_VERSION || 'dev';
 async function main() {
@@ -41,6 +42,7 @@ async function main() {
     await registerReviewRoutes(app, { cacheDir: cfg.cacheDir, reviewStateFile: cfg.reviewStateFile });
     await registerStagingRoutes(app, { runner, baseDir: cfg.baseDir, repoDir, stagingDir: cfg.stagingDir });
     await registerRefsRoutes(app, { baseDir: cfg.baseDir });
+    await registerMailRoutes(app, { baseDir: cfg.baseDir });
     // Serve frontend build (once we build it)
     const clientDist = path.join(repoDir, 'web', 'client', 'dist');
     if (fs.existsSync(clientDist)) {
