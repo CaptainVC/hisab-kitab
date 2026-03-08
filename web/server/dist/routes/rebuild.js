@@ -11,8 +11,10 @@ export async function registerRebuildRoutes(app, opts) {
             return reply.code(400).send({ ok: false, error: 'missing_range' });
         // build_dashboard.js treats output paths as relative to baseDir.
         // So we pass relative outputs and then refer to absolute files via cacheDir in API reads.
-        const outJsonRel = path.join('cache', `hisab_data_${from}_${to}.json`);
-        const outHtmlRel = path.join('cache', `hisab_dashboard_${from}_${to}.html`);
+        const { rangeKey } = await import('../utils/rangeKey.js');
+        const key = rangeKey(from, to);
+        const outJsonRel = path.join('cache', `hisab_data_${key}.json`);
+        const outHtmlRel = path.join('cache', `hisab_dashboard_${key}.html`);
         const outJsonAbs = path.join(opts.baseDir, outJsonRel);
         const outHtmlAbs = path.join(opts.baseDir, outHtmlRel);
         const dashScript = path.join(opts.repoDir, 'src', 'dashboard', 'build_dashboard.js');

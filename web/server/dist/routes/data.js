@@ -1,8 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { requireAuth } from '../auth/session.js';
+import { rangeKey } from '../utils/rangeKey.js';
 function cachePath(cacheDir, from, to) {
-    return path.join(cacheDir, `hisab_data_${from}_${to}.json`);
+    const key = rangeKey(from, to);
+    return path.join(cacheDir, `hisab_data_${key}.json`);
 }
 export async function registerDataRoutes(app, opts) {
     app.get('/api/v1/data/summary', async (req, reply) => {
