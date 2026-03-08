@@ -138,6 +138,7 @@ async function main() {
     const outRows = [];
     let considered = 0;
     let skippedDup = 0;
+    const alreadyImportedMessageIds = new Set(existing.map((r) => String(r?.messageId || '')).filter(Boolean));
     for (const o of orders) {
         const merchant = String(o?.merchant || '').toUpperCase();
         if (!merchant)
@@ -153,24 +154,29 @@ async function main() {
         const items = parseItems(o);
         if (!items.length)
             continue;
-        considered++;
-        // Dedupe/cross-ref based on total (best-effort). If a matching Hisab expense exists, skip importing.
-        const total = Number(o?.total || 0) || items.reduce((s, it) => s + it.amount, 0);
-        const match = findMatch(date, total);
-        if (match) {
+        // Skip if this email was already ingested earlier.
+        const mid = String(o?.messageId || '');
+        if (mid && alreadyImportedMessageIds.has(mid)) {
             skippedDup++;
             continue;
         }
-        const group_id = `mail_${o.messageId || ''}_${Date.now()}`;
+        considered++;
+        // Cross-reference with an existing Hisab expense entry (overall txn) to inherit its payment source.
+        // If a match is found, we still import the breakdown, but we copy `source` and set `linked_txn_id`.
+        const total = Number(o?.total || 0) || items.reduce((s, it) => s + it.amount, 0);
+        const match = findMatch(date, total);
+        const group_id = `mail_${mid || ''}_${Date.now()}`;
+        const inheritedSource = String(match?.source || '').trim() || 'UNKNOWN';
+        const linkedTxnId = String(match?.txn_id || '').trim();
         for (const it of items) {
             const cat = categorizeMailItem(merchant, it.name);
             outRows.push({
-                txn_id: `mail_${o.messageId || ''}_${Math.random().toString(16).slice(2)}`,
+                txn_id: `mail_${mid || ''}_${Math.random().toString(16).slice(2)}`,
                 group_id,
                 date,
                 type: 'EXPENSE',
                 amount: it.amount,
-                source: '',
+                source: inheritedSource,
                 location: 'BENGALURU',
                 merchant_code: merchant,
                 category: cat.category,
@@ -179,12 +185,12 @@ async function main() {
                 beneficiary: '',
                 reimb_status: '',
                 counterparty: '',
-                linked_txn_id: '',
-                notes: `mail:${o.messageId || ''}`,
+                linked_txn_id: linkedTxnId,
+                notes: `mail:${mid}`,
                 raw_text: it.name,
-                parse_status: 'mail_ingest',
+                parse_status: match ? 'mail_ingest_matched' : 'mail_ingest',
                 parse_error: '',
-                messageId: o.messageId || ''
+                messageId: mid
             });
         }
     }
