@@ -35,6 +35,48 @@ type CategoryRef = { name: string; archived?: boolean };
 type SubcategoryRef = { name: string; category: string; archived?: boolean };
 
 export async function registerRefsRoutes(app: FastifyInstance, opts: { baseDir: string }) {
+  // Overview (oldest data in range for email-derived datasets)
+  app.get('/api/v1/refs/overview', async (req, reply) => {
+    if (!requireAuth(req, reply)) return;
+    const q = req.query as any;
+    const from = String(q.from || '');
+    const to = String(q.to || '');
+    const range = from && to ? monthRangeToMs(from, to) : null;
+
+    const ordersFp = path.join(opts.baseDir, 'orders_parsed.json');
+    const paymentsFp = path.join(opts.baseDir, 'payments_parsed.json');
+    const ordersJ = readJson<any>(ordersFp, null);
+    const paymentsJ = readJson<any>(paymentsFp, null);
+    const orders = Array.isArray(ordersJ?.orders) ? ordersJ.orders : [];
+    const payments = Array.isArray(paymentsJ?.payments) ? paymentsJ.payments : [];
+
+    const inRange = (x: any) => {
+      const ms = Number(x?.internalDateMs || 0);
+      if (!range) return true;
+      if (!ms) return false;
+      return ms >= range.start && ms < range.endExclusive;
+    };
+
+    const o2 = orders.filter(inRange);
+    const p2 = payments.filter(inRange);
+
+    const oldestOrderMs = o2.reduce((min: number | null, o: any) => {
+      const ms = Number(o?.internalDateMs || 0);
+      if (!ms) return min;
+      if (min === null) return ms;
+      return ms < min ? ms : min;
+    }, null as any);
+
+    const oldestPaymentMs = p2.reduce((min: number | null, p: any) => {
+      const ms = Number(p?.internalDateMs || 0);
+      if (!ms) return min;
+      if (min === null) return ms;
+      return ms < min ? ms : min;
+    }, null as any);
+
+    return reply.send({ ok: true, from: from || null, to: to || null, oldestOrderMs, oldestPaymentMs });
+  });
+
   // Merchants
   app.get('/api/v1/refs/merchants', async (req, reply) => {
     if (!requireAuth(req, reply)) return;

@@ -57,6 +57,7 @@ export default function RefsPage() {
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
 
   const [emailRules, setEmailRules] = useState<EmailRulesResp | null>(null);
+  const [overview, setOverview] = useState<{ oldestOrderMs: number | null; oldestPaymentMs: number | null } | null>(null);
 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -72,6 +73,8 @@ export default function RefsPage() {
   async function loadMerchants() {
     const m = await apiGet<MerchantsResp>('/api/v1/refs/merchants');
     const c = await apiGet<CoverageResp>(`/api/v1/refs/merchants/coverage?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+    const o = await apiGet<any>(`/api/v1/refs/overview?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+    setOverview({ oldestOrderMs: o.oldestOrderMs ?? null, oldestPaymentMs: o.oldestPaymentMs ?? null });
     setMerchants(m.merchants);
     const map: Record<string, CoverageRow> = {};
     for (const row of c.coverage) map[row.code] = row;
@@ -225,6 +228,11 @@ export default function RefsPage() {
         <div>
           <h1 className="text-xl font-semibold">Refs</h1>
           <p className="text-zinc-400 mt-1">Edit/Archive only. Email rules are view-only in v1.</p>
+          {tab === 'merchants' ? (
+            <div className="mt-1 text-xs text-zinc-500">
+              Oldest email-derived data in range: orders {overview?.oldestOrderMs ? new Date(overview.oldestOrderMs).toISOString().slice(0, 10) : '—'} • payments {overview?.oldestPaymentMs ? new Date(overview.oldestPaymentMs).toISOString().slice(0, 10) : '—'}
+            </div>
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
           <TabBtn active={tab === 'merchants'} label="Merchants" onClick={() => setTab('merchants')} />

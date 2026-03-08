@@ -80,6 +80,9 @@ export default function JobsPage() {
         <div>
           <h1 className="text-xl font-semibold">Jobs</h1>
           <p className="text-zinc-400 mt-1">Background jobs (ingest, rebuild, staging commit).</p>
+          <div className="mt-1 text-xs text-zinc-500">
+            Oldest visible job: {jobs.length ? new Date(jobs.reduce((min, j) => (j.createdAt < min ? j.createdAt : min), jobs[0].createdAt)).toLocaleString() : '—'}
+          </div>
         </div>
         <button className="px-3 py-2 rounded-md bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50" disabled={busy} onClick={() => refresh().catch(() => {})}>
           {busy ? 'Loading…' : 'Refresh'}

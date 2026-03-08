@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost } from '../api/client';
+
+type DataSummaryResp = { ok: true; oldestDate: string | null; newestDate: string | null; rows: number; stale: boolean; ageMs: number };
 import { loadRange, saveRange } from '../app/range';
 
 type StartResp = { ok: true; jobId: string };
@@ -37,10 +39,20 @@ export default function IngestPage() {
 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [cacheSummary, setCacheSummary] = useState<DataSummaryResp | null>(null);
 
   async function refreshJobs() {
     const r = await apiGet<JobsResp>('/api/v1/jobs');
     setJobs(r.jobs);
+  }
+
+  async function loadCacheSummary() {
+    try {
+      const r = await apiGet<DataSummaryResp>(`/api/v1/data/summary?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+      setCacheSummary(r);
+    } catch {
+      setCacheSummary(null);
+    }
   }
 
   async function startIngest() {
@@ -81,7 +93,16 @@ export default function IngestPage() {
 
   useEffect(() => {
     refreshJobs().catch(() => {});
+    loadCacheSummary().catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      loadCacheSummary().catch(() => {});
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [from, to]);
 
   useEffect(() => {
     if (!selectedJobId) return;
@@ -96,6 +117,11 @@ export default function IngestPage() {
     <div>
       <h1 className="text-xl font-semibold">Ingest</h1>
       <p className="text-zinc-400 mt-1">Runs: poll_ingest + rebuild cache for the selected range.</p>
+      <div className="mt-1 text-xs text-zinc-500">
+        Oldest cached txn (range): {cacheSummary?.oldestDate || '—'}
+        {cacheSummary?.rows ? <span> • rows {cacheSummary.rows}</span> : null}
+        {cacheSummary?.stale ? <span> • cache stale</span> : null}
+      </div>
 
       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="p-4 border border-zinc-800 rounded-lg">
