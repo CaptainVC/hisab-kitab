@@ -1,5 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost } from '../api/client';
+
+type MerchantRef = { code: string; name: string; archived?: boolean };
+type CategoryRef = { code: string; name: string; archived?: boolean };
+type SubcategoryRef = { code: string; name: string; category: string; archived?: boolean };
 import { formatINR } from '../app/format';
 import { loadRange, saveRange } from '../app/range';
 
@@ -19,16 +23,37 @@ export default function StagingPage() {
   const [text, setText] = useState('');
   const [parseRows, setParseRows] = useState<any[]>([]);
   const [parseErrors, setParseErrors] = useState<any[]>([]);
+
+  const [merchRefs, setMerchRefs] = useState<MerchantRef[]>([]);
+  const [catRefs, setCatRefs] = useState<CategoryRef[]>([]);
+  const [subRefs, setSubRefs] = useState<SubcategoryRef[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobLog, setJobLog] = useState('');
 
+  async function ensureRefsLoaded() {
+    if (merchRefs.length && catRefs.length && subRefs.length) return;
+    try {
+      const [m, c, s] = await Promise.all([
+        apiGet<{ ok: true; merchants: any[] }>('/api/v1/refs/merchants'),
+        apiGet<{ ok: true; categories: any[] }>('/api/v1/refs/categories'),
+        apiGet<{ ok: true; subcategories: any[] }>('/api/v1/refs/subcategories')
+      ]);
+      setMerchRefs((m.merchants || []).filter((x) => !x.archived));
+      setCatRefs((c.categories || []).filter((x) => !x.archived));
+      setSubRefs((s.subcategories || []).filter((x) => !x.archived));
+    } catch {
+      // non-fatal; staging can work without refs
+    }
+  }
+
   async function doParse() {
     setBusy(true);
     setErr(null);
     try {
+      await ensureRefsLoaded();
       const r = await apiPost<ParseResp>('/api/v1/staging/parse', { text });
       setParseRows(r.rows || []);
       setParseErrors(r.errors || []);
@@ -106,6 +131,34 @@ export default function StagingPage() {
     }
   }
 
+  useEffect(() => {
+    ensureRefsLoaded().catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const merchCodes = useMemo(() => new Set(merchRefs.map((m) => m.code)), [merchRefs]);
+  const catCodes = useMemo(() => new Set(catRefs.map((c) => c.code)), [catRefs]);
+  const subCodes = useMemo(() => new Map(subRefs.map((s) => [s.code, s.category] as const)), [subRefs]);
+
+  function isValidMerchant(code: string) {
+    if (!code) return true;
+    if (merchRefs.length === 0) return true;
+    return merchCodes.has(code);
+  }
+  function isValidCategory(code: string) {
+    if (!code) return true;
+    if (catRefs.length === 0) return true;
+    return catCodes.has(code);
+  }
+  function isValidSubcategory(cat: string, sub: string) {
+    if (!sub) return true;
+    if (subRefs.length === 0) return true;
+    const parent = subCodes.get(sub);
+    if (!parent) return false;
+    if (!cat) return true;
+    return parent === cat;
+  }
+
   return (
     <div>
       <div className="flex items-end justify-between gap-4 flex-wrap">
@@ -179,13 +232,35 @@ export default function StagingPage() {
                     <td className="px-2 py-1 text-right">{formatINR(r.amount)}</td>
                     <td className="px-2 py-1">{r.source}</td>
                     <td className="px-2 py-1">
-                      <input className="w-28 px-1 py-0.5 rounded bg-zinc-950 border border-zinc-800" value={r.merchant_code || ''} onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, merchant_code: e.target.value } : it))} />
+                      <input
+                        list="hk_merchants"
+                        className={`w-28 px-1 py-0.5 rounded bg-zinc-950 border ${isValidMerchant(r.merchant_code || '') ? 'border-zinc-800' : 'border-amber-500'}`}
+                        value={r.merchant_code || ''}
+                        onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, merchant_code: e.target.value } : it))}
+                      />
                     </td>
                     <td className="px-2 py-1">
-                      <input className="w-24 px-1 py-0.5 rounded bg-zinc-950 border border-zinc-800" value={r.category || ''} onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, category: e.target.value } : it))} />
+                      <input
+                        list="hk_categories"
+                        className={`w-24 px-1 py-0.5 rounded bg-zinc-950 border ${isValidCategory(r.category || '') ? 'border-zinc-800' : 'border-amber-500'}`}
+                        value={r.category || ''}
+                        onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, category: e.target.value } : it))}
+                      />
                     </td>
                     <td className="px-2 py-1">
-                      <input className="w-28 px-1 py-0.5 rounded bg-zinc-950 border border-zinc-800" value={r.subcategory || ''} onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, subcategory: e.target.value } : it))} />
+                      <input
+                        list={`hk_subcats_${r.txn_id}`}
+                        className={`w-28 px-1 py-0.5 rounded bg-zinc-950 border ${isValidSubcategory(r.category || '', r.subcategory || '') ? 'border-zinc-800' : 'border-amber-500'}`}
+                        value={r.subcategory || ''}
+                        onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, subcategory: e.target.value } : it))}
+                      />
+                      <datalist id={`hk_subcats_${r.txn_id}`}>
+                        {subRefs
+                          .filter((s) => !r.category || s.category === r.category)
+                          .map((s) => (
+                            <option key={s.code} value={s.code}>{s.code} — {s.name}</option>
+                          ))}
+                      </datalist>
                       <div className="mt-1">
                         <input className="w-28 px-1 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-[11px]" value={r.tags || ''} placeholder="tags" onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, tags: e.target.value } : it))} />
                       </div>
@@ -203,6 +278,17 @@ export default function StagingPage() {
           </div>
         </div>
       </div>
+
+      <datalist id="hk_merchants">
+        {merchRefs.map((m) => (
+          <option key={m.code} value={m.code}>{m.code} — {m.name}</option>
+        ))}
+      </datalist>
+      <datalist id="hk_categories">
+        {catRefs.map((c) => (
+          <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
+        ))}
+      </datalist>
 
       <div className="mt-6">
         <h2 className="text-sm font-semibold text-zinc-200">Commit job log {jobId ? `(job ${jobId})` : ''}</h2>
