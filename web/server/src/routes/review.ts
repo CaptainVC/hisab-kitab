@@ -54,6 +54,11 @@ export async function registerReviewRoutes(app: FastifyInstance, opts: { cacheDi
         subcategory: x.row.subcategory_name || x.row.subcategory || '',
         notes: x.row.notes,
         reason: x.reason,
+        origin: x.row.messageId ? 'MAIL' : 'HISAB',
+        source: x.row.source || '',
+        messageId: x.row.messageId || '',
+        parse_status: x.row.parse_status || '',
+        parse_error: x.row.parse_error || '',
         raw: x.row
       }));
 
