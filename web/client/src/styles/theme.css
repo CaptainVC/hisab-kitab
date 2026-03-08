@@ -48,8 +48,12 @@
 
   .hk-table-head { background: rgba(255,255,255,0.03); color: var(--hk-muted); }
 
-  .hk-input { @apply rounded border px-2 py-1; background: rgba(255,255,255,0.03); border-color: var(--hk-border); color: var(--hk-text); }
+  .hk-input { @apply rounded border px-2 py-1; background: rgba(255,255,255,0.03); border-color: var(--hk-border); color: var(--hk-text); color-scheme: dark; }
   .hk-input:focus { outline: none; box-shadow: 0 0 0 3px var(--hk-focus); border-color: rgba(218,165,32,0.55); }
+
+  /* Native <select> dropdown menu theming (best-effort; browser/OS dependent) */
+  select.hk-input { color-scheme: dark; }
+  select.hk-input option { background: var(--hk-panel); color: var(--hk-text); }
 
   .hk-btn { @apply rounded-md px-3 py-2 text-sm; }
   .hk-btn-primary { @apply hk-btn font-semibold; background: var(--hk-accent); color: #1a1406; }
