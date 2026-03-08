@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { apiGet, apiPost } from '../api/client';
+import { apiGet, apiPost, apiPut } from '../api/client';
 
 type MerchantRef = { code: string; name: string; archived?: boolean };
 type CategoryRef = { code: string; name: string; archived?: boolean };
@@ -33,8 +33,8 @@ export default function StagingPage() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobLog, setJobLog] = useState('');
 
-  async function ensureRefsLoaded() {
-    if (merchRefs.length && catRefs.length && subRefs.length) return;
+  async function ensureRefsLoaded(force = false) {
+    if (!force && merchRefs.length && catRefs.length && subRefs.length) return;
     try {
       const [m, c, s] = await Promise.all([
         apiGet<{ ok: true; merchants: any[] }>('/api/v1/refs/merchants'),
@@ -159,6 +159,48 @@ export default function StagingPage() {
     return parent === cat;
   }
 
+  function normalizeTagsCsv(csv: string): string {
+    const tags = String(csv || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const uniq = Array.from(new Set(tags));
+    return uniq.join(',');
+  }
+
+  async function quickAddMerchant(code: string) {
+    const c = String(code || '').trim();
+    if (!c) return;
+    if (merchCodes.has(c)) return;
+    const name = prompt(`Merchant name for ${c}:`, c);
+    if (name === null) return;
+    await apiPut(`/api/v1/refs/merchants/${encodeURIComponent(c)}`, { name });
+    await ensureRefsLoaded(true);
+  }
+
+  async function quickAddCategory(code: string) {
+    const c = String(code || '').trim();
+    if (!c) return;
+    if (catCodes.has(c)) return;
+    const name = prompt(`Category name for ${c}:`, c);
+    if (name === null) return;
+    await apiPut(`/api/v1/refs/categories/${encodeURIComponent(c)}`, { name });
+    await ensureRefsLoaded(true);
+  }
+
+  async function quickAddSubcategory(category: string, subcategory: string) {
+    const sub = String(subcategory || '').trim();
+    const cat = String(category || '').trim();
+    if (!sub) return;
+    const existingParent = subCodes.get(sub);
+    if (existingParent) return;
+    const name = prompt(`Subcategory name for ${sub}:`, sub);
+    if (name === null) return;
+    const parent = cat || prompt(`Parent category code for ${sub}:`, '') || '';
+    await apiPut(`/api/v1/refs/subcategories/${encodeURIComponent(sub)}`, { name, category: String(parent).trim() });
+    await ensureRefsLoaded(true);
+  }
+
   return (
     <div>
       <div className="flex items-end justify-between gap-4 flex-wrap">
@@ -188,12 +230,19 @@ export default function StagingPage() {
             placeholder="/hisab Day (08/03/26)\n260/- Something (mk)"
           />
           {err ? <div className="mt-3 text-sm text-red-400">{err}</div> : null}
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 flex gap-2 flex-wrap">
             <button className="px-3 py-2 rounded-md bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50" disabled={busy || !text.trim()} onClick={() => doParse()}>
               {busy ? 'Working…' : 'Parse preview'}
             </button>
             <button className="px-3 py-2 rounded-md bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50" disabled={busy || !text.trim()} onClick={() => doCommitText(false)}>
               Commit text
+            </button>
+            <button
+              className="px-3 py-2 rounded-md bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-100"
+              disabled={busy || parseRows.length === 0}
+              onClick={() => setParseRows((xs) => xs.map((r) => ({ ...r, tags: normalizeTagsCsv(r.tags || '') })))}
+            >
+              Normalize tags
             </button>
             <button className="px-3 py-2 rounded-md bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50" disabled={busy || parseRows.length === 0} onClick={() => doCommitRows(false)}>
               Commit edited rows
@@ -232,28 +281,49 @@ export default function StagingPage() {
                     <td className="px-2 py-1 text-right">{formatINR(r.amount)}</td>
                     <td className="px-2 py-1">{r.source}</td>
                     <td className="px-2 py-1">
-                      <input
-                        list="hk_merchants"
-                        className={`w-28 px-1 py-0.5 rounded bg-zinc-950 border ${isValidMerchant(r.merchant_code || '') ? 'border-zinc-800' : 'border-amber-500'}`}
-                        value={r.merchant_code || ''}
-                        onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, merchant_code: e.target.value } : it))}
-                      />
+                      <div className="flex items-center gap-1">
+                        <input
+                          list="hk_merchants"
+                          className={`w-28 px-1 py-0.5 rounded bg-zinc-950 border ${isValidMerchant(r.merchant_code || '') ? 'border-zinc-800' : 'border-amber-500'}`}
+                          value={r.merchant_code || ''}
+                          onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, merchant_code: e.target.value } : it))}
+                        />
+                        {!isValidMerchant(r.merchant_code || '') ? (
+                          <button className="px-1.5 py-0.5 rounded bg-emerald-500 text-emerald-950 text-[11px]" onClick={() => quickAddMerchant(r.merchant_code || '').catch(() => {})}>
+                            +
+                          </button>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="px-2 py-1">
-                      <input
-                        list="hk_categories"
-                        className={`w-24 px-1 py-0.5 rounded bg-zinc-950 border ${isValidCategory(r.category || '') ? 'border-zinc-800' : 'border-amber-500'}`}
-                        value={r.category || ''}
-                        onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, category: e.target.value } : it))}
-                      />
+                      <div className="flex items-center gap-1">
+                        <input
+                          list="hk_categories"
+                          className={`w-24 px-1 py-0.5 rounded bg-zinc-950 border ${isValidCategory(r.category || '') ? 'border-zinc-800' : 'border-amber-500'}`}
+                          value={r.category || ''}
+                          onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, category: e.target.value } : it))}
+                        />
+                        {!isValidCategory(r.category || '') ? (
+                          <button className="px-1.5 py-0.5 rounded bg-emerald-500 text-emerald-950 text-[11px]" onClick={() => quickAddCategory(r.category || '').catch(() => {})}>
+                            +
+                          </button>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="px-2 py-1">
-                      <input
-                        list={`hk_subcats_${r.txn_id}`}
-                        className={`w-28 px-1 py-0.5 rounded bg-zinc-950 border ${isValidSubcategory(r.category || '', r.subcategory || '') ? 'border-zinc-800' : 'border-amber-500'}`}
-                        value={r.subcategory || ''}
-                        onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, subcategory: e.target.value } : it))}
-                      />
+                      <div className="flex items-center gap-1">
+                        <input
+                          list={`hk_subcats_${r.txn_id}`}
+                          className={`w-28 px-1 py-0.5 rounded bg-zinc-950 border ${isValidSubcategory(r.category || '', r.subcategory || '') ? 'border-zinc-800' : 'border-amber-500'}`}
+                          value={r.subcategory || ''}
+                          onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, subcategory: e.target.value } : it))}
+                        />
+                        {!isValidSubcategory(r.category || '', r.subcategory || '') ? (
+                          <button className="px-1.5 py-0.5 rounded bg-emerald-500 text-emerald-950 text-[11px]" onClick={() => quickAddSubcategory(r.category || '', r.subcategory || '').catch(() => {})}>
+                            +
+                          </button>
+                        ) : null}
+                      </div>
                       <datalist id={`hk_subcats_${r.txn_id}`}>
                         {subRefs
                           .filter((s) => !r.category || s.category === r.category)
