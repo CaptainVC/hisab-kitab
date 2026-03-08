@@ -242,9 +242,12 @@ export default function DashboardPage() {
             <label className="text-xs text-[color:var(--hk-muted)]">Source</label>
             <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={fSource} onChange={(e) => setFSource(e.target.value)}>
               <option value="">(all)</option>
-              {Array.from(new Set(rows.map((r:any)=>r.source_name || r.source))).filter(Boolean).sort().map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
+              {Array.from(new Set(rows.filter((r:any)=>!r.messageId).map((r:any)=>r.source_name || r.source)))
+                .filter(Boolean)
+                .sort()
+                .map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
             </select>
           </div>
           <div>
@@ -379,6 +382,8 @@ export default function DashboardPage() {
             {(() => {
               const counts: Record<string, number> = {};
               for (const r of filteredRows) {
+                // Mail parsing sources (e.g., HDFC_INSTA_ALERT) are for cross-referencing only, not a real payment source.
+                if (r.messageId) continue;
                 const k = r.source_name || r.source || 'Unknown';
                 counts[k] = (counts[k] || 0) + 1;
               }
