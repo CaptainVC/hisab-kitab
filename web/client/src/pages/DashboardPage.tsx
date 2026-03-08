@@ -88,6 +88,9 @@ export default function DashboardPage() {
   const [fMerchant, setFMerchant] = useState<string>('');
   const [fCategory, setFCategory] = useState<string>('');
   const [fSubcategory, setFSubcategory] = useState<string>('');
+
+  // Special tokens for "missing" values from charts/tables
+  const MISSING = '__MISSING__';
   const [fTags, setFTags] = useState<string[]>([]);
   const [fDate, setFDate] = useState<string>(''); // YYYY-MM-DD
 
@@ -101,13 +104,25 @@ export default function DashboardPage() {
     if (fLocation && (r.location_name || r.location) !== fLocation && r.location !== fLocation) return false;
 
     const merch = r.merchant_name || r.merchant_code || '';
-    if (fMerchant && merch !== fMerchant) return false;
+    if (fMerchant) {
+      if (fMerchant === MISSING) {
+        if (String(merch || '').trim()) return false;
+      } else if (merch !== fMerchant) {
+        return false;
+      }
+    }
 
     const cat = r.category_name || r.category || '';
     if (fCategory && cat !== fCategory && r.category !== fCategory) return false;
 
     const sub = r.subcategory_name || r.subcategory || '';
-    if (fSubcategory && sub !== fSubcategory && r.subcategory !== fSubcategory) return false;
+    if (fSubcategory) {
+      if (fSubcategory === MISSING) {
+        if (String(sub || '').trim()) return false;
+      } else if (sub !== fSubcategory && r.subcategory !== fSubcategory) {
+        return false;
+      }
+    }
 
     if (fTags.length) {
       const tags: string[] = Array.isArray(r._tags)
@@ -200,10 +215,17 @@ export default function DashboardPage() {
         <div className="text-sm text-[color:var(--hk-muted)]">
           Filters
           {fDate ? <span className="ml-2 hk-badge-good">Date {fDate}</span> : null}
+          {fMerchant === MISSING ? <span className="ml-2 hk-badge-good">Merchant missing</span> : null}
+          {fSubcategory === MISSING ? <span className="ml-2 hk-badge-good">Subcategory missing</span> : null}
         </div>
-        <button className="px-3 py-2 rounded-md hk-btn-secondary" onClick={() => setFiltersOpen(true)}>
-          Open filters
-        </button>
+        <div className="flex gap-2">
+          <button className="px-3 py-2 rounded-md hk-btn-secondary" onClick={() => { setFDate(''); setFType(''); setFSource(''); setFLocation(''); setFMerchant(''); setFCategory(''); setFSubcategory(''); setFTags([]); setPage(1); }}>
+            Clear filters
+          </button>
+          <button className="px-3 py-2 rounded-md hk-btn-secondary" onClick={() => setFiltersOpen(true)}>
+            Open filters
+          </button>
+        </div>
       </div>
 
       {filtersOpen ? (
@@ -387,7 +409,11 @@ export default function DashboardPage() {
                   values={top.map(x => Math.round(x[1]))}
                   height={220}
                   label="Expense"
-                  onBarClick={(label) => { setFType('EXPENSE'); setFMerchant(label); setPage(1); }}
+                  onBarClick={(label) => {
+                    setFType('EXPENSE');
+                    setFMerchant(label === 'Unknown' ? MISSING : label);
+                    setPage(1);
+                  }}
                 />
               );
             })()}
@@ -442,7 +468,7 @@ export default function DashboardPage() {
                     .sort((a, b) => b[1] - a[1])
                     .slice(0, 20)
                     .map(([k, v]) => (
-                      <tr key={k} className="cursor-pointer hover:bg-white/5" onClick={() => { setFType('EXPENSE'); setFSubcategory(k); setPage(1); }}>
+                      <tr key={k} className="cursor-pointer hover:bg-white/5" onClick={() => { setFType('EXPENSE'); setFSubcategory(k === 'Uncategorized' ? MISSING : k); setPage(1); }}>
                         <td className="px-3 py-2">{k}</td>
                         <td className="px-3 py-2 text-right">{formatINR(v)}</td>
                       </tr>
@@ -474,7 +500,7 @@ export default function DashboardPage() {
                     .sort((a, b) => b[1] - a[1])
                     .slice(0, 20)
                     .map(([k, v]) => (
-                      <tr key={k} className="cursor-pointer hover:bg-white/5" onClick={() => { setFType('EXPENSE'); setFMerchant(k); setPage(1); }}>
+                      <tr key={k} className="cursor-pointer hover:bg-white/5" onClick={() => { setFType('EXPENSE'); setFMerchant(k === 'Unknown' ? MISSING : k); setPage(1); }}>
                         <td className="px-3 py-2">{k}</td>
                         <td className="px-3 py-2 text-right">{formatINR(v)}</td>
                       </tr>
