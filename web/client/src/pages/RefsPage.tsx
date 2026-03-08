@@ -243,38 +243,42 @@ export default function RefsPage() {
       </div>
 
       {tab === 'merchants' ? (
-        <div className="mt-4 flex items-end gap-2 flex-wrap">
-          <button className="px-3 py-2 rounded-md hk-btn-primary" onClick={() => addMerchant().catch(() => {})}>
-            + Merchant
-          </button>
-          <div>
-            <label className="text-xs text-[color:var(--hk-muted)]">Search merchants</label>
-            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)] w-64" value={merchantQuery} onChange={e => setMerchantQuery(e.target.value)} placeholder="code or name" />
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
+          <div className="flex flex-wrap items-end gap-2">
+            <button className="hk-btn-primary" onClick={() => addMerchant().catch(() => {})}>
+              + Merchant
+            </button>
+            <div>
+              <label className="text-xs text-[color:var(--hk-muted)]">Search merchants</label>
+              <input className="block mt-1 hk-input w-64" value={merchantQuery} onChange={e => setMerchantQuery(e.target.value)} placeholder="code or name" />
+            </div>
+            <label className="flex items-center gap-2 text-sm text-[color:var(--hk-muted)] mb-1">
+              <input type="checkbox" checked={showArchivedMerchants} onChange={e => setShowArchivedMerchants(e.target.checked)} />
+              Show archived
+            </label>
+            <label className="flex items-center gap-2 text-sm text-[color:var(--hk-muted)] mb-1">
+              <input type="checkbox" checked={onlyEmailNo} onChange={e => setOnlyEmailNo(e.target.checked)} />
+              Email support = NO
+            </label>
+            <label className="flex items-center gap-2 text-sm text-[color:var(--hk-muted)] mb-1">
+              <input type="checkbox" checked={onlyNeedsRule} onChange={e => setOnlyNeedsRule(e.target.checked)} />
+              Needs rule
+            </label>
           </div>
-          <label className="flex items-center gap-2 text-sm text-[color:var(--hk-muted)] mb-1">
-            <input type="checkbox" checked={showArchivedMerchants} onChange={e => setShowArchivedMerchants(e.target.checked)} />
-            Show archived
-          </label>
-          <label className="flex items-center gap-2 text-sm text-[color:var(--hk-muted)] mb-1">
-            <input type="checkbox" checked={onlyEmailNo} onChange={e => setOnlyEmailNo(e.target.checked)} />
-            Email support = NO
-          </label>
-          <label className="flex items-center gap-2 text-sm text-[color:var(--hk-muted)] mb-1">
-            <input type="checkbox" checked={onlyNeedsRule} onChange={e => setOnlyNeedsRule(e.target.checked)} />
-            Needs rule
-          </label>
-          <div className="flex-1" />
-          <div>
-            <label className="text-xs text-[color:var(--hk-muted)]">Coverage from</label>
-            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={from} onChange={e => { const v = e.target.value; setFrom(v); saveRange({ from: v, to }); }} />
+
+          <div className="flex flex-wrap items-end justify-start md:justify-end gap-2">
+            <div>
+              <label className="text-xs text-[color:var(--hk-muted)]">Coverage from</label>
+              <input className="block mt-1 hk-input w-40" value={from} onChange={e => { const v = e.target.value; setFrom(v); saveRange({ from: v, to }); }} />
+            </div>
+            <div>
+              <label className="text-xs text-[color:var(--hk-muted)]">to</label>
+              <input className="block mt-1 hk-input w-40" value={to} onChange={e => { const v = e.target.value; setTo(v); saveRange({ from, to: v }); }} />
+            </div>
+            <button className="hk-btn-primary disabled:opacity-50" disabled={busy} onClick={() => refresh().catch(() => {})}>
+              {busy ? 'Loading…' : 'Refresh'}
+            </button>
           </div>
-          <div>
-            <label className="text-xs text-[color:var(--hk-muted)]">to</label>
-            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={to} onChange={e => { const v = e.target.value; setTo(v); saveRange({ from, to: v }); }} />
-          </div>
-          <button className="px-3 py-2 hk-btn-primary disabled:opacity-50" disabled={busy} onClick={() => refresh().catch(() => {})}>
-            {busy ? 'Loading…' : 'Refresh'}
-          </button>
         </div>
       ) : tab === 'categories' ? (
         <div className="mt-4 flex items-center gap-2">
