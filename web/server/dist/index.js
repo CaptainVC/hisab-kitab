@@ -56,6 +56,13 @@ async function main() {
         app.setNotFoundHandler(async (req, reply) => {
             const url = String(req.url || '');
             if (req.method === 'GET' && !url.startsWith('/api/') && fs.existsSync(indexHtml)) {
+                // Note: NotFound handlers default to 404; force 200 for SPA routes.
+                reply.code(200);
+                // Prefer sendFile (handles caching headers etc)
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const r = reply;
+                if (typeof r.sendFile === 'function')
+                    return r.sendFile('index.html');
                 reply.type('text/html').send(fs.readFileSync(indexHtml, 'utf8'));
                 return;
             }
