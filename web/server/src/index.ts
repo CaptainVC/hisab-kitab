@@ -63,6 +63,17 @@ async function main() {
       root: clientDist,
       prefix: '/',
     });
+
+    // SPA fallback: on hard-refresh of /dashboard etc, serve index.html
+    const indexHtml = path.join(clientDist, 'index.html');
+    app.setNotFoundHandler(async (req, reply) => {
+      const url = String(req.url || '');
+      if (req.method === 'GET' && !url.startsWith('/api/') && fs.existsSync(indexHtml)) {
+        reply.type('text/html').send(fs.readFileSync(indexHtml, 'utf8'));
+        return;
+      }
+      reply.code(404).send({ message: `Route ${req.method}:${url} not found`, error: 'Not Found', statusCode: 404 });
+    });
   }
 
   await app.listen({ host: bindHost, port: cfg.port });
