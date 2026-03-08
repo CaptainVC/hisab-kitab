@@ -149,7 +149,8 @@ export function SimpleBarChart({
   onBarClick,
   indexAxis = 'x',
   formatValue,
-  tickMax = 8
+  tickMax = 8,
+  showValueLabels = false
 }: {
   labels: string[];
   values: number[];
@@ -159,10 +160,36 @@ export function SimpleBarChart({
   indexAxis?: 'x' | 'y';
   formatValue?: (v: number) => string;
   tickMax?: number;
+  showValueLabels?: boolean;
 }) {
+  const valueLabelPlugin = {
+    id: 'hk_value_labels',
+    afterDatasetsDraw: (chart: any) => {
+      if (!showValueLabels) return;
+      const { ctx } = chart;
+      const meta = chart.getDatasetMeta(0);
+      if (!meta || !meta.data) return;
+      ctx.save();
+      ctx.fillStyle = 'rgba(255,255,255,0.72)';
+      ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
+      ctx.textBaseline = 'middle';
+
+      meta.data.forEach((bar: any, i: number) => {
+        const v = Number(values[i] ?? 0);
+        const txt = formatValue ? formatValue(v) : String(v);
+        const x = bar.x + 8;
+        const y = bar.y;
+        ctx.fillText(txt, x, y);
+      });
+
+      ctx.restore();
+    }
+  };
+
   return (
     <Bar
       height={height}
+      plugins={[valueLabelPlugin as any]}
       data={{
         labels,
         datasets: [
@@ -205,7 +232,7 @@ export function SimpleBarChart({
                   grid: { color: 'rgba(255,255,255,0.06)' }
                 },
                 y: {
-                  ticks: { color: 'rgba(255,255,255,0.60)', autoSkip: true, maxTicksLimit: tickMax },
+                  ticks: { color: 'rgba(255,255,255,0.60)', autoSkip: false, maxTicksLimit: tickMax },
                   grid: { display: false }
                 }
               }

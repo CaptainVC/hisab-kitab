@@ -527,10 +527,11 @@ export default function DashboardPage() {
             <SimpleBarChart
               labels={topCats.map(x => x[0])}
               values={topCats.map(x => Math.round(x[1]))}
-              height={220}
+              height={Math.max(260, topCats.length * 28)}
               label="Expense"
               indexAxis="y"
-              tickMax={12}
+              tickMax={50}
+              showValueLabels
               formatValue={(v) => formatINR(v)}
               onBarClick={(label) => { setFCategory(label); setFSubcategory(''); setPage(1); }}
             />
