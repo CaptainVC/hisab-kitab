@@ -23,11 +23,10 @@ function listHisabExcels(baseDir) {
   // Order preference: .ai.xlsx > .rebuild.xlsx > plain .xlsx (latest mtime wins within same kind)
   const entries = fs.readdirSync(baseDir);
 
-  // Accept both legacy weekly and new quarterly formats.
+  // Quarterly format only.
   // Examples:
-  // - HK_2026-01-Week5.xlsx
   // - HK_2026_Q1.xlsx
-  const hkRe = /^(HK_[^/\\]+?)(?:\.(ai|rebuild))?\.xlsx$/i;
+  const hkRe = /^(HK_\d{4}_Q[1-4])(?:\.(ai|rebuild))?\.xlsx$/i;
 
   const candidates = [];
   for (const f of entries) {
