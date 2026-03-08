@@ -293,6 +293,13 @@ export default function DashboardPage() {
 
       <div className="mt-6 flex items-center justify-between gap-3 flex-wrap">
         <div className="text-sm text-[color:var(--hk-muted)] flex items-center gap-2 flex-wrap">
+          <button
+            className="px-1 py-0.5 text-[color:var(--hk-muted)] hover:text-white"
+            title="Open filters"
+            onClick={() => setFiltersOpen(true)}
+          >
+            ›
+          </button>
           <span>Filters</span>
 
           {fDate ? (
@@ -356,13 +363,7 @@ export default function DashboardPage() {
           <button className="px-3 py-2 rounded-md hk-btn-secondary" onClick={() => { setFDate(''); setFType(''); setFSource(''); setFLocation(''); setFMerchant(''); setFCategory(''); setFSubcategory(''); setFTags([]); setPage(1); }}>
             Clear filters
           </button>
-          <button
-            className="px-3 py-2 rounded-md hk-btn-secondary"
-            title="Open filters"
-            onClick={() => setFiltersOpen(true)}
-          >
-            ›
-          </button>
+          {/* open filters moved to left side */}
         </div>
       </div>
 
