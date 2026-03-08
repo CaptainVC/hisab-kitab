@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { apiGet, apiPost } from '../api/client';
+import { apiGet, apiPost, apiPut } from '../api/client';
 import { loadRange, saveRange } from '../app/range';
 import { formatINR } from '../app/format';
 
@@ -26,6 +26,9 @@ export default function ReviewPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  const [editing, setEditing] = useState<Record<string, { category: string; subcategory: string; tags: string }>>({});
+  const [savingId, setSavingId] = useState<string | null>(null);
+
   async function load() {
     setBusy(true);
     setErr(null);
@@ -42,6 +45,38 @@ export default function ReviewPage() {
   async function resolve(txn_id: string) {
     await apiPost('/api/v1/review/resolve', { txn_id });
     setItems((xs) => xs.filter((x) => x.txn_id !== txn_id));
+  }
+
+  async function saveAndResolve(x: ReviewItem) {
+    const ed = editing[x.txn_id] || { category: x.category, subcategory: x.subcategory, tags: '' };
+    const category = String(ed.category || '').trim();
+    const subcategory = String(ed.subcategory || '').trim();
+    const tags = String(ed.tags || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (!x.merchant) throw new Error('missing_merchant');
+    if (!category || !subcategory) throw new Error('missing_category');
+
+    setSavingId(x.txn_id);
+    try {
+      // Persist as merchant default mapping so future imports auto-classify.
+      await apiPut(`/api/v1/refs/merchants/${encodeURIComponent(x.merchant)}`, {
+        defaultCategory: category,
+        defaultSubcategory: subcategory,
+        defaultTags: tags
+      });
+
+      await resolve(x.txn_id);
+      setEditing((m) => {
+        const n = { ...m };
+        delete n[x.txn_id];
+        return n;
+      });
+    } finally {
+      setSavingId(null);
+    }
   }
 
   useEffect(() => {
@@ -92,11 +127,71 @@ export default function ReviewPage() {
                 <td className="px-3 py-2 whitespace-nowrap">{x.date}</td>
                 <td className="px-3 py-2 text-right">{formatINR(x.amount)}</td>
                 <td className="px-3 py-2">{x.merchant}</td>
-                <td className="px-3 py-2">{x.category}</td>
-                <td className="px-3 py-2">{x.subcategory}</td>
+                <td className="px-3 py-2">
+                  <input
+                    className="w-40 px-2 py-1 rounded bg-zinc-900 border border-zinc-800"
+                    value={(editing[x.txn_id]?.category ?? x.category) || ''}
+                    placeholder="Category"
+                    onChange={(e) =>
+                      setEditing((m) => ({
+                        ...m,
+                        [x.txn_id]: {
+                          category: e.target.value,
+                          subcategory: m[x.txn_id]?.subcategory ?? x.subcategory,
+                          tags: m[x.txn_id]?.tags ?? ''
+                        }
+                      }))
+                    }
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <input
+                    className="w-44 px-2 py-1 rounded bg-zinc-900 border border-zinc-800"
+                    value={(editing[x.txn_id]?.subcategory ?? x.subcategory) || ''}
+                    placeholder="Subcategory"
+                    onChange={(e) =>
+                      setEditing((m) => ({
+                        ...m,
+                        [x.txn_id]: {
+                          category: m[x.txn_id]?.category ?? x.category,
+                          subcategory: e.target.value,
+                          tags: m[x.txn_id]?.tags ?? ''
+                        }
+                      }))
+                    }
+                  />
+                  <div className="mt-1">
+                    <input
+                      className="w-44 px-2 py-1 rounded bg-zinc-900 border border-zinc-800 text-xs"
+                      value={editing[x.txn_id]?.tags ?? ''}
+                      placeholder="tags (comma-separated)"
+                      onChange={(e) =>
+                        setEditing((m) => ({
+                          ...m,
+                          [x.txn_id]: {
+                            category: m[x.txn_id]?.category ?? x.category,
+                            subcategory: m[x.txn_id]?.subcategory ?? x.subcategory,
+                            tags: e.target.value
+                          }
+                        }))
+                      }
+                    />
+                  </div>
+                </td>
                 <td className="px-3 py-2 text-zinc-400">{x.reason}</td>
                 <td className="px-3 py-2">
-                  <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => resolve(x.txn_id).catch(() => {})}>Resolve</button>
+                  <div className="flex gap-2">
+                    <button
+                      className="px-2 py-1 rounded bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50"
+                      disabled={savingId === x.txn_id}
+                      onClick={() => saveAndResolve(x).catch((e) => setErr(String(e?.message || e)))}
+                    >
+                      {savingId === x.txn_id ? 'Saving…' : 'Save + resolve'}
+                    </button>
+                    <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => resolve(x.txn_id).catch(() => {})}>
+                      Resolve only
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
