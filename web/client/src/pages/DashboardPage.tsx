@@ -626,7 +626,7 @@ export default function DashboardPage() {
                 <SearchSelect
                   value={editMerchant}
                   onChange={setEditMerchant}
-                  options={merchantOptions.map((m) => ({ value: m.code, label: `${m.code} — ${m.name}` }))}
+                  options={merchantOptions.map((m) => ({ value: m.code, label: m.name }))}
                   placeholder="(none)"
                 />
               </div>
@@ -639,7 +639,7 @@ export default function DashboardPage() {
                     const ok = subcategoryOptions.some((s) => s.code === editSubcategory && s.category === v);
                     if (!ok) setEditSubcategory('');
                   }}
-                  options={categoryOptions.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }))}
+                  options={categoryOptions.map((c) => ({ value: c.code, label: c.name }))}
                   placeholder="(none)"
                 />
               </div>
@@ -650,7 +650,7 @@ export default function DashboardPage() {
                   onChange={setEditSubcategory}
                   options={subcategoryOptions
                     .filter((s) => !editCategory || s.category === editCategory)
-                    .map((s) => ({ value: s.code, label: `${s.code} — ${s.name}` }))}
+                    .map((s) => ({ value: s.code, label: s.name }))}
                   placeholder="(none)"
                   disabled={!editCategory}
                 />
