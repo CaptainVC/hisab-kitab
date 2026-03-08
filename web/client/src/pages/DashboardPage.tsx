@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost } from '../api/client';
 import { loadRange, saveRange } from '../app/range';
 import { formatINR } from '../app/format';
-import { DailyLineChart, CategoryDoughnut } from '../components/Charts';
+import { DailyLineChart, CategoryDoughnut, SimpleBarChart } from '../components/Charts';
 
 type DataResp = { ok: true; stale: boolean; ageMs: number; data: any };
 
@@ -338,65 +338,53 @@ export default function DashboardPage() {
         Oldest loaded: {rows.length ? String(rows.reduce((min:any, r:any)=>{ const d=String(r.date||''); if(!d) return min; if(!min) return d; return d<min?d:min; }, null)) : '—'} • Showing {filteredRows.length} / {rows.length} transactions (filters). Transactions table paginates.
       </div>
 
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="p-4 border border-zinc-800 rounded-lg md:col-span-2">
-          <div className="text-sm font-semibold">Daily expense trend</div>
-          <div className="mt-2">
-            <DailyLineChart labels={daily.map(x => x[0])} values={daily.map(x => Math.round(x[1]))} />
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="p-4 border border-zinc-800 rounded-lg">
+          <div className="text-sm font-semibold">Daily expense (trend)</div>
+          <div className="mt-2 h-[220px]">
+            <DailyLineChart labels={daily.map(x => x[0])} values={daily.map(x => Math.round(x[1]))} height={220} />
           </div>
         </div>
 
         <div className="p-4 border border-zinc-800 rounded-lg">
-          <div className="text-sm font-semibold">Cashflow by month</div>
-          <div className="mt-2 border border-zinc-800 rounded overflow-auto max-h-72">
-            <table className="w-full text-sm">
-              <thead className="bg-zinc-900 text-zinc-300">
-                <tr>
-                  <th className="text-left px-3 py-2">Month</th>
-                  <th className="text-right px-3 py-2">Income</th>
-                  <th className="text-right px-3 py-2">Expense</th>
-                  <th className="text-right px-3 py-2">Net</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(() => {
-                  const by: Record<string, { income: number; expense: number }> = {};
-                  for (const r of filteredRows) {
-                    const month = String(r.date || '').slice(0, 7) || 'unknown';
-                    if (!by[month]) by[month] = { income: 0, expense: 0 };
-                    const amt = Number(r.amount || 0);
-                    if (r.type === 'INCOME') by[month].income += amt;
-                    else if (r.type === 'EXPENSE') by[month].expense += amt;
-                  }
-                  return Object.entries(by)
-                    .sort((a, b) => b[0].localeCompare(a[0]))
-                    .slice(0, 24)
-                    .map(([m, v]) => {
-                      const net = v.income - v.expense;
-                      return (
-                        <tr key={m} className="border-t border-zinc-800">
-                          <td className="px-3 py-2 font-mono text-xs">{m}</td>
-                          <td className="px-3 py-2 text-right">{formatINR(v.income)}</td>
-                          <td className="px-3 py-2 text-right">{formatINR(v.expense)}</td>
-                          <td className={`px-3 py-2 text-right ${net < 0 ? 'text-red-300' : 'text-emerald-300'}`}>{formatINR(net)}</td>
-                        </tr>
-                      );
-                    });
-                })()}
-              </tbody>
-            </table>
-          </div>
-          <div className="mt-2 text-xs text-zinc-500">Net = income − expense (transfers ignored)</div>
-        </div>
-
-        <div className="p-4 border border-zinc-800 rounded-lg md:col-span-3">
-          <div className="text-sm font-semibold">Top categories (share)</div>
-          <div className="mt-2">
+          <div className="text-sm font-semibold">Top categories (click to filter)</div>
+          <div className="mt-2 h-[220px]">
             <CategoryDoughnut
               labels={topCats.map(x => x[0])}
               values={topCats.map(x => Math.round(x[1]))}
+              height={220}
               onSliceClick={(label) => { setFCategory(label); setFSubcategory(''); }}
             />
+          </div>
+        </div>
+
+        <div className="p-4 border border-zinc-800 rounded-lg">
+          <div className="text-sm font-semibold">Top merchants (expense)</div>
+          <div className="mt-2 h-[220px]">
+            {(() => {
+              const sums: Record<string, number> = {};
+              for (const r of expenseRows) {
+                const k = r.merchant_name || r.merchant_code || 'Unknown';
+                sums[k] = (sums[k] || 0) + Number(r.amount || 0);
+              }
+              const top = Object.entries(sums).sort((a, b) => b[1] - a[1]).slice(0, 8);
+              return <SimpleBarChart labels={top.map(x => x[0])} values={top.map(x => Math.round(x[1]))} height={220} label="Expense" />;
+            })()}
+          </div>
+        </div>
+
+        <div className="p-4 border border-zinc-800 rounded-lg">
+          <div className="text-sm font-semibold">By source (count)</div>
+          <div className="mt-2 h-[220px]">
+            {(() => {
+              const counts: Record<string, number> = {};
+              for (const r of filteredRows) {
+                const k = r.source_name || r.source || 'Unknown';
+                counts[k] = (counts[k] || 0) + 1;
+              }
+              const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+              return <SimpleBarChart labels={top.map(x => x[0])} values={top.map(x => x[1])} height={220} label="Txns" />;
+            })()}
           </div>
         </div>
       </div>
