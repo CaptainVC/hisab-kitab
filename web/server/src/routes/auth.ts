@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { verifyPassword } from '../auth/authStore.js';
 
-export async function registerAuthRoutes(app: FastifyInstance, opts: { authFile: string }) {
+export async function registerAuthRoutes(app: FastifyInstance, opts: { authFile: string; sessionMaxAgeDays: number }) {
   app.post('/api/v1/auth/login', async (req, reply) => {
     const body = (req.body || {}) as any;
     const password = String(body.password || '');
@@ -11,12 +11,14 @@ export async function registerAuthRoutes(app: FastifyInstance, opts: { authFile:
     if (!ok) return reply.code(403).send({ ok: false, error: 'bad_password' });
 
     const session = JSON.stringify({ authed: true, loginAt: new Date().toISOString() });
+    const maxAgeSec = Math.max(1, Math.floor((opts.sessionMaxAgeDays || 7) * 24 * 60 * 60));
     reply.setCookie('hk_session', session, {
       path: '/',
       httpOnly: true,
       sameSite: 'lax',
       secure: false, // tailscale-only; can flip to true behind https
       signed: false,
+      maxAge: maxAgeSec
     });
     return reply.send({ ok: true });
   });

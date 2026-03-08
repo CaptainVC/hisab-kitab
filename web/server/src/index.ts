@@ -43,7 +43,7 @@ async function main() {
   const runner = new JobRunner(path.join(cfg.reportsDir, 'jobs'));
 
   await registerHealthRoutes(app, { appVersion, startedAt });
-  await registerAuthRoutes(app, { authFile: cfg.authFile });
+  await registerAuthRoutes(app, { authFile: cfg.authFile, sessionMaxAgeDays: cfg.sessionMaxAgeDays });
   await registerJobRoutes(app, { runner });
   await registerDataRoutes(app, { cacheDir: cfg.cacheDir, cacheFreshMs: cfg.cacheFreshMs });
 

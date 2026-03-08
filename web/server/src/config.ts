@@ -12,6 +12,7 @@ export type AppConfig = {
   stagingDir: string;
   reviewStateFile: string;
   cacheFreshMs: number;
+  sessionMaxAgeDays: number;
 };
 
 export function loadConfig(): AppConfig {
@@ -34,6 +35,7 @@ export function loadConfig(): AppConfig {
     reportsDir: path.join(baseDir, 'reports'),
     stagingDir: path.join(baseDir, 'staging'),
     reviewStateFile: path.join(baseDir, 'review_state.json'),
-    cacheFreshMs: Number(process.env.HK_CACHE_FRESH_MS || 5 * 60 * 1000)
+    cacheFreshMs: Number(process.env.HK_CACHE_FRESH_MS || 5 * 60 * 1000),
+    sessionMaxAgeDays: Number(process.env.HK_SESSION_MAX_AGE_DAYS || 7)
   };
 }

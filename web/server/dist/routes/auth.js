@@ -9,12 +9,14 @@ export async function registerAuthRoutes(app, opts) {
         if (!ok)
             return reply.code(403).send({ ok: false, error: 'bad_password' });
         const session = JSON.stringify({ authed: true, loginAt: new Date().toISOString() });
+        const maxAgeSec = Math.max(1, Math.floor((opts.sessionMaxAgeDays || 7) * 24 * 60 * 60));
         reply.setCookie('hk_session', session, {
             path: '/',
             httpOnly: true,
             sameSite: 'lax',
             secure: false, // tailscale-only; can flip to true behind https
             signed: false,
+            maxAge: maxAgeSec
         });
         return reply.send({ ok: true });
     });
