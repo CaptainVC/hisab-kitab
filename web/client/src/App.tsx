@@ -16,7 +16,7 @@ function TabLink({ to, label }: { to: string; label: string }) {
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `px-3 py-2 rounded-md text-sm ${isActive ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-900'}`
+        `${isActive ? 'hk-tab hk-tab-active' : 'hk-tab'}`
       }
     >
       {label}
@@ -56,9 +56,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-zinc-800">
+      <header className="border-b" style={{ borderColor: 'var(--hk-border)', background: 'var(--hk-panel)' }}>
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="font-semibold">Hisab Kitab {appVersion ? <span className="text-xs text-zinc-500 font-mono">v{appVersion}</span> : null}</div>
+          <div className="font-semibold">Hisab Kitab {appVersion ? <span className="text-xs font-mono" style={{ color: 'var(--hk-faint)' }}>v{appVersion}</span> : null}</div>
           <div className="flex items-center gap-3">
             <nav className="flex gap-2">
             <TabLink to="/dashboard" label="Dashboard" />
@@ -71,7 +71,7 @@ export default function App() {
             <TabLink to="/settings" label="Settings" />
             </nav>
             <button
-              className="px-3 py-2 rounded-md text-sm text-zinc-300 hover:bg-zinc-900"
+              className="hk-btn-ghost"
               onClick={async () => {
                 try {
                   await fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'include' });

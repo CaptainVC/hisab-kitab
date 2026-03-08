@@ -39,7 +39,7 @@ export default function LoginPage({ onAuthed }: { onAuthed: () => void }) {
   }
 
   return (
-    <div className="max-w-md mx-auto mt-12 p-6 border border-zinc-800 rounded-lg bg-zinc-950">
+    <div className="max-w-md mx-auto mt-12 p-6 hk-card">
       <h1 className="text-xl font-semibold">Hisab Kitab</h1>
       <p className="text-zinc-400 mt-1">Login</p>
       {expiredMsg ? (
@@ -51,7 +51,7 @@ export default function LoginPage({ onAuthed }: { onAuthed: () => void }) {
       <div className="mt-4">
         <label className="text-sm text-zinc-300">Password</label>
         <input
-          className="mt-1 w-full px-3 py-2 rounded-md bg-zinc-900 border border-zinc-800"
+          className="mt-1 w-full hk-input px-3 py-2"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -60,7 +60,7 @@ export default function LoginPage({ onAuthed }: { onAuthed: () => void }) {
       </div>
       {err ? <div className="mt-3 text-sm text-red-400">{err}</div> : null}
       <button
-        className="mt-4 w-full px-3 py-2 rounded-md bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50"
+        className="mt-4 w-full hk-btn-primary disabled:opacity-50"
         disabled={busy || !password}
         onClick={submit}
       >
