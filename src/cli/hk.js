@@ -149,6 +149,59 @@ function applyMerchantMappings(row, refs) {
   return row;
 }
 
+function applyKeywordMappings(row, refs) {
+  // If merchant_code/category/subcategory are missing, try quick keyword heuristics
+  // based on the human-entered description (raw_text).
+  const raw = String(row.raw_text || '').toLowerCase();
+
+  // Merchant inference by keyword (when merchant_code is blank)
+  if (!row.merchant_code) {
+    const merchRules = [
+      { re: /\binstamart\b/, code: 'SWIGGY_INSTAMART' },
+      { re: /\bsteam\b/, code: 'STEAM' },
+      { re: /\bmojo\b/, code: 'MOJO' },
+      { re: /\bindori\b/, code: 'INDORI_JUNCTION' },
+      { re: /\bnatraj\b/, code: 'NATRAJ' },
+      { re: /\brameshwaram\b/, code: 'RAMESHWARAM_CAFE' },
+      { re: /\bplay\s*arena\b/, code: 'PLAY_ARENA' },
+    ];
+    for (const r of merchRules) {
+      if (r.re.test(raw)) {
+        row.merchant_code = r.code;
+        break;
+      }
+    }
+  }
+
+  // Category/subcategory inference by keyword (only if missing)
+  if (!row.category || !row.subcategory) {
+    const catRules = [
+      { re: /\bbadminton\b/, cat: 'SPORTS', sub: 'SPORTS_BADMINTON_BOOKING' },
+      { re: /\bcricket\b/, cat: 'SPORTS', sub: 'SPORTS_CRICKET_BOOKING' },
+      { re: /\bpool\b|\bsnooker\b/, cat: 'SPORTS', sub: 'SPORTS_SNOOKER_BOOKING' },
+      { re: /\binstamart\b/, cat: 'SHOPPING', sub: 'SHOP_GROCERIES' },
+      { re: /\bwater\b/, cat: 'FOOD_DINING', sub: 'FOOD_WATER' },
+      { re: /\bfruit\b|\bfruits\b|\bwatermelon\b/, cat: 'FOOD_DINING', sub: 'FOOD_FRUITS' },
+      { re: /\bgatorade\b|\bprotein\b/, cat: 'FOOD_DINING', sub: 'FOOD_PROTEIN' },
+      { re: /\bgames\b|\bsteam\b/, cat: 'ENTERTAINMENT', sub: 'ENT_GAMING' },
+      { re: /\bcafe\b/, cat: 'FOOD_DINING', sub: 'FOOD_CAFE' },
+    ];
+
+    for (const r of catRules) {
+      if (r.re.test(raw)) {
+        if (!row.category) row.category = r.cat;
+        if (!row.subcategory) row.subcategory = r.sub;
+        break;
+      }
+    }
+  }
+
+  // Apply merchant default mappings after keyword-based merchant assignment.
+  applyMerchantMappings(row, refs);
+
+  return row;
+}
+
 function parseAmountPrefix(line) {
   const m = line.match(/^\s*([\d,]+)\s*\/\-\s*(.*)$/);
   if (!m) return null;
@@ -318,7 +371,7 @@ function parseHisabText(text, refs) {
       else if (t.includes('pool') || t.includes('video game') || t.includes('carrom') || t.includes('game')) { review.category = 'ENTERTAINMENT'; review.subcategory = 'ENT_GAMING'; }
       else if (t.includes('party')) { review.category = 'ENTERTAINMENT'; review.subcategory = 'ENT_EVENTS'; }
 
-      rows.push(applyMerchantMappings(review, refs));
+      rows.push(applyKeywordMappings(review, refs));
       continue;
     }
 
@@ -438,7 +491,7 @@ function parseHisabText(text, refs) {
         // For v1, we keep them blank and let you edit later or rely on mappings.
         r.notes = body; // keep body as note; leg-specific details already captured
         r.raw_text = line;
-        rows.push(applyMerchantMappings(r, refs));
+        rows.push(applyKeywordMappings(r, refs));
       }
       continue;
     }
@@ -509,7 +562,7 @@ function parseHisabText(text, refs) {
       const myAmt = base.amount - swTotal;
 
       const myRow = { ...base, txn_id: nanoid(), group_id: groupId, amount: myAmt };
-      applyMerchantMappings(myRow, refs);
+      applyKeywordMappings(myRow, refs);
       rows.push(myRow);
 
       for (const s of sw) {
@@ -521,7 +574,7 @@ function parseHisabText(text, refs) {
         swRow.counterparty = s.who;
         swRow.tags = (swRow.tags ? swRow.tags + ',' : '') + 'splitwise';
         swRow.notes = `splitwise share for ${s.who}`;
-        applyMerchantMappings(swRow, refs);
+        applyKeywordMappings(swRow, refs);
         rows.push(swRow);
       }
 
@@ -550,7 +603,7 @@ function parseHisabText(text, refs) {
         r.amount = it.amount;
         // put item label into notes; categorizer will set subcategory from keywords
         r.notes = it.label;
-        applyMerchantMappings(r, refs);
+        applyKeywordMappings(r, refs);
         rows.push(r);
       }
 
@@ -584,7 +637,7 @@ function parseHisabText(text, refs) {
     }
 
     // Default: single row
-    applyMerchantMappings(base, refs);
+    applyKeywordMappings(base, refs);
     rows.push(base);
 
     // Movement annotation => transfer row
