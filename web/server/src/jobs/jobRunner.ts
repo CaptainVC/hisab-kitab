@@ -54,7 +54,7 @@ export class JobRunner {
     return readJson<JobRecord | null>(fp, null);
   }
 
-  async startJob(type: JobType, params: any, command: string, args: string[]): Promise<JobRecord> {
+  async startJob(type: JobType, params: any, command: string, args: string[], options?: { env?: Record<string, string> }): Promise<JobRecord> {
     if (this.running && this.running.status === 'running') {
       throw new Error('job_already_running');
     }
@@ -80,7 +80,10 @@ export class JobRunner {
 
     await new Promise<void>((resolve) => {
       const out = fs.openSync(logFile, 'a');
-      const child = spawn(command, args, { stdio: ['ignore', out, out] });
+      const child = spawn(command, args, {
+        stdio: ['ignore', out, out],
+        env: { ...process.env, ...(options?.env || {}) }
+      });
       child.on('exit', (code) => {
         try { fs.closeSync(out); } catch {}
         rec.finishedAt = new Date().toISOString();

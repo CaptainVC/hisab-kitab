@@ -34,7 +34,7 @@ export class JobRunner {
         const fp = path.join(this.reportsDir, `job_${jobId}.json`);
         return readJson(fp, null);
     }
-    async startJob(type, params, command, args) {
+    async startJob(type, params, command, args, options) {
         if (this.running && this.running.status === 'running') {
             throw new Error('job_already_running');
         }
@@ -57,7 +57,10 @@ export class JobRunner {
         this.running = rec;
         await new Promise((resolve) => {
             const out = fs.openSync(logFile, 'a');
-            const child = spawn(command, args, { stdio: ['ignore', out, out] });
+            const child = spawn(command, args, {
+                stdio: ['ignore', out, out],
+                env: { ...process.env, ...(options?.env || {}) }
+            });
             child.on('exit', (code) => {
                 try {
                     fs.closeSync(out);

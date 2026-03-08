@@ -17,24 +17,28 @@ export async function registerIngestRoutes(app: FastifyInstance, opts: { runner:
     const maxPayments = Number(body.maxPayments ?? 500);
     const splitFromOrders = !!body.splitFromOrders;
 
-    const pollScript = path.join(opts.repoDir, 'src', 'pipeline', 'poll_ingest.js');
-    const dashScript = path.join(opts.repoDir, 'src', 'dashboard', 'build_dashboard.js');
+    // Run ingest + rebuild in one job (as per spec: ingest always rebuilds).
+    const jobScript = path.join(opts.repoDir, 'web', 'server', 'dist', 'scripts', 'ingest_and_rebuild.js');
 
-    // We keep current poll_ingest behavior (no range filter) for v1; dashboard build uses quarterly scan.
-    // Cache file naming will be handled by rebuild job (separate endpoint) in v1.
+    const env = {
+      HK_RANGE_FROM: from,
+      HK_RANGE_TO: to,
+      HK_MIN_CONFIDENCE: String(minConfidence),
+      HK_MAX_ORDERS: String(maxOrders),
+      HK_MAX_PAYMENTS: String(maxPayments),
+      HK_SPLIT_FROM_ORDERS: splitFromOrders ? '1' : '0'
+    };
 
-    const args = [
-      pollScript,
-      '--base-dir', opts.baseDir,
-      '--label', 'HisabKitab',
-      '--min-confidence', String(minConfidence),
-      '--max-orders', String(maxOrders),
-      '--max-payments', String(maxPayments)
-    ];
-    if (splitFromOrders) args.push('--split-from-orders');
+    const args = [jobScript];
 
     try {
-      const job = await opts.runner.startJob('ingest', { from, to, minConfidence, maxOrders, maxPayments, splitFromOrders }, process.execPath, args);
+      const job = await opts.runner.startJob(
+        'ingest',
+        { from, to, minConfidence, maxOrders, maxPayments, splitFromOrders },
+        process.execPath,
+        args,
+        { env }
+      );
       return reply.send({ ok: true, jobId: job.jobId });
     } catch (e: any) {
       if (String(e?.message || e) === 'job_already_running') {

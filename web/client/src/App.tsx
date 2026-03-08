@@ -1,10 +1,13 @@
 import { NavLink, Route, Routes, Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { apiGet } from './api/client';
 import DashboardPage from './pages/DashboardPage';
 import ReviewPage from './pages/ReviewPage';
 import MailPage from './pages/MailPage';
 import IngestPage from './pages/IngestPage';
 import StagingPage from './pages/StagingPage';
 import RefsPage from './pages/RefsPage';
+import LoginPage from './pages/LoginPage';
 
 function TabLink({ to, label }: { to: string; label: string }) {
   return (
@@ -19,7 +22,32 @@ function TabLink({ to, label }: { to: string; label: string }) {
   );
 }
 
+type MeResp = { ok: true; authenticated: boolean };
+
 export default function App() {
+  const [authed, setAuthed] = useState<boolean | null>(null);
+
+  async function refreshAuth() {
+    try {
+      const me = await apiGet<MeResp>('/api/v1/auth/me');
+      setAuthed(!!me.authenticated);
+    } catch {
+      setAuthed(false);
+    }
+  }
+
+  useEffect(() => {
+    refreshAuth();
+  }, []);
+
+  if (authed === null) {
+    return <div className="p-8 text-zinc-400">Loading…</div>;
+  }
+
+  if (!authed) {
+    return <LoginPage onAuthed={refreshAuth} />;
+  }
+
   return (
     <div className="min-h-screen">
       <header className="border-b border-zinc-800">
