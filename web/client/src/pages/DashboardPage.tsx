@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost } from '../api/client';
 import { currentQuarterRange } from '../app/range';
+import { DailyLineChart, CategoryDoughnut } from '../components/Charts';
 
 type DataResp = { ok: true; stale: boolean; ageMs: number; data: any };
 
@@ -56,6 +57,26 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const expenseRows = rows.filter(r => r.type === 'EXPENSE');
+
+  const daily = (() => {
+    const sums: Record<string, number> = {};
+    for (const r of expenseRows) {
+      const k = r.date;
+      sums[k] = (sums[k] || 0) + Number(r.amount || 0);
+    }
+    return Object.entries(sums).sort((a, b) => a[0].localeCompare(b[0]));
+  })();
+
+  const topCats = (() => {
+    const sums: Record<string, number> = {};
+    for (const r of expenseRows) {
+      const k = r.category_name || r.category || 'Uncategorized';
+      sums[k] = (sums[k] || 0) + Number(r.amount || 0);
+    }
+    return Object.entries(sums).sort((a, b) => b[1] - a[1]).slice(0, 12);
+  })();
+
   return (
     <div>
       <div className="flex items-end justify-between gap-4 flex-wrap">
@@ -94,38 +115,21 @@ export default function DashboardPage() {
 
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="p-4 border border-zinc-800 rounded-lg">
-          <div className="text-sm font-semibold">Top categories (expense only)</div>
-          <div className="mt-2 border border-zinc-800 rounded overflow-auto max-h-72">
-            <table className="w-full text-sm">
-              <thead className="bg-zinc-900 text-zinc-300">
-                <tr>
-                  <th className="text-left px-3 py-2">Category</th>
-                  <th className="text-right px-3 py-2">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(() => {
-                  const sums: Record<string, number> = {};
-                  for (const r of rows) {
-                    if (r.type !== 'EXPENSE') continue;
-                    const k = r.category_name || r.category || 'Uncategorized';
-                    sums[k] = (sums[k] || 0) + Number(r.amount || 0);
-                  }
-                  return Object.entries(sums)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 20)
-                    .map(([k, v]) => (
-                      <tr key={k} className="border-t border-zinc-800">
-                        <td className="px-3 py-2">{k}</td>
-                        <td className="px-3 py-2 text-right">{Math.round(v)}</td>
-                      </tr>
-                    ));
-                })()}
-              </tbody>
-            </table>
+          <div className="text-sm font-semibold">Daily expense trend</div>
+          <div className="mt-2">
+            <DailyLineChart labels={daily.map(x => x[0])} values={daily.map(x => Math.round(x[1]))} />
           </div>
         </div>
 
+        <div className="p-4 border border-zinc-800 rounded-lg">
+          <div className="text-sm font-semibold">Top categories (share)</div>
+          <div className="mt-2">
+            <CategoryDoughnut labels={topCats.map(x => x[0])} values={topCats.map(x => Math.round(x[1]))} />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="p-4 border border-zinc-800 rounded-lg">
           <div className="text-sm font-semibold">Top subcategories (expense only)</div>
           <div className="mt-2 border border-zinc-800 rounded overflow-auto max-h-72">
@@ -139,8 +143,7 @@ export default function DashboardPage() {
               <tbody>
                 {(() => {
                   const sums: Record<string, number> = {};
-                  for (const r of rows) {
-                    if (r.type !== 'EXPENSE') continue;
+                  for (const r of expenseRows) {
                     const k = r.subcategory_name || r.subcategory || 'Uncategorized';
                     sums[k] = (sums[k] || 0) + Number(r.amount || 0);
                   }
@@ -172,8 +175,7 @@ export default function DashboardPage() {
               <tbody>
                 {(() => {
                   const sums: Record<string, number> = {};
-                  for (const r of rows) {
-                    if (r.type !== 'EXPENSE') continue;
+                  for (const r of expenseRows) {
                     const k = r.merchant_name || r.merchant_code || 'Unknown';
                     sums[k] = (sums[k] || 0) + Number(r.amount || 0);
                   }
@@ -183,39 +185,6 @@ export default function DashboardPage() {
                     .map(([k, v]) => (
                       <tr key={k} className="border-t border-zinc-800">
                         <td className="px-3 py-2">{k}</td>
-                        <td className="px-3 py-2 text-right">{Math.round(v)}</td>
-                      </tr>
-                    ));
-                })()}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="p-4 border border-zinc-800 rounded-lg">
-          <div className="text-sm font-semibold">Daily expense (top 20 days)</div>
-          <div className="mt-2 border border-zinc-800 rounded overflow-auto max-h-72">
-            <table className="w-full text-sm">
-              <thead className="bg-zinc-900 text-zinc-300">
-                <tr>
-                  <th className="text-left px-3 py-2">Date</th>
-                  <th className="text-right px-3 py-2">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(() => {
-                  const sums: Record<string, number> = {};
-                  for (const r of rows) {
-                    if (r.type !== 'EXPENSE') continue;
-                    const k = r.date;
-                    sums[k] = (sums[k] || 0) + Number(r.amount || 0);
-                  }
-                  return Object.entries(sums)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 20)
-                    .map(([k, v]) => (
-                      <tr key={k} className="border-t border-zinc-800">
-                        <td className="px-3 py-2 whitespace-nowrap">{k}</td>
                         <td className="px-3 py-2 text-right">{Math.round(v)}</td>
                       </tr>
                     ));
