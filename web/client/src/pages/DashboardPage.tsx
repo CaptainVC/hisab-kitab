@@ -264,7 +264,11 @@ export default function DashboardPage() {
         <div className="p-4 border border-zinc-800 rounded-lg">
           <div className="text-sm font-semibold">Top categories (share)</div>
           <div className="mt-2">
-            <CategoryDoughnut labels={topCats.map(x => x[0])} values={topCats.map(x => Math.round(x[1]))} />
+            <CategoryDoughnut
+              labels={topCats.map(x => x[0])}
+              values={topCats.map(x => Math.round(x[1]))}
+              onSliceClick={(label) => { setFCategory(label); setFSubcategory(''); }}
+            />
           </div>
         </div>
       </div>

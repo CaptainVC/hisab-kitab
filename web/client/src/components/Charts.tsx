@@ -37,7 +37,15 @@ export function DailyLineChart({ labels, values }: { labels: string[]; values: n
   );
 }
 
-export function CategoryDoughnut({ labels, values }: { labels: string[]; values: number[] }) {
+export function CategoryDoughnut({
+  labels,
+  values,
+  onSliceClick
+}: {
+  labels: string[];
+  values: number[];
+  onSliceClick?: (label: string) => void;
+}) {
   return (
     <Doughnut
       data={{
@@ -56,7 +64,15 @@ export function CategoryDoughnut({ labels, values }: { labels: string[]; values:
       }}
       options={{
         responsive: true,
-        plugins: { legend: { position: 'bottom' } }
+        plugins: { legend: { position: 'bottom' } },
+        onClick: (_evt, elements, chart) => {
+          if (!onSliceClick) return;
+          const el = elements?.[0];
+          if (!el) return;
+          const idx = (el as any).index as number;
+          const lbl = (chart?.data?.labels?.[idx] as any) ?? '';
+          if (typeof lbl === 'string' && lbl) onSliceClick(lbl);
+        }
       }}
     />
   );
