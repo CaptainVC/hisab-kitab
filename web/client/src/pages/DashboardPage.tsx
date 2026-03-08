@@ -523,11 +523,12 @@ export default function DashboardPage() {
         <div className="p-4 hk-card">
           <div className="text-sm font-semibold">Top categories (click to filter)</div>
           <div className="mt-2 h-[220px]">
-            <CategoryDoughnut
+            <SimpleBarChart
               labels={topCats.map(x => x[0])}
               values={topCats.map(x => Math.round(x[1]))}
               height={220}
-              onSliceClick={(label) => { setFCategory(label); setFSubcategory(''); }}
+              label="Expense"
+              onBarClick={(label) => { setFCategory(label); setFSubcategory(''); setPage(1); }}
             />
           </div>
         </div>
