@@ -4,16 +4,7 @@ import { readJson, writeJson } from '../storage/jsonStore.js';
 function refsPath(baseDir, name) {
     return path.join(baseDir, 'refs', name);
 }
-function monthRangeToMs(fromYm, toYm) {
-    // from/to are inclusive months in YYYY-MM
-    const [fy, fm] = fromYm.split('-').map(Number);
-    const [ty, tm] = toYm.split('-').map(Number);
-    if (!fy || !fm || !ty || !tm)
-        return null;
-    const start = Date.UTC(fy, fm - 1, 1, 0, 0, 0, 0);
-    const endExclusive = Date.UTC(ty, tm, 1, 0, 0, 0, 0); // next month
-    return { start, endExclusive };
-}
+import { parseRangeToMs } from '../utils/range.js';
 export async function registerRefsRoutes(app, opts) {
     // Overview (oldest data in range for email-derived datasets)
     app.get('/api/v1/refs/overview', async (req, reply) => {
@@ -22,7 +13,7 @@ export async function registerRefsRoutes(app, opts) {
         const q = req.query;
         const from = String(q.from || '');
         const to = String(q.to || '');
-        const range = from && to ? monthRangeToMs(from, to) : null;
+        const range = from && to ? parseRangeToMs(from, to) : null;
         const ordersFp = path.join(opts.baseDir, 'orders_parsed.json');
         const paymentsFp = path.join(opts.baseDir, 'payments_parsed.json');
         const ordersJ = readJson(ordersFp, null);
@@ -239,7 +230,7 @@ export async function registerRefsRoutes(app, opts) {
         const q = req.query;
         const from = String(q.from || '');
         const to = String(q.to || '');
-        const range = from && to ? monthRangeToMs(from, to) : null;
+        const range = from && to ? parseRangeToMs(from, to) : null;
         const ordersFp = path.join(opts.baseDir, 'orders_parsed.json');
         const orders = readJson(ordersFp, null);
         const list = Array.isArray(orders?.orders) ? orders.orders : [];

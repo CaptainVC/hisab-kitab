@@ -20,15 +20,7 @@ function refsPath(baseDir: string, name: string) {
   return path.join(baseDir, 'refs', name);
 }
 
-function monthRangeToMs(fromYm: string, toYm: string) {
-  // from/to are inclusive months in YYYY-MM
-  const [fy, fm] = fromYm.split('-').map(Number);
-  const [ty, tm] = toYm.split('-').map(Number);
-  if (!fy || !fm || !ty || !tm) return null;
-  const start = Date.UTC(fy, fm - 1, 1, 0, 0, 0, 0);
-  const endExclusive = Date.UTC(ty, tm, 1, 0, 0, 0, 0); // next month
-  return { start, endExclusive };
-}
+import { parseRangeToMs } from '../utils/range.js';
 
 type CategoryRef = { name: string; archived?: boolean };
 
@@ -41,7 +33,7 @@ export async function registerRefsRoutes(app: FastifyInstance, opts: { baseDir: 
     const q = req.query as any;
     const from = String(q.from || '');
     const to = String(q.to || '');
-    const range = from && to ? monthRangeToMs(from, to) : null;
+    const range = from && to ? parseRangeToMs(from, to) : null;
 
     const ordersFp = path.join(opts.baseDir, 'orders_parsed.json');
     const paymentsFp = path.join(opts.baseDir, 'payments_parsed.json');
@@ -250,7 +242,7 @@ export async function registerRefsRoutes(app: FastifyInstance, opts: { baseDir: 
     const from = String(q.from || '');
     const to = String(q.to || '');
 
-    const range = from && to ? monthRangeToMs(from, to) : null;
+    const range = from && to ? parseRangeToMs(from, to) : null;
 
     const ordersFp = path.join(opts.baseDir, 'orders_parsed.json');
     const orders = readJson<any>(ordersFp, null);

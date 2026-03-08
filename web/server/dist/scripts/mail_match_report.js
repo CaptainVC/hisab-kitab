@@ -6,14 +6,26 @@ function getArg(args, name) {
         return null;
     return args[i + 1] ?? null;
 }
-function monthRangeToMs(fromYm, toYm) {
-    const [fy, fm] = fromYm.split('-').map(Number);
-    const [ty, tm] = toYm.split('-').map(Number);
-    if (!fy || !fm || !ty || !tm)
-        return null;
-    const start = Date.UTC(fy, fm - 1, 1, 0, 0, 0, 0);
-    const endExclusive = Date.UTC(ty, tm, 1, 0, 0, 0, 0);
-    return { start, endExclusive };
+function rangeToMs(from, to) {
+    const f = String(from || '').trim();
+    const t = String(to || '').trim();
+    if (/^\d{4}-\d{2}$/.test(f) && /^\d{4}-\d{2}$/.test(t)) {
+        const [fy, fm] = f.split('-').map(Number);
+        const [ty, tm] = t.split('-').map(Number);
+        if (!fy || !fm || !ty || !tm)
+            return null;
+        const start = Date.UTC(fy, fm - 1, 1, 0, 0, 0, 0);
+        const endExclusive = Date.UTC(ty, tm, 1, 0, 0, 0, 0);
+        return { start, endExclusive };
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(f) && /^\d{4}-\d{2}-\d{2}$/.test(t)) {
+        const start = Date.parse(f + 'T00:00:00Z');
+        const endInc = Date.parse(t + 'T00:00:00Z');
+        if (!Number.isFinite(start) || !Number.isFinite(endInc))
+            return null;
+        return { start, endExclusive: endInc + 86400000 };
+    }
+    return null;
 }
 function dateFromMsIST(ms) {
     const ist = ms + (5.5 * 60 * 60 * 1000);
@@ -71,7 +83,7 @@ async function main() {
         throw new Error('missing_base_dir');
     if (!from || !to)
         throw new Error('missing_range');
-    const range = monthRangeToMs(from, to);
+    const range = rangeToMs(from, to);
     if (!range)
         throw new Error('bad_range');
     const ordersFp = path.join(baseDir, 'orders_parsed.json');

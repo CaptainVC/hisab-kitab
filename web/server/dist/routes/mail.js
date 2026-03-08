@@ -1,15 +1,7 @@
 import path from 'node:path';
 import { requireAuth } from '../auth/session.js';
 import { readJson } from '../storage/jsonStore.js';
-function monthRangeToMs(fromYm, toYm) {
-    const [fy, fm] = fromYm.split('-').map(Number);
-    const [ty, tm] = toYm.split('-').map(Number);
-    if (!fy || !fm || !ty || !tm)
-        return null;
-    const start = Date.UTC(fy, fm - 1, 1, 0, 0, 0, 0);
-    const endExclusive = Date.UTC(ty, tm, 1, 0, 0, 0, 0);
-    return { start, endExclusive };
-}
+import { parseRangeToMs } from '../utils/range.js';
 export async function registerMailRoutes(app, opts) {
     // Stats view
     app.get('/api/v1/mail/stats', async (req, reply) => {
@@ -18,7 +10,7 @@ export async function registerMailRoutes(app, opts) {
         const q = req.query;
         const from = String(q.from || '');
         const to = String(q.to || '');
-        const range = from && to ? monthRangeToMs(from, to) : null;
+        const range = from && to ? parseRangeToMs(from, to) : null;
         const ordersFp = path.join(opts.baseDir, 'orders_parsed.json');
         const paymentsFp = path.join(opts.baseDir, 'payments_parsed.json');
         const ordersJ = readJson(ordersFp, null);
@@ -124,9 +116,11 @@ export async function registerMailRoutes(app, opts) {
         if (!from || !to)
             return reply.code(400).send({ ok: false, error: 'missing_range' });
         const { fp, orders } = readMailStore();
-        const start = `${from}-01`;
-        const [ty, tm] = to.split('-').map(Number);
-        const endExclusive = new Date(Date.UTC(ty, tm, 1)).toISOString().slice(0, 10);
+        const r = parseRangeToMs(from, to);
+        if (!r)
+            return reply.code(400).send({ ok: false, error: 'bad_range' });
+        const start = new Date(r.start).toISOString().slice(0, 10);
+        const endExclusive = new Date(r.endExclusive).toISOString().slice(0, 10);
         const filtered = orders
             .filter((o) => {
             const d = String(o?.date || '');

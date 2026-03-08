@@ -151,10 +151,22 @@ export default function DashboardPage() {
   function inSelectedRange(dateStr: string) {
     const d = String(dateStr || '');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
-    // from/to are inclusive months (YYYY-MM)
-    const start = `${from}-01`;
-    const [ty, tm] = to.split('-').map(Number);
-    const endExclusive = new Date(Date.UTC(ty, tm, 1)).toISOString().slice(0, 10); // first day of next month
+
+    // Support YYYY-MM (month) or YYYY-MM-DD (date) range values.
+    let start = '';
+    let endExclusive = '';
+
+    if (/^\d{4}-\d{2}$/.test(from) && /^\d{4}-\d{2}$/.test(to)) {
+      start = `${from}-01`;
+      const [ty, tm] = to.split('-').map(Number);
+      endExclusive = new Date(Date.UTC(ty, tm, 1)).toISOString().slice(0, 10);
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(from) && /^\d{4}-\d{2}-\d{2}$/.test(to)) {
+      start = from;
+      endExclusive = new Date(Date.parse(to + 'T00:00:00Z') + 86400000).toISOString().slice(0, 10);
+    } else {
+      return true; // fallback: don't filter
+    }
+
     return d >= start && d < endExclusive;
   }
 
@@ -248,12 +260,12 @@ export default function DashboardPage() {
 
         <div className="flex items-end gap-2">
           <div>
-            <label className="text-xs text-[color:var(--hk-muted)]">From (YYYY-MM)</label>
-            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={from} onChange={e => { const v = e.target.value; setFrom(v); saveRange({ from: v, to }); }} />
+            <label className="text-xs text-[color:var(--hk-muted)]">From (YYYY-MM-DD)</label>
+            <input className="block mt-1 hk-input" type="date" value={from} onChange={e => { const v = e.target.value; setFrom(v); saveRange({ from: v, to }); }} />
           </div>
           <div>
-            <label className="text-xs text-[color:var(--hk-muted)]">To (YYYY-MM)</label>
-            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={to} onChange={e => { const v = e.target.value; setTo(v); saveRange({ from, to: v }); }} />
+            <label className="text-xs text-[color:var(--hk-muted)]">To (YYYY-MM-DD)</label>
+            <input className="block mt-1 hk-input" type="date" value={to} onChange={e => { const v = e.target.value; setTo(v); saveRange({ from, to: v }); }} />
           </div>
           <button
             className="px-3 py-2 hk-btn-primary disabled:opacity-50"
