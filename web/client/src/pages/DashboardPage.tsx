@@ -89,11 +89,13 @@ export default function DashboardPage() {
   const [fCategory, setFCategory] = useState<string>('');
   const [fSubcategory, setFSubcategory] = useState<string>('');
   const [fTags, setFTags] = useState<string[]>([]);
+  const [fDate, setFDate] = useState<string>(''); // YYYY-MM-DD
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
 
   const filteredRows = rows.filter((r: any) => {
+    if (fDate && String(r.date || '') !== fDate) return false;
     if (fType && r.type !== fType) return false;
     if (fSource && (r.source_name || r.source) !== fSource && r.source !== fSource) return false;
     if (fLocation && (r.location_name || r.location) !== fLocation && r.location !== fLocation) return false;
@@ -195,7 +197,10 @@ export default function DashboardPage() {
       ) : null}
 
       <div className="mt-6 flex items-center justify-between">
-        <div className="text-sm text-[color:var(--hk-muted)]">Filters</div>
+        <div className="text-sm text-[color:var(--hk-muted)]">
+          Filters
+          {fDate ? <span className="ml-2 hk-badge-good">Date {fDate}</span> : null}
+        </div>
         <button className="px-3 py-2 rounded-md hk-btn-secondary" onClick={() => setFiltersOpen(true)}>
           Open filters
         </button>
@@ -320,7 +325,7 @@ export default function DashboardPage() {
             </select>
           </div>
           <div className="flex items-end">
-            <button className="w-full px-3 py-2 rounded-md hk-btn-secondary" onClick={() => { setFType(''); setFSource(''); setFLocation(''); setFMerchant(''); setFCategory(''); setFSubcategory(''); setFTags([]); }}>
+            <button className="w-full px-3 py-2 rounded-md hk-btn-secondary" onClick={() => { setFDate(''); setFType(''); setFSource(''); setFLocation(''); setFMerchant(''); setFCategory(''); setFSubcategory(''); setFTags([]); setPage(1); }}>
               Clear filters
             </button>
           </div>
@@ -345,7 +350,12 @@ export default function DashboardPage() {
         <div className="p-4 hk-card">
           <div className="text-sm font-semibold">Daily expense (trend)</div>
           <div className="mt-2 h-[220px]">
-            <DailyLineChart labels={daily.map(x => x[0])} values={daily.map(x => Math.round(x[1]))} height={220} />
+            <DailyLineChart
+              labels={daily.map(x => x[0])}
+              values={daily.map(x => Math.round(x[1]))}
+              height={220}
+              onPointClick={(label) => { setFDate(label); setPage(1); }}
+            />
           </div>
         </div>
 
@@ -371,7 +381,15 @@ export default function DashboardPage() {
                 sums[k] = (sums[k] || 0) + Number(r.amount || 0);
               }
               const top = Object.entries(sums).sort((a, b) => b[1] - a[1]).slice(0, 8);
-              return <SimpleBarChart labels={top.map(x => x[0])} values={top.map(x => Math.round(x[1]))} height={220} label="Expense" />;
+              return (
+                <SimpleBarChart
+                  labels={top.map(x => x[0])}
+                  values={top.map(x => Math.round(x[1]))}
+                  height={220}
+                  label="Expense"
+                  onBarClick={(label) => { setFType('EXPENSE'); setFMerchant(label); setPage(1); }}
+                />
+              );
             })()}
           </div>
         </div>
@@ -388,7 +406,15 @@ export default function DashboardPage() {
                 counts[k] = (counts[k] || 0) + 1;
               }
               const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
-              return <SimpleBarChart labels={top.map(x => x[0])} values={top.map(x => x[1])} height={220} label="Txns" />;
+              return (
+                <SimpleBarChart
+                  labels={top.map(x => x[0])}
+                  values={top.map(x => x[1])}
+                  height={220}
+                  label="Txns"
+                  onBarClick={(label) => { setFSource(label); setPage(1); }}
+                />
+              );
             })()}
           </div>
         </div>
@@ -416,7 +442,7 @@ export default function DashboardPage() {
                     .sort((a, b) => b[1] - a[1])
                     .slice(0, 20)
                     .map(([k, v]) => (
-                      <tr key={k} className="">
+                      <tr key={k} className="cursor-pointer hover:bg-white/5" onClick={() => { setFType('EXPENSE'); setFSubcategory(k); setPage(1); }}>
                         <td className="px-3 py-2">{k}</td>
                         <td className="px-3 py-2 text-right">{formatINR(v)}</td>
                       </tr>
@@ -448,7 +474,7 @@ export default function DashboardPage() {
                     .sort((a, b) => b[1] - a[1])
                     .slice(0, 20)
                     .map(([k, v]) => (
-                      <tr key={k} className="">
+                      <tr key={k} className="cursor-pointer hover:bg-white/5" onClick={() => { setFType('EXPENSE'); setFMerchant(k); setPage(1); }}>
                         <td className="px-3 py-2">{k}</td>
                         <td className="px-3 py-2 text-right">{formatINR(v)}</td>
                       </tr>

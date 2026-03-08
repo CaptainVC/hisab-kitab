@@ -13,7 +13,17 @@ import { Line, Doughnut, Bar } from 'react-chartjs-2';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Legend);
 
-export function DailyLineChart({ labels, values, height = 180 }: { labels: string[]; values: number[]; height?: number }) {
+export function DailyLineChart({
+  labels,
+  values,
+  height = 180,
+  onPointClick
+}: {
+  labels: string[];
+  values: number[];
+  height?: number;
+  onPointClick?: (label: string) => void;
+}) {
   return (
     <Line
       height={height}
@@ -34,7 +44,15 @@ export function DailyLineChart({ labels, values, height = 180 }: { labels: strin
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true }, x: { ticks: { maxTicksLimit: 7 } } }
+        scales: { y: { beginAtZero: true }, x: { ticks: { maxTicksLimit: 7 } } },
+        onClick: (_evt, elements, chart) => {
+          if (!onPointClick) return;
+          const el = elements?.[0];
+          if (!el) return;
+          const idx = (el as any).index as number;
+          const lbl = (chart?.data?.labels?.[idx] as any) ?? '';
+          if (typeof lbl === 'string' && lbl) onPointClick(lbl);
+        }
       }}
     />
   );
@@ -99,12 +117,14 @@ export function SimpleBarChart({
   labels,
   values,
   height = 180,
-  label = 'Amount'
+  label = 'Amount',
+  onBarClick
 }: {
   labels: string[];
   values: number[];
   height?: number;
   label?: string;
+  onBarClick?: (label: string) => void;
 }) {
   return (
     <Bar
@@ -125,7 +145,15 @@ export function SimpleBarChart({
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true }, x: { ticks: { autoSkip: true, maxTicksLimit: 6 } } }
+        scales: { y: { beginAtZero: true }, x: { ticks: { autoSkip: true, maxTicksLimit: 6 } } },
+        onClick: (_evt, elements, chart) => {
+          if (!onBarClick) return;
+          const el = elements?.[0];
+          if (!el) return;
+          const idx = (el as any).index as number;
+          const lbl = (chart?.data?.labels?.[idx] as any) ?? '';
+          if (typeof lbl === 'string' && lbl) onBarClick(lbl);
+        }
       }}
     />
   );
