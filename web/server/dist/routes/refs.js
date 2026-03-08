@@ -67,6 +67,102 @@ export async function registerRefsRoutes(app, opts) {
         writeJson(fp, merchants);
         return reply.send({ ok: true });
     });
+    // Categories
+    app.get('/api/v1/refs/categories', async (req, reply) => {
+        if (!requireAuth(req, reply))
+            return;
+        const fp = refsPath(opts.baseDir, 'categories.json');
+        const categories = readJson(fp, {});
+        const list = Object.entries(categories)
+            .map(([code, c]) => ({ code, ...c }))
+            .sort((a, b) => a.code.localeCompare(b.code));
+        return reply.send({ ok: true, categories: list });
+    });
+    app.put('/api/v1/refs/categories/:code', async (req, reply) => {
+        if (!requireAuth(req, reply))
+            return;
+        const { code } = req.params;
+        const c = String(code || '').trim();
+        if (!c)
+            return reply.code(400).send({ ok: false, error: 'missing_code' });
+        const body = (req.body || {});
+        const patch = {};
+        if (body.name !== undefined)
+            patch.name = String(body.name || '').trim();
+        if (body.archived !== undefined)
+            patch.archived = !!body.archived;
+        const fp = refsPath(opts.baseDir, 'categories.json');
+        const cats = readJson(fp, {});
+        const cur = cats[c] || { name: c };
+        cats[c] = { ...cur, ...patch };
+        writeJson(fp, cats);
+        return reply.send({ ok: true, code: c, category: cats[c] });
+    });
+    app.post('/api/v1/refs/categories/:code/archive', async (req, reply) => {
+        if (!requireAuth(req, reply))
+            return;
+        const { code } = req.params;
+        const c = String(code || '').trim();
+        if (!c)
+            return reply.code(400).send({ ok: false, error: 'missing_code' });
+        const fp = refsPath(opts.baseDir, 'categories.json');
+        const cats = readJson(fp, {});
+        if (!cats[c])
+            return reply.code(404).send({ ok: false, error: 'not_found' });
+        cats[c].archived = true;
+        writeJson(fp, cats);
+        return reply.send({ ok: true });
+    });
+    // Subcategories
+    app.get('/api/v1/refs/subcategories', async (req, reply) => {
+        if (!requireAuth(req, reply))
+            return;
+        const fp = refsPath(opts.baseDir, 'subcategories.json');
+        const subs = readJson(fp, {});
+        const list = Object.entries(subs)
+            .map(([code, s]) => ({ code, ...s }))
+            .sort((a, b) => a.code.localeCompare(b.code));
+        return reply.send({ ok: true, subcategories: list });
+    });
+    app.put('/api/v1/refs/subcategories/:code', async (req, reply) => {
+        if (!requireAuth(req, reply))
+            return;
+        const { code } = req.params;
+        const c = String(code || '').trim();
+        if (!c)
+            return reply.code(400).send({ ok: false, error: 'missing_code' });
+        const body = (req.body || {});
+        const patch = {};
+        if (body.name !== undefined)
+            patch.name = String(body.name || '').trim();
+        if (body.category !== undefined)
+            patch.category = String(body.category || '').trim();
+        if (body.archived !== undefined)
+            patch.archived = !!body.archived;
+        const fp = refsPath(opts.baseDir, 'subcategories.json');
+        const subs = readJson(fp, {});
+        const cur = subs[c] || { name: c, category: patch.category || '' };
+        subs[c] = { ...cur, ...patch };
+        if (!subs[c].category)
+            subs[c].category = '';
+        writeJson(fp, subs);
+        return reply.send({ ok: true, code: c, subcategory: subs[c] });
+    });
+    app.post('/api/v1/refs/subcategories/:code/archive', async (req, reply) => {
+        if (!requireAuth(req, reply))
+            return;
+        const { code } = req.params;
+        const c = String(code || '').trim();
+        if (!c)
+            return reply.code(400).send({ ok: false, error: 'missing_code' });
+        const fp = refsPath(opts.baseDir, 'subcategories.json');
+        const subs = readJson(fp, {});
+        if (!subs[c])
+            return reply.code(404).send({ ok: false, error: 'not_found' });
+        subs[c].archived = true;
+        writeJson(fp, subs);
+        return reply.send({ ok: true });
+    });
     // Email rules view-only
     app.get('/api/v1/refs/email_rules', async (req, reply) => {
         if (!requireAuth(req, reply))
