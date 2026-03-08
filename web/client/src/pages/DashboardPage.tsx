@@ -294,7 +294,7 @@ export default function DashboardPage() {
       <div className="mt-6 flex items-center justify-between gap-3 flex-wrap">
         <div className="text-sm text-[color:var(--hk-muted)] flex items-center gap-2 flex-wrap">
           <button
-            className="px-1 py-0.5 text-[color:var(--hk-muted)] hover:text-white"
+            className="px-1 py-0.5 text-lg leading-none text-[color:var(--hk-muted)] hover:text-white"
             title="Open filters"
             onClick={() => setFiltersOpen(true)}
           >
