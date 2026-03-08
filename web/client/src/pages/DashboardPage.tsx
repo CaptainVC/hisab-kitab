@@ -89,7 +89,7 @@ export default function DashboardPage() {
   const [fTags, setFTags] = useState<string[]>([]);
 
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(25);
 
   const filteredRows = rows.filter((r: any) => {
     if (fType && r.type !== fType) return false;
@@ -457,7 +457,7 @@ export default function DashboardPage() {
             <button className="px-2 py-1 rounded bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 disabled:opacity-50" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</button>
           </div>
         </div>
-        <div className="mt-2 border border-zinc-800 rounded-lg overflow-auto">
+        <div className="mt-2 border border-zinc-800 rounded-lg overflow-auto max-h-[520px]">
           <table className="w-full text-sm">
             <thead className="bg-zinc-900 text-zinc-300">
               <tr>
