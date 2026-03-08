@@ -191,82 +191,100 @@ function splitWorkbook(filePath, baseDir, tol){
   }
 
   const wb = XLSX.readFile(filePath);
-  const ws = wb.Sheets['Transactions'] || wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
-  // Support both the raw template headers (snake_case) and the "pretty" export headers (Title Case)
-  const sample = rows[0] || {};
-  const key = (a, b) => (Object.prototype.hasOwnProperty.call(sample, a) ? a : b);
-  const kDate = key('date', 'Date');
-  const kAmount = key('amount', 'Amount');
-  const kMerchant = key('merchant_code', 'Merchant Code');
-  const kRaw = key('raw_text', 'Raw Text');
-  const kNotes = key('notes', 'Notes');
-  const kTxnId = key('txn_id', 'Transaction ID');
-  const kGroupId = key('group_id', 'Group ID');
-  const kParseStatus = key('parse_status', 'Parse Status');
-  const kParseError = key('parse_error', 'Parse Error');
+  const isMonthlySheetName = (name) => /^[A-Z][a-z]{2}-\d{4}$/.test(String(name || ''));
+  const sheets = wb.Sheets['Transactions']
+    ? ['Transactions']
+    : (wb.SheetNames.filter(isMonthlySheetName).length ? wb.SheetNames.filter(isMonthlySheetName) : [wb.SheetNames[0]]);
 
   let changed = 0;
-  const out = [];
+  let totalIn = 0;
+  let totalOut = 0;
 
-  for(const r of rows){
-    // Only split expense rows with supported merchant codes
-    const mc = String(r[kMerchant] || '').toUpperCase();
-    if(!['BLINKIT','AMAZON','SWIGGY','ZOMATO'].includes(mc)) { out.push(r); continue; }
+  for (const sheetName of sheets) {
+    const ws = wb.Sheets[sheetName];
+    if (!ws) continue;
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    if (!rows.length) continue;
 
-    const date = String(r[kDate] || '');
-    const amt = Number(r[kAmount]);
-    if(!date || !Number.isFinite(amt)) { out.push(r); continue; }
+    // Support both the raw template headers (snake_case) and the "pretty" export headers (Title Case)
+    const sample = rows[0] || {};
+    const key = (a, b) => (Object.prototype.hasOwnProperty.call(sample, a) ? a : b);
+    const kDate = key('date', 'Date');
+    const kAmount = key('amount', 'Amount');
+    const kMerchant = key('merchant_code', 'Merchant Code');
+    const kRaw = key('raw_text', 'Raw Text');
+    const kNotes = key('notes', 'Notes');
+    const kTxnId = key('txn_id', 'Transaction ID');
+    const kGroupId = key('group_id', 'Group ID');
+    const kParseStatus = key('parse_status', 'Parse Status');
+    const kParseError = key('parse_error', 'Parse Error');
 
-    const picked = pickOrdersForAmount(byDate, date, amt, tol);
-    if(!picked || !picked.orders || !picked.orders.length) { out.push(r); continue; }
+    const out = [];
 
-    // Combine items across one or more invoices/orders
-    let items = [];
-    for (const o of picked.orders) items = items.concat(flattenItems(o));
-    if(!items.length) { out.push(r); continue; }
+    for (const r of rows) {
+      totalIn++;
+      // Only split expense rows with supported merchant codes
+      const mc = String(r[kMerchant] || '').toUpperCase();
+      if (!['BLINKIT', 'AMAZON', 'SWIGGY', 'ZOMATO'].includes(mc)) { out.push(r); continue; }
 
-    const groupId = r[kGroupId] ? String(r[kGroupId]) : nanoid();
-    const sum = items.reduce((s,x)=>s + (Number(x.amount)||0), 0);
+      const date = String(r[kDate] || '');
+      const amt = Number(r[kAmount]);
+      if (!date || !Number.isFinite(amt)) { out.push(r); continue; }
 
-    for(const it of items){
-      out.push({
-        ...r,
-        [kTxnId]: nanoid(),
-        [kGroupId]: groupId,
-        [kAmount]: Number(it.amount),
-        [kRaw]: it.name,
-        [kNotes]: (String(r[kRaw]||'') + ' | ' + it.name).slice(0, 300),
-        [kParseStatus]: 'split_from_invoice',
-        [kParseError]: picked.mode === 'subset' ? 'matched_multiple_invoices' : ''
-      });
+      const picked = pickOrdersForAmount(byDate, date, amt, tol);
+      if (!picked || !picked.orders || !picked.orders.length) { out.push(r); continue; }
+
+      // Combine items across one or more invoices/orders
+      let items = [];
+      for (const o of picked.orders) items = items.concat(flattenItems(o));
+      if (!items.length) { out.push(r); continue; }
+
+      const groupId = r[kGroupId] ? String(r[kGroupId]) : nanoid();
+      const sum = items.reduce((s, x) => s + (Number(x.amount) || 0), 0);
+
+      for (const it of items) {
+        out.push({
+          ...r,
+          [kTxnId]: nanoid(),
+          [kGroupId]: groupId,
+          [kAmount]: Number(it.amount),
+          [kRaw]: it.name,
+          [kNotes]: (String(r[kRaw] || '') + ' | ' + it.name).slice(0, 300),
+          [kParseStatus]: 'split_from_invoice',
+          [kParseError]: picked.mode === 'subset' ? 'matched_multiple_invoices' : ''
+        });
+      }
+
+      const diff = Number(amt) - Number(sum);
+      if (Number.isFinite(diff) && Math.abs(diff) > tol) {
+        out.push({
+          ...r,
+          [kTxnId]: nanoid(),
+          [kGroupId]: groupId,
+          [kAmount]: Math.round(diff * 100) / 100,
+          [kRaw]: `Other charges (${mc})`,
+          [kNotes]: (String(r[kRaw] || '') + ' | remainder').slice(0, 300),
+          [kParseStatus]: 'split_from_invoice',
+          [kParseError]: 'invoice item sum mismatch'
+        });
+      }
+
+      changed++;
     }
 
-    const diff = Number(amt) - Number(sum);
-    if(Number.isFinite(diff) && Math.abs(diff) > tol){
-      out.push({
-        ...r,
-        [kTxnId]: nanoid(),
-        [kGroupId]: groupId,
-        [kAmount]: Math.round(diff * 100) / 100,
-        [kRaw]: `Other charges (${mc})`,
-        [kNotes]: (String(r[kRaw]||'') + ' | remainder').slice(0, 300),
-        [kParseStatus]: 'split_from_invoice',
-        [kParseError]: 'invoice item sum mismatch'
-      });
-    }
+    totalOut += out.length;
 
-    changed++;
+    const headers = Object.keys(rows[0] || out[0] || {});
+    if (!headers.includes('messageId')) headers.push('messageId');
+
+    const newWs = XLSX.utils.json_to_sheet(out, { header: headers });
+    wb.Sheets[sheetName] = newWs;
   }
 
-  const headers = Object.keys(rows[0] || out[0] || {});
-  const newWs = XLSX.utils.json_to_sheet(out, { header: headers });
-  wb.Sheets['Transactions'] = newWs;
-  if (!wb.SheetNames.includes('Transactions')) wb.SheetNames.unshift('Transactions');
   XLSX.writeFile(wb, filePath);
 
-  return { rows: rows.length, outRows: out.length, changed, ordersUsed: changed, ordersTotal: orders.length };
+  return { rows: totalIn, outRows: totalOut, changed, ordersUsed: changed, ordersTotal: orders.length, sheetsProcessed: sheets.length };
 }
 
 function main(){
