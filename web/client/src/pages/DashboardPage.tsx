@@ -3,6 +3,7 @@ import { apiGet, apiPost, apiPut } from '../api/client';
 import { loadRange, saveRange } from '../app/range';
 import { formatINR } from '../app/format';
 import { DailyLineChart, CategoryDoughnut, SimpleBarChart } from '../components/Charts';
+import { SearchSelect } from '../components/SearchSelect';
 
 type DataResp = { ok: true; stale: boolean; ageMs: number; data: any };
 
@@ -34,22 +35,18 @@ export default function DashboardPage() {
 
   const [editTxnOpen, setEditTxnOpen] = useState(false);
   const [editTxn, setEditTxn] = useState<any | null>(null);
-  const [editMerchant, setEditMerchant] = useState(''); // label (friendly or code)
-  const [editCategory, setEditCategory] = useState(''); // label (friendly or code)
-  const [editSubcategory, setEditSubcategory] = useState(''); // label (friendly or code)
+  const [editMerchant, setEditMerchant] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editSubcategory, setEditSubcategory] = useState('');
   const [editTags, setEditTags] = useState('');
   const [editNotes, setEditNotes] = useState('');
 
   function openEditTxn(r: any) {
     setEditTxn(r);
 
-    const mcode = String(r.merchant_code || '');
-    const ccode = String(r.category || '');
-    const scode = String(r.subcategory || '');
-
-    setEditMerchant(merchantOptions.find((m) => m.code === mcode)?.name || mcode);
-    setEditCategory(categoryOptions.find((c) => c.code === ccode)?.name || ccode);
-    setEditSubcategory(subcategoryOptions.find((s) => s.code === scode)?.name || scode);
+    setEditMerchant(String(r.merchant_code || ''));
+    setEditCategory(String(r.category || ''));
+    setEditSubcategory(String(r.subcategory || ''));
 
     setEditTags(String(r.tags || ''));
     setEditNotes(String(r.notes || ''));
@@ -626,46 +623,37 @@ export default function DashboardPage() {
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-[color:var(--hk-muted)]">Merchant</label>
-                <input className="mt-1 w-full hk-input" list="hk-merchant-datalist" value={editMerchant} onChange={(e) => setEditMerchant(e.target.value)} placeholder="Type to search…" />
-                <datalist id="hk-merchant-datalist">
-                  {merchantOptions.map((m) => (
-                    <option key={m.code} value={m.name} />
-                  ))}
-                </datalist>
+                <SearchSelect
+                  value={editMerchant}
+                  onChange={setEditMerchant}
+                  options={merchantOptions.map((m) => ({ value: m.code, label: `${m.code} — ${m.name}` }))}
+                  placeholder="(none)"
+                />
               </div>
               <div>
                 <label className="text-xs text-[color:var(--hk-muted)]">Category</label>
-                <input
-                  className="mt-1 w-full hk-input"
-                  list="hk-category-datalist"
+                <SearchSelect
                   value={editCategory}
-                  onChange={(e) => {
-                    const v = e.target.value;
+                  onChange={(v) => {
                     setEditCategory(v);
-                    // If subcategory doesn't belong anymore, clear it.
-                    const catCode = categoryOptions.find((c) => c.name === v)?.code || v;
-                    const ok = subcategoryOptions.some((s) => (s.name === editSubcategory || s.code === editSubcategory) && s.category === catCode);
+                    const ok = subcategoryOptions.some((s) => s.code === editSubcategory && s.category === v);
                     if (!ok) setEditSubcategory('');
                   }}
-                  placeholder="Type to search…"
+                  options={categoryOptions.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }))}
+                  placeholder="(none)"
                 />
-                <datalist id="hk-category-datalist">
-                  {categoryOptions.map((c) => (
-                    <option key={c.code} value={c.name} />
-                  ))}
-                </datalist>
               </div>
               <div>
                 <label className="text-xs text-[color:var(--hk-muted)]">Subcategory</label>
-                <input className="mt-1 w-full hk-input" list="hk-subcategory-datalist" value={editSubcategory} onChange={(e) => setEditSubcategory(e.target.value)} placeholder="Type to search…" />
-                <datalist id="hk-subcategory-datalist">
-                  {(() => {
-                    const catCode = categoryOptions.find((c) => c.name === editCategory)?.code || editCategory;
-                    return subcategoryOptions
-                      .filter((s) => !catCode || s.category === catCode)
-                      .map((s) => <option key={s.code} value={s.name} />);
-                  })()}
-                </datalist>
+                <SearchSelect
+                  value={editSubcategory}
+                  onChange={setEditSubcategory}
+                  options={subcategoryOptions
+                    .filter((s) => !editCategory || s.category === editCategory)
+                    .map((s) => ({ value: s.code, label: `${s.code} — ${s.name}` }))}
+                  placeholder="(none)"
+                  disabled={!editCategory}
+                />
               </div>
               <div>
                 <label className="text-xs text-[color:var(--hk-muted)]">Tags</label>
@@ -689,14 +677,10 @@ export default function DashboardPage() {
 
                     // 1) Save into Excel (job)
                     setBusy(true);
-                    const merchant_code = merchantOptions.find((m) => m.name === editMerchant)?.code || editMerchant;
-                    const category = categoryOptions.find((c) => c.name === editCategory)?.code || editCategory;
-                    const subcategory = subcategoryOptions.find((s) => s.name === editSubcategory)?.code || editSubcategory;
-
                     const r = await apiPut<{ ok: true; jobId: string }>(`/api/v1/txns/${encodeURIComponent(editTxn.txn_id)}`, {
-                      merchant_code,
-                      category,
-                      subcategory,
+                      merchant_code: editMerchant,
+                      category: editCategory,
+                      subcategory: editSubcategory,
                       tags: editTags,
                       notes: editNotes
                     });
