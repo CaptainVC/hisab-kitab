@@ -68,7 +68,7 @@ async function main() {
     const indexHtml = path.join(clientDist, 'index.html');
     app.setNotFoundHandler(async (req, reply) => {
       const url = String(req.url || '');
-      if (req.method === 'GET' && !url.startsWith('/api/') && fs.existsSync(indexHtml)) {
+      if ((req.method === 'GET' || req.method === 'HEAD') && !url.startsWith('/api/') && fs.existsSync(indexHtml)) {
         // Note: NotFound handlers default to 404; force 200 for SPA routes.
         reply.code(200);
         // Prefer sendFile (handles caching headers etc)
