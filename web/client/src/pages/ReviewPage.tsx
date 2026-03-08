@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost } from '../api/client';
-import { currentQuarterRange } from '../app/range';
+import { loadRange, saveRange } from '../app/range';
 
 type ReviewItem = {
   txn_id: string;
@@ -17,7 +17,7 @@ type ReviewItem = {
 type ItemsResp = { ok: true; count: number; items: ReviewItem[] };
 
 export default function ReviewPage() {
-  const def = useMemo(() => currentQuarterRange(), []);
+  const def = useMemo(() => loadRange(), []);
   const [from, setFrom] = useState(def.from);
   const [to, setTo] = useState(def.to);
 
@@ -58,11 +58,11 @@ export default function ReviewPage() {
         <div className="flex items-end gap-2">
           <div>
             <label className="text-xs text-zinc-400">From</label>
-            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={from} onChange={e => setFrom(e.target.value)} />
+            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={from} onChange={e => { const v = e.target.value; setFrom(v); saveRange({ from: v, to }); }} />
           </div>
           <div>
             <label className="text-xs text-zinc-400">To</label>
-            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={to} onChange={e => setTo(e.target.value)} />
+            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={to} onChange={e => { const v = e.target.value; setTo(v); saveRange({ from, to: v }); }} />
           </div>
           <button className="px-3 py-2 rounded-md bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50" disabled={busy} onClick={() => load().catch(() => {})}>
             {busy ? 'Loading…' : 'Load'}

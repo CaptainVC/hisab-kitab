@@ -10,3 +10,22 @@ export function currentQuarterRange(d = new Date()): Range {
   const endMonth = startMonth + 2;
   return { from: `${year}-${pad2(startMonth)}`, to: `${year}-${pad2(endMonth)}` };
 }
+
+const KEY = 'hk:range';
+
+export function loadRange(): Range {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const j = JSON.parse(raw);
+      if (j && typeof j.from === 'string' && typeof j.to === 'string') return { from: j.from, to: j.to };
+    }
+  } catch {}
+  return currentQuarterRange();
+}
+
+export function saveRange(r: Range) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(r));
+  } catch {}
+}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost } from '../api/client';
-import { currentQuarterRange } from '../app/range';
+import { loadRange, saveRange } from '../app/range';
 
 type Merchant = { code: string; name: string; archived?: boolean; default?: { category?: string; subcategory?: string; tags?: string[] } };
 
@@ -40,7 +40,7 @@ function TabBtn({ active, label, onClick }: { active: boolean; label: string; on
 }
 
 export default function RefsPage() {
-  const def = useMemo(() => currentQuarterRange(), []);
+  const def = useMemo(() => loadRange(), []);
   const [tab, setTab] = useState<Tab>('merchants');
 
   const [from, setFrom] = useState(def.from);
@@ -198,11 +198,11 @@ export default function RefsPage() {
         <div className="mt-4 flex items-end gap-2">
           <div>
             <label className="text-xs text-zinc-400">Coverage from</label>
-            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={from} onChange={e => setFrom(e.target.value)} />
+            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={from} onChange={e => { const v = e.target.value; setFrom(v); saveRange({ from: v, to }); }} />
           </div>
           <div>
             <label className="text-xs text-zinc-400">to</label>
-            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={to} onChange={e => setTo(e.target.value)} />
+            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={to} onChange={e => { const v = e.target.value; setTo(v); saveRange({ from, to: v }); }} />
           </div>
           <button className="px-3 py-2 rounded-md bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50" disabled={busy} onClick={() => refresh().catch(() => {})}>
             {busy ? 'Loading…' : 'Refresh'}

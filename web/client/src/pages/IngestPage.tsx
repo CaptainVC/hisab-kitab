@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost } from '../api/client';
-import { currentQuarterRange } from '../app/range';
+import { loadRange, saveRange } from '../app/range';
 
 type StartResp = { ok: true; jobId: string };
 
@@ -21,7 +21,7 @@ type JobResp = { ok: true; job: Job };
 type JobLogResp = { ok: true; offset: number; nextOffset: number; log: string };
 
 export default function IngestPage() {
-  const def = useMemo(() => currentQuarterRange(), []);
+  const def = useMemo(() => loadRange(), []);
   const [from, setFrom] = useState(def.from);
   const [to, setTo] = useState(def.to);
 
@@ -102,11 +102,11 @@ export default function IngestPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-zinc-400">From (YYYY-MM)</label>
-              <input className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={from} onChange={e => setFrom(e.target.value)} />
+              <input className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={from} onChange={e => { const v = e.target.value; setFrom(v); saveRange({ from: v, to }); }} />
             </div>
             <div>
               <label className="text-xs text-zinc-400">To (YYYY-MM)</label>
-              <input className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={to} onChange={e => setTo(e.target.value)} />
+              <input className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={to} onChange={e => { const v = e.target.value; setTo(v); saveRange({ from, to: v }); }} />
             </div>
             <div>
               <label className="text-xs text-zinc-400">Min confidence</label>
