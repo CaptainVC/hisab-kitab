@@ -44,40 +44,64 @@ export function SearchSelect({
   }, []);
 
   useEffect(() => {
-    if (!open) setQ('');
-    if (open) setTimeout(() => inputRef.current?.focus(), 0);
+    // When opening, seed query from current label so typing refines.
+    if (open) {
+      setQ(current ? current.label : '');
+      setTimeout(() => inputRef.current?.select(), 0);
+    } else {
+      setQ('');
+    }
   }, [open]);
+
+  const displayValue = open ? q : (current ? current.label : '');
 
   return (
     <div ref={ref} className="relative">
-      <button
-        type="button"
-        disabled={disabled}
-        className={`w-full ${className} flex items-center justify-between gap-2 ${disabled ? 'opacity-60' : ''}`}
-        onClick={() => setOpen((o) => !o)}
-      >
-        <span className={`truncate ${current ? '' : 'text-[color:var(--hk-muted)]'}`}>{current ? current.label : placeholder}</span>
-        <span className="text-[color:var(--hk-muted)]">▾</span>
-      </button>
+      {/* Combobox-style input: you can type directly into the main field (no extra search box). */}
+      <div className="relative">
+        <input
+          ref={inputRef}
+          disabled={disabled}
+          className={`w-full pr-8 ${className} ${disabled ? 'opacity-60' : ''}`}
+          value={displayValue}
+          placeholder={current ? undefined : placeholder}
+          onFocus={() => { if (!disabled) setOpen(true); }}
+          onChange={(e) => {
+            const v = e.target.value;
+            setQ(v);
+            setOpen(true);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setOpen(false);
+              setQ('');
+            }
+            if (e.key === 'ArrowDown') {
+              setOpen(true);
+            }
+          }}
+        />
+        <button
+          type="button"
+          disabled={disabled}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-[color:var(--hk-muted)]"
+          onClick={() => { if (!disabled) setOpen((o) => !o); }}
+          aria-label="Toggle"
+        >
+          ▾
+        </button>
+      </div>
 
       {open ? (
         <div className="absolute z-50 mt-1 w-full rounded border border-zinc-800 bg-zinc-950 shadow-xl overflow-hidden">
-          <div className="p-2 border-b border-zinc-800">
-            <input
-              ref={inputRef}
-              className="w-full hk-input"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Type to search…"
-            />
-          </div>
           <div className="max-h-72 overflow-auto">
             <button
               type="button"
-              className="w-full text-left px-3 py-2 hover:bg-white/5 text-[color:var(--hk-muted)]"
+              className={`w-full text-left px-3 py-2 hover:bg-white/5 ${value === '' ? 'bg-white/10' : ''} ${!placeholder ? 'hidden' : ''}`}
               onClick={() => {
                 onChange('');
                 setOpen(false);
+                setQ('');
               }}
             >
               {placeholder}
@@ -90,6 +114,7 @@ export function SearchSelect({
                 onClick={() => {
                   onChange(o.value);
                   setOpen(false);
+                  setQ('');
                 }}
               >
                 {o.label}
