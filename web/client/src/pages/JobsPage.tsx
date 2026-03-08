@@ -15,9 +15,12 @@ type JobsResp = { ok: true; jobs: Job[] };
 
 type JobLogResp = { ok: true; offset: number; nextOffset: number; log: string };
 
+type JobResp = { ok: true; job: any };
+
 export default function JobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [selectedJob, setSelectedJob] = useState<any | null>(null);
   const [log, setLog] = useState('');
   const [offset, setOffset] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -38,8 +41,15 @@ export default function JobsPage() {
 
   async function selectJob(jobId: string) {
     setSelectedJobId(jobId);
+    setSelectedJob(null);
     setLog('');
     setOffset(0);
+    try {
+      const jr = await apiGet<JobResp>(`/api/v1/jobs/${jobId}`);
+      setSelectedJob(jr.job);
+    } catch {
+      // ignore
+    }
   }
 
   async function pollLog() {
@@ -91,7 +101,10 @@ export default function JobsPage() {
                 <tr key={j.jobId} className={`border-t border-zinc-800 cursor-pointer ${selectedJobId === j.jobId ? 'bg-zinc-900/40' : 'hover:bg-zinc-900/30'}`} onClick={() => selectJob(j.jobId).catch(() => {})}>
                   <td className="px-3 py-2 text-xs text-zinc-400 whitespace-nowrap">{new Date(j.createdAt).toLocaleString()}</td>
                   <td className="px-3 py-2 font-mono text-xs">{j.type}</td>
-                  <td className="px-3 py-2">{j.status}</td>
+                  <td className="px-3 py-2">
+                    {j.status}
+                    {j.exitCode !== undefined ? <span className="text-xs text-zinc-500"> (code {j.exitCode})</span> : null}
+                  </td>
                 </tr>
               ))}
               {jobs.length === 0 ? (
@@ -102,8 +115,14 @@ export default function JobsPage() {
         </div>
 
         <div className="border border-zinc-800 rounded-lg p-3">
-          <div className="text-sm font-semibold">Log {selectedJobId ? <span className="font-mono text-xs text-zinc-400">({selectedJobId})</span> : null}</div>
-          <pre className="mt-2 text-xs overflow-auto max-h-[480px] whitespace-pre-wrap text-zinc-300">{selectedJobId ? (log || '(loading...)') : '(select a job)'}</pre>
+          <div className="text-sm font-semibold">Job details {selectedJobId ? <span className="font-mono text-xs text-zinc-400">({selectedJobId})</span> : null}</div>
+          {selectedJob ? (
+            <pre className="mt-2 text-xs overflow-auto max-h-[160px] whitespace-pre-wrap text-zinc-300">{JSON.stringify(selectedJob.params || {}, null, 2)}</pre>
+          ) : (
+            <div className="mt-2 text-xs text-zinc-500">(select a job)</div>
+          )}
+          <div className="mt-3 text-sm font-semibold">Log</div>
+          <pre className="mt-2 text-xs overflow-auto max-h-[300px] whitespace-pre-wrap text-zinc-300">{selectedJobId ? (log || '(loading...)') : '(select a job)'}</pre>
         </div>
       </div>
     </div>
