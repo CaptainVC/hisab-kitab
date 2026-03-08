@@ -557,10 +557,11 @@ export default function DashboardPage() {
                 <SimpleBarChart
                   labels={top.map(x => x[0])}
                   values={top.map(x => Math.round(x[1]))}
-                  height={220}
+                  height={Math.max(260, top.length * 28)}
                   label="Expense"
                   indexAxis="y"
-                  tickMax={10}
+                  tickMax={50}
+                  showValueLabels
                   formatValue={(v) => formatINR(v)}
                   onBarClick={(label) => {
                     setFType('EXPENSE');
@@ -588,9 +589,11 @@ export default function DashboardPage() {
                 <SimpleBarChart
                   labels={top.map(x => x[0])}
                   values={top.map(x => x[1])}
-                  height={220}
+                  height={Math.max(260, top.length * 28)}
                   label="Txns"
-                  tickMax={6}
+                  indexAxis="y"
+                  tickMax={50}
+                  showValueLabels
                   formatValue={(v) => String(Math.round(v))}
                   onBarClick={(label) => { setFSource(label); setPage(1); }}
                 />
