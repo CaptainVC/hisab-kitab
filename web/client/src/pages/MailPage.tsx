@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { apiGet } from '../api/client';
+import { apiGet, apiPost } from '../api/client';
 import { loadRange, saveRange } from '../app/range';
 import { formatINR } from '../app/format';
 
@@ -23,6 +23,7 @@ export default function MailPage() {
   const [data, setData] = useState<StatsResp | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [bufferDays, setBufferDays] = useState(2);
 
   async function load() {
     setBusy(true);
@@ -65,11 +66,11 @@ export default function MailPage() {
         <div className="flex items-end gap-2">
           <div>
             <label className="text-xs text-[color:var(--hk-muted)]">From</label>
-            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={from} onChange={e => { const v = e.target.value; setFrom(v); saveRange({ from: v, to }); }} />
+            <input className="block mt-1 hk-input" value={from} onChange={e => { const v = e.target.value; setFrom(v); saveRange({ from: v, to }); }} />
           </div>
           <div>
             <label className="text-xs text-[color:var(--hk-muted)]">To</label>
-            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={to} onChange={e => { const v = e.target.value; setTo(v); saveRange({ from, to: v }); }} />
+            <input className="block mt-1 hk-input" value={to} onChange={e => { const v = e.target.value; setTo(v); saveRange({ from, to: v }); }} />
           </div>
           <button className="px-3 py-2 hk-btn-primary disabled:opacity-50" disabled={busy} onClick={() => load().catch(() => {})}>
             {busy ? 'Loading…' : 'Load'}
@@ -78,6 +79,35 @@ export default function MailPage() {
       </div>
 
       {err ? <div className="mt-3 text-sm text-red-400">{err}</div> : null}
+
+      <div className="mt-4 p-4 hk-card">
+        <div className="text-sm font-semibold">Ingest from mail (orders → Excel)</div>
+        <div className="mt-1 text-xs text-[color:var(--hk-muted)]">Best-effort categorization (unknown → SHOP_MISC). Dedupe uses date±buffer and amount tolerance.</div>
+        <div className="mt-3 flex items-end gap-2 flex-wrap">
+          <div>
+            <label className="text-xs text-[color:var(--hk-muted)]">Buffer days</label>
+            <input className="block mt-1 hk-input w-24" type="number" value={bufferDays} onChange={(e) => setBufferDays(Number(e.target.value))} />
+          </div>
+          <button
+            className="hk-btn-primary disabled:opacity-50"
+            disabled={busy}
+            onClick={async () => {
+              try {
+                setBusy(true);
+                setErr(null);
+                const r = await apiPost<{ ok: true; jobId: string }>('/api/v1/mail/ingestOrders', { from, to, bufferDays });
+                alert(`Started mail ingest job ${r.jobId}. Check Jobs page for progress.`);
+              } catch (e: any) {
+                setErr(String(e?.message || e));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Run mail ingest
+          </button>
+        </div>
+      </div>
 
       {data ? (
         <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -11,6 +11,7 @@ function monthRangeToMs(fromYm, toYm) {
     return { start, endExclusive };
 }
 export async function registerMailRoutes(app, opts) {
+    // Stats view
     app.get('/api/v1/mail/stats', async (req, reply) => {
         if (!requireAuth(req, reply))
             return;
@@ -90,6 +91,35 @@ export async function registerMailRoutes(app, opts) {
             byPaymentSource,
             recentPayments
         });
+    });
+    // Ingest mail-derived orders into Excel (item-level) with best-effort categorization.
+    app.post('/api/v1/mail/ingestOrders', async (req, reply) => {
+        if (!requireAuth(req, reply))
+            return;
+        const body = (req.body || {});
+        const from = String(body.from || '');
+        const to = String(body.to || '');
+        const bufferDays = Number(body.bufferDays ?? 2);
+        if (!from || !to)
+            return reply.code(400).send({ ok: false, error: 'missing_range' });
+        const script = path.join(opts.repoDir, 'web', 'server', 'dist', 'scripts', 'ingest_orders_to_excel.js');
+        const args = [
+            script,
+            '--base-dir', opts.baseDir,
+            '--from', from,
+            '--to', to,
+            '--buffer-days', String(bufferDays),
+            '--tol', '2'
+        ];
+        try {
+            const job = await opts.runner.startJob('mailIngestOrders', { from, to, bufferDays }, process.execPath, args, { cwd: opts.repoDir });
+            return reply.send({ ok: true, jobId: job.jobId });
+        }
+        catch (e) {
+            if (String(e?.message || e) === 'job_already_running')
+                return reply.code(409).send({ ok: false, error: 'job_already_running' });
+            return reply.code(500).send({ ok: false, error: 'start_failed', detail: String(e?.message || e) });
+        }
     });
 }
 //# sourceMappingURL=mail.js.map

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { apiGet, apiPost } from '../api/client';
+import { apiGet, apiPost, apiPut } from '../api/client';
 import { loadRange, saveRange } from '../app/range';
 import { formatINR } from '../app/format';
 import { DailyLineChart, CategoryDoughnut, SimpleBarChart } from '../components/Charts';
@@ -27,6 +27,24 @@ export default function DashboardPage() {
   const [lastJobId, setLastJobId] = useState<string | null>(null);
   const [meta, setMeta] = useState<{ stale: boolean; ageMs: number; generatedAt?: string } | null>(null);
   const [rows, setRows] = useState<any[]>([]);
+
+  const [editTxnOpen, setEditTxnOpen] = useState(false);
+  const [editTxn, setEditTxn] = useState<any | null>(null);
+  const [editMerchant, setEditMerchant] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editSubcategory, setEditSubcategory] = useState('');
+  const [editTags, setEditTags] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+
+  function openEditTxn(r: any) {
+    setEditTxn(r);
+    setEditMerchant(String(r.merchant_code || ''));
+    setEditCategory(String(r.category || ''));
+    setEditSubcategory(String(r.subcategory || ''));
+    setEditTags(String(r.tags || ''));
+    setEditNotes(String(r.notes || ''));
+    setEditTxnOpen(true);
+  }
 
   async function loadData() {
     try {
@@ -512,6 +530,70 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {editTxnOpen ? (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" onClick={() => setEditTxnOpen(false)}>
+          <div className="w-full max-w-lg hk-card p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold">Edit transaction</div>
+                <div className="text-xs text-[color:var(--hk-faint)] font-mono">{editTxn?.txn_id}</div>
+              </div>
+              <button className="text-[color:var(--hk-muted)] hover:text-white" onClick={() => setEditTxnOpen(false)}>✕</button>
+            </div>
+
+            <div className="mt-3 text-sm text-[color:var(--hk-muted)]">{editTxn ? `${editTxn.date} • ${formatINR(editTxn.amount)} • ${editTxn.raw_text || ''}` : ''}</div>
+
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-[color:var(--hk-muted)]">Merchant code</label>
+                <input className="mt-1 w-full hk-input" value={editMerchant} onChange={(e) => setEditMerchant(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-xs text-[color:var(--hk-muted)]">Category</label>
+                <input className="mt-1 w-full hk-input" value={editCategory} onChange={(e) => setEditCategory(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-xs text-[color:var(--hk-muted)]">Subcategory</label>
+                <input className="mt-1 w-full hk-input" value={editSubcategory} onChange={(e) => setEditSubcategory(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-xs text-[color:var(--hk-muted)]">Tags</label>
+                <input className="mt-1 w-full hk-input" value={editTags} onChange={(e) => setEditTags(e.target.value)} />
+              </div>
+            </div>
+            <div className="mt-3">
+              <label className="text-xs text-[color:var(--hk-muted)]">Notes</label>
+              <input className="mt-1 w-full hk-input" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button className="hk-btn-secondary" onClick={() => setEditTxnOpen(false)}>Cancel</button>
+              <button
+                className="hk-btn-primary"
+                onClick={async () => {
+                  try {
+                    if (!editTxn?.txn_id) return;
+                    const r = await apiPut<{ ok: true; jobId: string }>(`/api/v1/txns/${encodeURIComponent(editTxn.txn_id)}`, {
+                      merchant_code: editMerchant,
+                      category: editCategory,
+                      subcategory: editSubcategory,
+                      tags: editTags,
+                      notes: editNotes
+                    });
+                    alert(`Edit queued as job ${r.jobId}. After it finishes, run Rebuild to refresh the dashboard cache.`);
+                    setEditTxnOpen(false);
+                  } catch (e: any) {
+                    setErr(String(e?.message || e));
+                  }
+                }}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="mt-6">
         <div className="flex items-end justify-between gap-3 flex-wrap">
           <h2 className="text-sm font-semibold text-zinc-200">Transactions</h2>
@@ -551,7 +633,16 @@ export default function DashboardPage() {
                   <td className="px-3 py-2">{r.type}</td>
                   <td className="px-3 py-2 text-right">{formatINR(r.amount)}</td>
                   <td className="px-3 py-2">{r.merchant_name || r.merchant_code || ''}</td>
-                  <td className="px-3 py-2">{r.category_name || r.category || ''}</td>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span>{r.category_name || r.category || ''}</span>
+                      {String(r.subcategory || '') === 'SHOP_MISC' ? (
+                        <button className="hk-btn-secondary px-2 py-1 text-xs" onClick={() => openEditTxn(r)}>
+                          Edit
+                        </button>
+                      ) : null}
+                    </div>
+                  </td>
                   <td className="px-3 py-2">{r.subcategory_name || r.subcategory || ''}</td>
                   <td className="px-3 py-2">{r.notes}</td>
                 </tr>
