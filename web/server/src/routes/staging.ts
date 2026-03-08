@@ -60,4 +60,29 @@ export async function registerStagingRoutes(app: FastifyInstance, opts: { runner
       return reply.code(500).send({ ok: false, error: 'start_failed', detail: String(e?.message || e) });
     }
   });
+
+  // Commit edited parsed rows (job): append rows directly to Excel using workbook_store
+  app.post('/api/v1/staging/commitRows', async (req, reply) => {
+    if (!requireAuth(req, reply)) return;
+    const body = (req.body || {}) as any;
+    const rows = body.rows;
+    if (!Array.isArray(rows) || rows.length === 0) return reply.code(400).send({ ok: false, error: 'missing_rows' });
+
+    fs.mkdirSync(opts.stagingDir, { recursive: true });
+    const fp = path.join(opts.stagingDir, `staging_rows_${Date.now()}.json`);
+    fs.writeFileSync(fp, JSON.stringify(rows, null, 2), 'utf8');
+
+    const script = path.join(opts.repoDir, 'web', 'server', 'dist', 'scripts', 'staging_commit_rows.js');
+    const args = [script, '--base-dir', opts.baseDir, '--rows-file', fp];
+
+    try {
+      const job = await opts.runner.startJob('stageCommitRows', { rowsFile: fp }, process.execPath, args, { cwd: opts.repoDir });
+      return reply.send({ ok: true, jobId: job.jobId, rowsFile: fp });
+    } catch (e: any) {
+      if (String(e?.message || e) === 'job_already_running') {
+        return reply.code(409).send({ ok: false, error: 'job_already_running' });
+      }
+      return reply.code(500).send({ ok: false, error: 'start_failed', detail: String(e?.message || e) });
+    }
+  });
 }

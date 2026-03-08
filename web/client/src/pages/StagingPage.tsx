@@ -57,7 +57,7 @@ export default function StagingPage() {
     throw new Error(`${label}_timeout`);
   }
 
-  async function doCommit(rebuildAfter: boolean) {
+  async function doCommitText(rebuildAfter: boolean) {
     setBusy(true);
     setErr(null);
     try {
@@ -66,6 +66,32 @@ export default function StagingPage() {
       setJobId(r.jobId);
       setJobLog((t) => t + `[stageCommit] job ${r.jobId}\n`);
       await pollJob(r.jobId, 'stageCommit');
+
+      if (rebuildAfter) {
+        const rb = await apiPost<{ ok: true; jobId: string }>('/api/v1/rebuild', { from, to });
+        setJobId(rb.jobId);
+        setJobLog((t) => t + `\n[rebuild] job ${rb.jobId} (range ${from}..${to})\n`);
+        await pollJob(rb.jobId, 'rebuild');
+      }
+    } catch (e: any) {
+      setErr(String(e?.message || e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doCommitRows(rebuildAfter: boolean) {
+    setBusy(true);
+    setErr(null);
+    try {
+      setJobLog('');
+      const r = await apiPost<{ ok: true; jobId: string }>(
+        '/api/v1/staging/commitRows',
+        { rows: parseRows }
+      );
+      setJobId(r.jobId);
+      setJobLog((t) => t + `[stageCommitRows] job ${r.jobId}\n`);
+      await pollJob(r.jobId, 'stageCommitRows');
 
       if (rebuildAfter) {
         const rb = await apiPost<{ ok: true; jobId: string }>('/api/v1/rebuild', { from, to });
@@ -113,11 +139,14 @@ export default function StagingPage() {
             <button className="px-3 py-2 rounded-md bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50" disabled={busy || !text.trim()} onClick={() => doParse()}>
               {busy ? 'Working…' : 'Parse preview'}
             </button>
-            <button className="px-3 py-2 rounded-md bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50" disabled={busy || !text.trim()} onClick={() => doCommit(false)}>
-              Commit to Excel
+            <button className="px-3 py-2 rounded-md bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50" disabled={busy || !text.trim()} onClick={() => doCommitText(false)}>
+              Commit text
             </button>
-            <button className="px-3 py-2 rounded-md bg-emerald-500 text-emerald-950 font-semibold disabled:opacity-50" disabled={busy || !text.trim()} onClick={() => doCommit(true)}>
-              Commit + rebuild cache
+            <button className="px-3 py-2 rounded-md bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50" disabled={busy || parseRows.length === 0} onClick={() => doCommitRows(false)}>
+              Commit edited rows
+            </button>
+            <button className="px-3 py-2 rounded-md bg-emerald-500 text-emerald-950 font-semibold disabled:opacity-50" disabled={busy || parseRows.length === 0} onClick={() => doCommitRows(true)}>
+              Commit rows + rebuild cache
             </button>
           </div>
         </div>
@@ -149,10 +178,21 @@ export default function StagingPage() {
                     <td className="px-2 py-1 whitespace-nowrap">{r.date}</td>
                     <td className="px-2 py-1 text-right">{formatINR(r.amount)}</td>
                     <td className="px-2 py-1">{r.source}</td>
-                    <td className="px-2 py-1">{r.merchant_code}</td>
-                    <td className="px-2 py-1">{r.category}</td>
-                    <td className="px-2 py-1">{r.subcategory}</td>
-                    <td className="px-2 py-1">{r.notes}</td>
+                    <td className="px-2 py-1">
+                      <input className="w-28 px-1 py-0.5 rounded bg-zinc-950 border border-zinc-800" value={r.merchant_code || ''} onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, merchant_code: e.target.value } : it))} />
+                    </td>
+                    <td className="px-2 py-1">
+                      <input className="w-24 px-1 py-0.5 rounded bg-zinc-950 border border-zinc-800" value={r.category || ''} onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, category: e.target.value } : it))} />
+                    </td>
+                    <td className="px-2 py-1">
+                      <input className="w-28 px-1 py-0.5 rounded bg-zinc-950 border border-zinc-800" value={r.subcategory || ''} onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, subcategory: e.target.value } : it))} />
+                      <div className="mt-1">
+                        <input className="w-28 px-1 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-[11px]" value={r.tags || ''} placeholder="tags" onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, tags: e.target.value } : it))} />
+                      </div>
+                    </td>
+                    <td className="px-2 py-1">
+                      <input className="w-40 px-1 py-0.5 rounded bg-zinc-950 border border-zinc-800" value={r.notes || ''} onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, notes: e.target.value } : it))} />
+                    </td>
                   </tr>
                 ))}
                 {parseRows.length === 0 ? (

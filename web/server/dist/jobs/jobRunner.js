@@ -59,7 +59,8 @@ export class JobRunner {
             const out = fs.openSync(logFile, 'a');
             const child = spawn(command, args, {
                 stdio: ['ignore', out, out],
-                env: { ...process.env, ...(options?.env || {}) }
+                env: { ...process.env, ...(options?.env || {}) },
+                cwd: options?.cwd
             });
             child.on('exit', (code) => {
                 try {

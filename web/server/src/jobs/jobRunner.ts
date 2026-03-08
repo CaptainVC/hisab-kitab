@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { nanoid } from 'nanoid';
 import { writeJson, readJson } from '../storage/jsonStore.js';
 
-export type JobType = 'ingest' | 'rebuild' | 'stageCommit';
+export type JobType = 'ingest' | 'rebuild' | 'stageCommit' | 'stageCommitRows';
 
 export type JobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'canceled';
 
@@ -54,7 +54,13 @@ export class JobRunner {
     return readJson<JobRecord | null>(fp, null);
   }
 
-  async startJob(type: JobType, params: any, command: string, args: string[], options?: { env?: Record<string, string> }): Promise<JobRecord> {
+  async startJob(
+    type: JobType,
+    params: any,
+    command: string,
+    args: string[],
+    options?: { env?: Record<string, string>; cwd?: string }
+  ): Promise<JobRecord> {
     if (this.running && this.running.status === 'running') {
       throw new Error('job_already_running');
     }
@@ -82,7 +88,8 @@ export class JobRunner {
       const out = fs.openSync(logFile, 'a');
       const child = spawn(command, args, {
         stdio: ['ignore', out, out],
-        env: { ...process.env, ...(options?.env || {}) }
+        env: { ...process.env, ...(options?.env || {}) },
+        cwd: options?.cwd
       });
       child.on('exit', (code) => {
         try { fs.closeSync(out); } catch {}
