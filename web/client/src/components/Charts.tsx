@@ -166,18 +166,25 @@ export function SimpleBarChart({
     id: 'hk_value_labels',
     afterDatasetsDraw: (chart: any) => {
       if (!showValueLabels) return;
-      const { ctx } = chart;
+      const { ctx, chartArea } = chart;
       const meta = chart.getDatasetMeta(0);
       if (!meta || !meta.data) return;
       ctx.save();
-      ctx.fillStyle = 'rgba(255,255,255,0.72)';
-      ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.78)';
+      ctx.font = '11px system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
       ctx.textBaseline = 'middle';
 
       meta.data.forEach((bar: any, i: number) => {
         const v = Number(values[i] ?? 0);
         const txt = formatValue ? formatValue(v) : String(v);
-        const x = bar.x + 8;
+        const w = ctx.measureText(txt).width;
+
+        // Place near the bar end, but keep inside chart area to avoid clipping.
+        let x = bar.x + 8;
+        const maxX = chartArea.right - w - 4;
+        if (x > maxX) x = maxX;
+        if (x < chartArea.left + 4) x = chartArea.left + 4;
+
         const y = bar.y;
         ctx.fillText(txt, x, y);
       });

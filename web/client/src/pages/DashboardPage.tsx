@@ -523,19 +523,24 @@ export default function DashboardPage() {
 
         <div className="p-4 hk-card">
           <div className="text-sm font-semibold">Top categories (click to filter)</div>
-          <div className="mt-2 h-[220px]">
-            <SimpleBarChart
-              labels={topCats.map(x => x[0])}
-              values={topCats.map(x => Math.round(x[1]))}
-              height={Math.max(260, topCats.length * 28)}
-              label="Expense"
-              indexAxis="y"
-              tickMax={50}
-              showValueLabels
-              formatValue={(v) => formatINR(v)}
-              onBarClick={(label) => { setFCategory(label); setFSubcategory(''); setPage(1); }}
-            />
-          </div>
+          {(() => {
+            const h = Math.max(260, topCats.length * 28);
+            return (
+              <div className="mt-2" style={{ height: h }}>
+                <SimpleBarChart
+                  labels={topCats.map(x => x[0])}
+                  values={topCats.map(x => Math.round(x[1]))}
+                  height={h}
+                  label="Expense"
+                  indexAxis="y"
+                  tickMax={100}
+                  showValueLabels
+                  formatValue={(v) => formatINR(v)}
+                  onBarClick={(label) => { setFCategory(label); setFSubcategory(''); setPage(1); }}
+                />
+              </div>
+            );
+          })()}
         </div>
 
         <div className="p-4 hk-card">
