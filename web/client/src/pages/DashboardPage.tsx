@@ -195,6 +195,24 @@ export default function DashboardPage() {
                 <option key={t} value={t}>{t}</option>
               ))}
             </select>
+            <div className="mt-2 flex gap-2">
+              <button
+                className={`px-2 py-1 rounded border border-zinc-800 text-xs ${fType===''?'bg-zinc-800':'bg-zinc-900 hover:bg-zinc-800'}`}
+                onClick={() => setFType('')}
+              >All</button>
+              <button
+                className={`px-2 py-1 rounded border border-zinc-800 text-xs ${fType==='EXPENSE'?'bg-zinc-800':'bg-zinc-900 hover:bg-zinc-800'}`}
+                onClick={() => setFType('EXPENSE')}
+              >Expense</button>
+              <button
+                className={`px-2 py-1 rounded border border-zinc-800 text-xs ${fType==='INCOME'?'bg-zinc-800':'bg-zinc-900 hover:bg-zinc-800'}`}
+                onClick={() => setFType('INCOME')}
+              >Income</button>
+              <button
+                className={`px-2 py-1 rounded border border-zinc-800 text-xs ${fType==='TRANSFER'?'bg-zinc-800':'bg-zinc-900 hover:bg-zinc-800'}`}
+                onClick={() => setFType('TRANSFER')}
+              >Transfer</button>
+            </div>
           </div>
           <div>
             <label className="text-xs text-zinc-400">Source</label>
