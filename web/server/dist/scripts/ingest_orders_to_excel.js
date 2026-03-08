@@ -1,5 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
 function getArg(args, name) {
     const i = args.indexOf(name);
     if (i === -1)
@@ -96,17 +98,20 @@ async function main() {
     catch {
         existing = [];
     }
-    // Build lookup: date -> list of {amount, merchant_code}
+    // Build lookup: date -> list of existing txns (for dedupe/cross-ref)
     const byDate = new Map();
     for (const r of existing) {
         const d = String(r?.date || '');
         const amt = Number(r?.amount || 0);
+        const type = String(r?.type || '');
         const merch = String(r?.merchant_code || '');
+        const source = String(r?.source || '');
+        const txn_id = String(r?.txn_id || '');
         if (!d || !amt)
             continue;
         if (!byDate.has(d))
             byDate.set(d, []);
-        byDate.get(d).push({ amount: amt, merchant: merch.toUpperCase() });
+        byDate.get(d).push({ txn_id, amount: amt, type, merchant: merch.toUpperCase(), source });
     }
     const withinBuffer = (d0, d1) => {
         const t0 = Date.parse(d0 + 'T00:00:00Z');
@@ -116,19 +121,19 @@ async function main() {
         const days = Math.abs(t0 - t1) / (24 * 60 * 60 * 1000);
         return days <= bufferDays;
     };
-    const alreadyLogged = (dateIso, merchant, amount) => {
+    const findMatch = (dateIso, amount) => {
         // check any date within buffer
         for (const [d, list] of byDate.entries()) {
             if (!withinBuffer(d, dateIso))
                 continue;
             for (const x of list) {
-                if (x.merchant && merchant && x.merchant !== merchant.toUpperCase())
+                if (String(x.type || '').toUpperCase() !== 'EXPENSE')
                     continue;
                 if (Math.abs(Number(x.amount) - amount) <= tol)
-                    return true;
+                    return x;
             }
         }
-        return false;
+        return null;
     };
     const outRows = [];
     let considered = 0;
@@ -149,9 +154,10 @@ async function main() {
         if (!items.length)
             continue;
         considered++;
-        // Dedupe based on total (best-effort)
+        // Dedupe/cross-ref based on total (best-effort). If a matching Hisab expense exists, skip importing.
         const total = Number(o?.total || 0) || items.reduce((s, it) => s + it.amount, 0);
-        if (alreadyLogged(date, merchant, total)) {
+        const match = findMatch(date, total);
+        if (match) {
             skippedDup++;
             continue;
         }
@@ -188,13 +194,12 @@ async function main() {
         'beneficiary', 'reimb_status', 'counterparty', 'linked_txn_id', 'notes', 'raw_text', 'parse_status', 'parse_error',
         'messageId'
     ];
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // CommonJS module
     const { storeAppend } = require(path.join(process.cwd(), 'src', 'excel', 'workbook_store'));
     const outputs = storeAppend({ baseDir, headers, rows: outRows });
     // Auto rebuild dashboard cache for the same range (so UI updates without manual rebuild).
     const outJsonRel = path.join('cache', `hisab_data_${from}_${to}.json`);
     const outHtmlRel = path.join('cache', `hisab_dashboard_${from}_${to}.html`);
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { spawnSync } = require('node:child_process');
     const dashScript = path.join(process.cwd(), 'src', 'dashboard', 'build_dashboard.js');
     const dash = spawnSync(process.execPath, [dashScript, baseDir, outJsonRel, outHtmlRel], { encoding: 'utf8' });
