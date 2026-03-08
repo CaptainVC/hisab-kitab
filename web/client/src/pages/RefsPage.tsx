@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { apiGet, apiPost } from '../api/client';
+import { apiGet, apiPost, apiPut } from '../api/client';
 import { loadRange, saveRange } from '../app/range';
 
 type Merchant = { code: string; name: string; archived?: boolean; default?: { category?: string; subcategory?: string; tags?: string[] } };
@@ -124,7 +124,7 @@ export default function RefsPage() {
 
   async function saveEditMerchant() {
     if (!editCode) return;
-    await apiPost(`/api/v1/refs/merchants/${encodeURIComponent(editCode)}`, {
+    await apiPut(`/api/v1/refs/merchants/${encodeURIComponent(editCode)}`, {
       name: editName,
       default: {
         category: editCategory,
@@ -146,7 +146,7 @@ export default function RefsPage() {
     const cur = categories.find(x => x.code === code);
     const name = prompt(`Rename ${code} to:`, cur?.name || code);
     if (name === null) return;
-    await apiPost(`/api/v1/refs/categories/${encodeURIComponent(code)}`, { name });
+    await apiPut(`/api/v1/refs/categories/${encodeURIComponent(code)}`, { name });
     await refresh();
   }
 
@@ -160,7 +160,7 @@ export default function RefsPage() {
     const cur = subcategories.find(x => x.code === code);
     const name = prompt(`Rename ${code} to:`, cur?.name || code);
     if (name === null) return;
-    await apiPost(`/api/v1/refs/subcategories/${encodeURIComponent(code)}`, { name });
+    await apiPut(`/api/v1/refs/subcategories/${encodeURIComponent(code)}`, { name });
     await refresh();
   }
 
@@ -168,13 +168,49 @@ export default function RefsPage() {
     const cur = subcategories.find(x => x.code === code);
     const cat = prompt(`Set category code for ${code}:`, cur?.category || '');
     if (cat === null) return;
-    await apiPost(`/api/v1/refs/subcategories/${encodeURIComponent(code)}`, { category: cat });
+    await apiPut(`/api/v1/refs/subcategories/${encodeURIComponent(code)}`, { category: cat });
     await refresh();
   }
 
   async function archiveSubcategory(code: string) {
     if (!confirm(`Archive subcategory ${code}?`)) return;
     await apiPost(`/api/v1/refs/subcategories/${encodeURIComponent(code)}/archive`, {});
+    await refresh();
+  }
+
+  async function addMerchant() {
+    const code = prompt('New merchant code (unique):', '');
+    if (!code) return;
+    const c = code.trim();
+    if (!c) return;
+    // Create with defaults via existing edit modal
+    if (!merchants.find((m) => m.code === c)) {
+      setMerchants((xs) => [...xs, { code: c, name: c } as any]);
+    }
+    openEditMerchant(c);
+  }
+
+  async function addCategory() {
+    const code = prompt('New category code:', '');
+    if (!code) return;
+    const c = code.trim();
+    if (!c) return;
+    const name = prompt(`Name for ${c}:`, c) ?? '';
+    if (name === null) return;
+    await apiPut(`/api/v1/refs/categories/${encodeURIComponent(c)}`, { name });
+    await refresh();
+  }
+
+  async function addSubcategory() {
+    const code = prompt('New subcategory code:', '');
+    if (!code) return;
+    const c = code.trim();
+    if (!c) return;
+    const name = prompt(`Name for ${c}:`, c) ?? '';
+    if (name === null) return;
+    const cat = prompt(`Parent category code for ${c}:`, '') ?? '';
+    if (cat === null) return;
+    await apiPut(`/api/v1/refs/subcategories/${encodeURIComponent(c)}`, { name, category: cat.trim() });
     await refresh();
   }
 
@@ -200,6 +236,9 @@ export default function RefsPage() {
 
       {tab === 'merchants' ? (
         <div className="mt-4 flex items-end gap-2 flex-wrap">
+          <button className="px-3 py-2 rounded-md bg-emerald-500 text-emerald-950 font-semibold" onClick={() => addMerchant().catch(() => {})}>
+            + Merchant
+          </button>
           <div>
             <label className="text-xs text-zinc-400">Search merchants</label>
             <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800 w-64" value={merchantQuery} onChange={e => setMerchantQuery(e.target.value)} placeholder="code or name" />
@@ -225,6 +264,24 @@ export default function RefsPage() {
             <label className="text-xs text-zinc-400">to</label>
             <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={to} onChange={e => { const v = e.target.value; setTo(v); saveRange({ from, to: v }); }} />
           </div>
+          <button className="px-3 py-2 rounded-md bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50" disabled={busy} onClick={() => refresh().catch(() => {})}>
+            {busy ? 'Loading…' : 'Refresh'}
+          </button>
+        </div>
+      ) : tab === 'categories' ? (
+        <div className="mt-4 flex items-center gap-2">
+          <button className="px-3 py-2 rounded-md bg-emerald-500 text-emerald-950 font-semibold" onClick={() => addCategory().catch(() => {})}>
+            + Category
+          </button>
+          <button className="px-3 py-2 rounded-md bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50" disabled={busy} onClick={() => refresh().catch(() => {})}>
+            {busy ? 'Loading…' : 'Refresh'}
+          </button>
+        </div>
+      ) : tab === 'subcategories' ? (
+        <div className="mt-4 flex items-center gap-2">
+          <button className="px-3 py-2 rounded-md bg-emerald-500 text-emerald-950 font-semibold" onClick={() => addSubcategory().catch(() => {})}>
+            + Subcategory
+          </button>
           <button className="px-3 py-2 rounded-md bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50" disabled={busy} onClick={() => refresh().catch(() => {})}>
             {busy ? 'Loading…' : 'Refresh'}
           </button>
