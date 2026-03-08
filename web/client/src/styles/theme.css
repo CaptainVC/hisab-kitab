@@ -46,7 +46,8 @@
   .hk-card { @apply border rounded-lg; border-color: var(--hk-border); background: var(--hk-panel); }
   .hk-card-elev { @apply border rounded-lg; border-color: var(--hk-border); background: var(--hk-panel-2); }
 
-  .hk-table-head { background: rgba(255,255,255,0.03); color: var(--hk-muted); }
+  .hk-table-head { background: var(--hk-panel); color: var(--hk-muted); }
+  .hk-table-head th { background: var(--hk-panel); }
 
   .hk-input { @apply rounded border px-2 py-1; background: rgba(255,255,255,0.03); border-color: var(--hk-border); color: var(--hk-text); color-scheme: dark; }
   .hk-input:focus { outline: none; box-shadow: 0 0 0 3px var(--hk-focus); border-color: rgba(218,165,32,0.55); }
