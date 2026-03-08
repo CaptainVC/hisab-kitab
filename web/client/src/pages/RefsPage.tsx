@@ -522,21 +522,21 @@ export default function RefsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-[color:var(--hk-muted)]">Default category</label>
-                  <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={editCategory} onChange={(e) => setEditCategory(e.target.value)}>
-                    <option value="">(none)</option>
+                  <input className="mt-1 w-full hk-input" list="hk-ref-cat" value={editCategory} onChange={(e) => { setEditCategory(e.target.value); setEditSubcategory(''); }} placeholder="(none)" />
+                  <datalist id="hk-ref-cat">
                     {categories.filter(c => !c.archived).map(c => (
-                      <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
+                      <option key={c.code} value={c.code} />
                     ))}
-                  </select>
+                  </datalist>
                 </div>
                 <div>
                   <label className="text-xs text-[color:var(--hk-muted)]">Default subcategory</label>
-                  <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={editSubcategory} onChange={(e) => setEditSubcategory(e.target.value)}>
-                    <option value="">(none)</option>
+                  <input className="mt-1 w-full hk-input" list="hk-ref-sub" value={editSubcategory} onChange={(e) => setEditSubcategory(e.target.value)} placeholder="(none)" />
+                  <datalist id="hk-ref-sub">
                     {subcategories.filter(s => !s.archived && (!editCategory || s.category === editCategory)).map(s => (
-                      <option key={s.code} value={s.code}>{s.code} — {s.name}</option>
+                      <option key={s.code} value={s.code} />
                     ))}
-                  </select>
+                  </datalist>
                 </div>
               </div>
 
@@ -578,21 +578,21 @@ export default function RefsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs text-[color:var(--hk-muted)]">Default category</label>
-                    <select className="mt-1 w-full hk-input" value={addMerchantCategory} onChange={(e) => { setAddMerchantCategory(e.target.value); setAddMerchantSubcategory(''); }}>
-                      <option value="">(none)</option>
+                    <input className="mt-1 w-full hk-input" list="hk-add-merchant-cat" value={addMerchantCategory} onChange={(e) => { setAddMerchantCategory(e.target.value); setAddMerchantSubcategory(''); }} placeholder="(none)" />
+                    <datalist id="hk-add-merchant-cat">
                       {categories.filter(c => !c.archived).map(c => (
-                        <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
+                        <option key={c.code} value={c.code} />
                       ))}
-                    </select>
+                    </datalist>
                   </div>
                   <div>
                     <label className="text-xs text-[color:var(--hk-muted)]">Default subcategory</label>
-                    <select className="mt-1 w-full hk-input" value={addMerchantSubcategory} onChange={(e) => setAddMerchantSubcategory(e.target.value)}>
-                      <option value="">(none)</option>
+                    <input className="mt-1 w-full hk-input" list="hk-add-merchant-sub" value={addMerchantSubcategory} onChange={(e) => setAddMerchantSubcategory(e.target.value)} placeholder="(none)" />
+                    <datalist id="hk-add-merchant-sub">
                       {subcategories.filter(s => !s.archived && (!addMerchantCategory || s.category === addMerchantCategory)).map(s => (
-                        <option key={s.code} value={s.code}>{s.code} — {s.name}</option>
+                        <option key={s.code} value={s.code} />
                       ))}
-                    </select>
+                    </datalist>
                   </div>
                 </div>
                 <div>
@@ -627,12 +627,12 @@ export default function RefsPage() {
                 </div>
                 <div>
                   <label className="text-xs text-[color:var(--hk-muted)]">Parent category</label>
-                  <select className="mt-1 w-full hk-input" value={addSubCategory} onChange={(e) => setAddSubCategory(e.target.value)}>
-                    <option value="">(select)</option>
+                  <input className="mt-1 w-full hk-input" list="hk-add-sub-parent" value={addSubCategory} onChange={(e) => setAddSubCategory(e.target.value)} placeholder="(select)" />
+                  <datalist id="hk-add-sub-parent">
                     {categories.filter(c => !c.archived).map(c => (
-                      <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
+                      <option key={c.code} value={c.code} />
                     ))}
-                  </select>
+                  </datalist>
                 </div>
               </div>
             ) : null}

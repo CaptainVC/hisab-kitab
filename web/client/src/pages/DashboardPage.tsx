@@ -338,12 +338,12 @@ export default function DashboardPage() {
             <div className="mt-3 grid grid-cols-1 gap-3">
           <div>
             <label className="text-xs text-[color:var(--hk-muted)]">Type</label>
-            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={fType} onChange={(e) => setFType(e.target.value)}>
-              <option value="">(all)</option>
+            <input className="mt-1 w-full hk-input" list="hk-filter-type" value={fType} onChange={(e) => setFType(e.target.value)} placeholder="(all)" />
+            <datalist id="hk-filter-type">
               {Array.from(new Set(rows.map((r:any)=>r.type))).filter(Boolean).sort().map((t) => (
-                <option key={t} value={t}>{t}</option>
+                <option key={t} value={t} />
               ))}
-            </select>
+            </datalist>
             <div className="mt-2 flex gap-2">
               <button
                 className={`px-2 py-1 rounded border [var(--hk-border)] text-xs ${fType===''?'bg-zinc-800':'hk-btn-secondary'}`}
@@ -365,24 +365,24 @@ export default function DashboardPage() {
           </div>
           <div>
             <label className="text-xs text-[color:var(--hk-muted)]">Source</label>
-            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={fSource} onChange={(e) => setFSource(e.target.value)}>
-              <option value="">(all)</option>
-              {Array.from(new Set(rows.filter((r:any)=>!r.messageId).map((r:any)=>r.source_name || r.source)))
+            <input className="mt-1 w-full hk-input" list="hk-filter-source" value={fSource} onChange={(e) => setFSource(e.target.value)} placeholder="(all)" />
+            <datalist id="hk-filter-source">
+              {Array.from(new Set(rows.map((r:any)=> (r.messageId ? 'Mail' : (r.source_name || r.source)) )))
                 .filter(Boolean)
                 .sort()
                 .map((s) => (
-                  <option key={s} value={s}>{s}</option>
+                  <option key={s} value={s} />
                 ))}
-            </select>
+            </datalist>
           </div>
           <div>
             <label className="text-xs text-[color:var(--hk-muted)]">Location</label>
-            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={fLocation} onChange={(e) => setFLocation(e.target.value)}>
-              <option value="">(all)</option>
+            <input className="mt-1 w-full hk-input" list="hk-filter-location" value={fLocation} onChange={(e) => setFLocation(e.target.value)} placeholder="(all)" />
+            <datalist id="hk-filter-location">
               {Array.from(new Set(rows.map((r:any)=>r.location_name || r.location))).filter(Boolean).sort().map((l) => (
-                <option key={l} value={l}>{l}</option>
+                <option key={l} value={l} />
               ))}
-            </select>
+            </datalist>
           </div>
           <div>
             <label className="text-xs text-[color:var(--hk-muted)]">Tags (any)</label>
@@ -419,30 +419,30 @@ export default function DashboardPage() {
           </div>
           <div>
             <label className="text-xs text-[color:var(--hk-muted)]">Merchant</label>
-            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={fMerchant} onChange={(e) => setFMerchant(e.target.value)}>
-              <option value="">(all)</option>
+            <input className="mt-1 w-full hk-input" list="hk-filter-merchant" value={fMerchant} onChange={(e) => setFMerchant(e.target.value)} placeholder="(all)" />
+            <datalist id="hk-filter-merchant">
               {Array.from(new Set(rows.map((r:any)=>r.merchant_name || r.merchant_code).filter(Boolean))).sort().map((m) => (
-                <option key={m} value={m}>{m}</option>
+                <option key={m} value={m} />
               ))}
-            </select>
+            </datalist>
           </div>
           <div>
             <label className="text-xs text-[color:var(--hk-muted)]">Category</label>
-            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={fCategory} onChange={(e) => { setFCategory(e.target.value); setFSubcategory(''); }}>
-              <option value="">(all)</option>
+            <input className="mt-1 w-full hk-input" list="hk-filter-category" value={fCategory} onChange={(e) => { setFCategory(e.target.value); setFSubcategory(''); }} placeholder="(all)" />
+            <datalist id="hk-filter-category">
               {Array.from(new Set(rows.map((r:any)=>r.category_name || r.category).filter(Boolean))).sort().map((c) => (
-                <option key={c} value={c}>{c}</option>
+                <option key={c} value={c} />
               ))}
-            </select>
+            </datalist>
           </div>
           <div>
             <label className="text-xs text-[color:var(--hk-muted)]">Subcategory</label>
-            <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]" value={fSubcategory} onChange={(e) => setFSubcategory(e.target.value)}>
-              <option value="">(all)</option>
+            <input className="mt-1 w-full hk-input" list="hk-filter-subcategory" value={fSubcategory} onChange={(e) => setFSubcategory(e.target.value)} placeholder="(all)" />
+            <datalist id="hk-filter-subcategory">
               {Array.from(new Set(rows.filter((r:any)=>!fCategory || (r.category_name||r.category)===fCategory || r.category===fCategory).map((r:any)=>r.subcategory_name || r.subcategory).filter(Boolean))).sort().map((s) => (
-                <option key={s} value={s}>{s}</option>
+                <option key={s} value={s} />
               ))}
-            </select>
+            </datalist>
           </div>
           <div className="flex items-end">
             <button className="w-full px-3 py-2 rounded-md hk-btn-secondary" onClick={() => { setFDate(''); setFType(''); setFSource(''); setFLocation(''); setFMerchant(''); setFCategory(''); setFSubcategory(''); setFTags([]); setPage(1); }}>

@@ -148,7 +148,19 @@ export default function ReviewPage() {
     <div>
       <datalist id="hk_merchants">
         {merchRefs.map((m) => (
-          <option key={m.code} value={m.code}>{m.code} — {m.name}</option>
+          <option key={m.code} value={m.code} />
+        ))}
+      </datalist>
+
+      <datalist id="hk_categories">
+        {catRefs.map((c) => (
+          <option key={c.code} value={c.code} />
+        ))}
+      </datalist>
+
+      <datalist id="hk_subcategories">
+        {subRefs.map((s) => (
+          <option key={s.code} value={s.code} />
         ))}
       </datalist>
       <div className="flex items-end justify-between gap-4 flex-wrap">
@@ -225,9 +237,11 @@ export default function ReviewPage() {
                   />
                 </td>
                 <td className="px-3 py-2">
-                  <select
+                  <input
+                    list="hk_categories"
                     className="w-40 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)]"
                     value={(editing[x.txn_id]?.category ?? x.category) || ''}
+                    placeholder="Category"
                     onChange={(e) =>
                       setEditing((m) => ({
                         ...m,
@@ -239,12 +253,7 @@ export default function ReviewPage() {
                         }
                       }))
                     }
-                  >
-                    <option value="">(select)</option>
-                    {catRefs.map((c) => (
-                      <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
-                    ))}
-                  </select>
+                  />
                 </td>
                 <td className="px-3 py-2">
                   {(() => {
@@ -253,10 +262,12 @@ export default function ReviewPage() {
                     const opts = subRefs.filter((s) => s.category === cat);
                     return (
                       <>
-                        <select
+                        <input
+                          list="hk_subcategories"
                           className="w-44 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)] disabled:opacity-50"
                           disabled={!cat}
                           value={subVal}
+                          placeholder="Subcategory"
                           onChange={(e) =>
                             setEditing((m) => ({
                               ...m,
@@ -268,12 +279,7 @@ export default function ReviewPage() {
                               }
                             }))
                           }
-                        >
-                          <option value="">(select)</option>
-                          {opts.map((s) => (
-                            <option key={s.code} value={s.code}>{s.code} — {s.name}</option>
-                          ))}
-                        </select>
+                        />
                         <div className="mt-1">
                           <input
                             className="w-44 px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)] text-xs"
