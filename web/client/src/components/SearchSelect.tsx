@@ -94,10 +94,10 @@ export function SearchSelect({
 
       {open ? (
         <div className="absolute z-50 mt-1 w-full rounded border border-zinc-800 bg-zinc-950 shadow-xl overflow-hidden">
-          <div className="max-h-72 overflow-auto">
+          <div className="max-h-[420px] overflow-y-auto overflow-x-hidden">
             <button
               type="button"
-              className={`w-full text-left px-3 py-2 hover:bg-white/5 ${value === '' ? 'bg-white/10' : ''} ${!placeholder ? 'hidden' : ''}`}
+              className={`w-full text-left px-3 py-2 hover:bg-white/5 truncate ${value === '' ? 'bg-white/10' : ''} ${!placeholder ? 'hidden' : ''}`}
               onClick={() => {
                 onChange('');
                 setOpen(false);
@@ -110,7 +110,7 @@ export function SearchSelect({
               <button
                 key={o.value}
                 type="button"
-                className={`w-full text-left px-3 py-2 hover:bg-white/5 ${o.value === value ? 'bg-white/10' : ''}`}
+                className={`w-full text-left px-3 py-2 hover:bg-white/5 truncate ${o.value === value ? 'bg-white/10' : ''}`}
                 onClick={() => {
                   onChange(o.value);
                   setOpen(false);
