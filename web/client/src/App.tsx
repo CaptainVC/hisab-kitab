@@ -55,7 +55,8 @@ export default function App() {
       <header className="border-b border-zinc-800">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="font-semibold">Hisab Kitab</div>
-          <nav className="flex gap-2">
+          <div className="flex items-center gap-3">
+            <nav className="flex gap-2">
             <TabLink to="/dashboard" label="Dashboard" />
             <TabLink to="/review" label="Needs Review" />
             <TabLink to="/mail" label="Mail Stats" />
@@ -64,7 +65,20 @@ export default function App() {
             <TabLink to="/refs" label="Refs" />
             <TabLink to="/jobs" label="Jobs" />
             <TabLink to="/settings" label="Settings" />
-          </nav>
+            </nav>
+            <button
+              className="px-3 py-2 rounded-md text-sm text-zinc-300 hover:bg-zinc-900"
+              onClick={async () => {
+                try {
+                  await fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'include' });
+                } finally {
+                  window.location.href = '/';
+                }
+              }}
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
