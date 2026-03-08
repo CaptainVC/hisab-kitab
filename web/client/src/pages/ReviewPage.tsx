@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost } from '../api/client';
 import { loadRange, saveRange } from '../app/range';
+import { formatINR } from '../app/format';
 
 type ReviewItem = {
   txn_id: string;
@@ -89,7 +90,7 @@ export default function ReviewPage() {
             {items.map((x) => (
               <tr key={x.txn_id} className="border-t border-zinc-800">
                 <td className="px-3 py-2 whitespace-nowrap">{x.date}</td>
-                <td className="px-3 py-2 text-right">{x.amount}</td>
+                <td className="px-3 py-2 text-right">{formatINR(x.amount)}</td>
                 <td className="px-3 py-2">{x.merchant}</td>
                 <td className="px-3 py-2">{x.category}</td>
                 <td className="px-3 py-2">{x.subcategory}</td>

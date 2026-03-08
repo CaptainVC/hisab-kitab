@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost } from '../api/client';
 import { loadRange, saveRange } from '../app/range';
+import { formatINR } from '../app/format';
 import { DailyLineChart, CategoryDoughnut } from '../components/Charts';
 
 type DataResp = { ok: true; stale: boolean; ageMs: number; data: any };
@@ -292,7 +293,7 @@ export default function DashboardPage() {
                     .map(([k, v]) => (
                       <tr key={k} className="border-t border-zinc-800">
                         <td className="px-3 py-2">{k}</td>
-                        <td className="px-3 py-2 text-right">{Math.round(v)}</td>
+                        <td className="px-3 py-2 text-right">{formatINR(v)}</td>
                       </tr>
                     ));
                 })()}
@@ -324,7 +325,7 @@ export default function DashboardPage() {
                     .map(([k, v]) => (
                       <tr key={k} className="border-t border-zinc-800">
                         <td className="px-3 py-2">{k}</td>
-                        <td className="px-3 py-2 text-right">{Math.round(v)}</td>
+                        <td className="px-3 py-2 text-right">{formatINR(v)}</td>
                       </tr>
                     ));
                 })()}
@@ -354,7 +355,7 @@ export default function DashboardPage() {
                 <tr key={r.txn_id} className="border-t border-zinc-800">
                   <td className="px-3 py-2 whitespace-nowrap">{r.date}</td>
                   <td className="px-3 py-2">{r.type}</td>
-                  <td className="px-3 py-2 text-right">{r.amount}</td>
+                  <td className="px-3 py-2 text-right">{formatINR(r.amount)}</td>
                   <td className="px-3 py-2">{r.merchant_name || r.merchant_code || ''}</td>
                   <td className="px-3 py-2">{r.category_name || r.category || ''}</td>
                   <td className="px-3 py-2">{r.subcategory_name || r.subcategory || ''}</td>

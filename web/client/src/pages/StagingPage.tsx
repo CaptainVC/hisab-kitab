@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { apiGet, apiPost } from '../api/client';
+import { formatINR } from '../app/format';
 
 type ParseResp = { ok: true; dryRun: true; imported: number; rows: any[]; errors: any[] };
 
@@ -110,7 +111,7 @@ export default function StagingPage() {
                 {parseRows.slice(0, 200).map((r) => (
                   <tr key={r.txn_id} className="border-t border-zinc-800">
                     <td className="px-2 py-1 whitespace-nowrap">{r.date}</td>
-                    <td className="px-2 py-1 text-right">{r.amount}</td>
+                    <td className="px-2 py-1 text-right">{formatINR(r.amount)}</td>
                     <td className="px-2 py-1">{r.source}</td>
                     <td className="px-2 py-1">{r.merchant_code}</td>
                     <td className="px-2 py-1">{r.category}</td>

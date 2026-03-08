@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiGet } from '../api/client';
 import { loadRange, saveRange } from '../app/range';
+import { formatINR } from '../app/format';
 
 type StatsResp = {
   ok: true;
@@ -139,7 +140,7 @@ export default function MailPage() {
                   <td className="px-3 py-2 text-xs text-zinc-400 whitespace-nowrap">{new Date(p.internalDateMs).toLocaleString()}</td>
                   <td className="px-3 py-2 font-mono text-xs">{p.source}</td>
                   <td className="px-3 py-2">{p.subject}</td>
-                  <td className="px-3 py-2 text-right">{p.amount}</td>
+                  <td className="px-3 py-2 text-right">{formatINR(p.amount)}</td>
                 </tr>
               ))}
             </tbody>
