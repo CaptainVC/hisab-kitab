@@ -1,7 +1,12 @@
 export async function apiGet<T>(url: string): Promise<T> {
   const res = await fetch(url, { credentials: 'include' });
-  const j = await res.json();
-  if (!res.ok) throw new Error(j?.error || 'request_failed');
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(j?.error || 'request_failed');
+    (err as any).data = j;
+    (err as any).status = res.status;
+    throw err;
+  }
   return j as T;
 }
 
@@ -12,7 +17,12 @@ export async function apiPost<T>(url: string, body: any): Promise<T> {
     body: JSON.stringify(body ?? {}),
     credentials: 'include'
   });
-  const j = await res.json();
-  if (!res.ok) throw new Error(j?.error || 'request_failed');
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(j?.error || 'request_failed');
+    (err as any).data = j;
+    (err as any).status = res.status;
+    throw err;
+  }
   return j as T;
 }

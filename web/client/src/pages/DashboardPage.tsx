@@ -22,6 +22,8 @@ export default function DashboardPage() {
   const [to, setTo] = useState(def.to);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [cacheFile, setCacheFile] = useState<string | null>(null);
+  const [lastJobId, setLastJobId] = useState<string | null>(null);
   const [meta, setMeta] = useState<{ stale: boolean; ageMs: number; generatedAt?: string } | null>(null);
   const [rows, setRows] = useState<any[]>([]);
 
@@ -31,11 +33,13 @@ export default function DashboardPage() {
       setMeta({ stale: r.stale, ageMs: r.ageMs, generatedAt: r.data?.generatedAt });
       setRows(Array.isArray(r.data?.rows) ? r.data.rows : []);
       setErr(null);
+      setCacheFile(null);
     } catch (e: any) {
       // If cache missing, surface it and keep UI usable.
       setMeta(null);
       setRows([]);
       setErr(String(e?.message || e));
+      setCacheFile((e as any)?.data?.cacheFile || null);
       throw e;
     }
   }
@@ -45,6 +49,8 @@ export default function DashboardPage() {
     setErr(null);
     try {
       const { jobId } = await apiPost<RebuildResp>('/api/v1/rebuild', { from, to });
+      setLastJobId(jobId);
+      try { localStorage.setItem(`hk:lastRebuildJob:${from}:${to}`, jobId); } catch {}
       // poll job
       for (let i = 0; i < 60; i++) {
         const jr = await apiGet<JobResp>(`/api/v1/jobs/${jobId}`);
@@ -61,6 +67,11 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
+    try {
+      const j = localStorage.getItem(`hk:lastRebuildJob:${from}:${to}`);
+      if (j) setLastJobId(j);
+    } catch {}
+
     // try load if cache exists; ignore errors
     loadData().catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -123,8 +134,14 @@ export default function DashboardPage() {
       </div>
 
       {cacheMissing ? (
-        <div className="mt-3 p-3 border border-yellow-800 rounded bg-yellow-950/20 text-yellow-200 text-sm">
-          Cache is missing for this range. Click <b>Rebuild</b> to generate it.
+        <div className="mt-3 p-3 border border-yellow-800 rounded bg-yellow-950/20 text-yellow-200 text-sm space-y-1">
+          <div>Cache is missing for this range. Click <b>Rebuild</b> to generate it.</div>
+          {cacheFile ? <div className="text-xs text-yellow-200/80 font-mono">Expected: {cacheFile}</div> : null}
+          {lastJobId ? (
+            <div className="text-xs text-yellow-200/80">
+              Last rebuild job: <span className="font-mono">{lastJobId}</span> (see <a className="underline" href="/ingest">Ingest</a> → jobs)
+            </div>
+          ) : null}
         </div>
       ) : err ? (
         <div className="mt-3 text-sm text-red-400">{err}</div>
