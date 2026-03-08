@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { apiGet, apiPost } from '../api/client';
 import { formatINR } from '../app/format';
+import { loadRange, saveRange } from '../app/range';
 
 type ParseResp = { ok: true; dryRun: true; imported: number; rows: any[]; errors: any[] };
 
@@ -11,6 +12,10 @@ type JobLogResp = { ok: true; offset: number; nextOffset: number; log: string };
 type JobResp = { ok: true; job: { status: string } };
 
 export default function StagingPage() {
+  const def = useMemo(() => loadRange(), []);
+  const [from, setFrom] = useState(def.from);
+  const [to, setTo] = useState(def.to);
+
   const [text, setText] = useState('');
   const [parseRows, setParseRows] = useState<any[]>([]);
   const [parseErrors, setParseErrors] = useState<any[]>([]);
@@ -19,7 +24,6 @@ export default function StagingPage() {
 
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobLog, setJobLog] = useState('');
-  const [jobOffset, setJobOffset] = useState(0);
 
   async function doParse() {
     setBusy(true);
@@ -35,24 +39,39 @@ export default function StagingPage() {
     }
   }
 
-  async function doCommit() {
+  async function pollJob(id: string, label: string) {
+    let offset = 0;
+    for (let i = 0; i < 600; i++) {
+      const lr = await apiGet<JobLogResp>(`/api/v1/jobs/${id}/log?offset=${offset}`);
+      if (lr.log) setJobLog((t) => t + (t ? '' : '') + lr.log);
+      offset = lr.nextOffset;
+
+      const jr = await apiGet<JobResp>(`/api/v1/jobs/${id}`);
+      if (jr.job.status === 'succeeded') {
+        setJobLog((t) => t + `\n[${label}] succeeded\n`);
+        return;
+      }
+      if (jr.job.status === 'failed') throw new Error(`${label}_failed`);
+      await new Promise((res) => setTimeout(res, 1000));
+    }
+    throw new Error(`${label}_timeout`);
+  }
+
+  async function doCommit(rebuildAfter: boolean) {
     setBusy(true);
     setErr(null);
     try {
+      setJobLog('');
       const r = await apiPost<CommitResp>('/api/v1/staging/commit', { text });
       setJobId(r.jobId);
-      setJobLog('');
-      setJobOffset(0);
-      // simple poll loop
-      for (let i = 0; i < 120; i++) {
-        const lr = await apiGet<JobLogResp>(`/api/v1/jobs/${r.jobId}/log?offset=${jobOffset}`);
-        if (lr.log) setJobLog((t) => t + lr.log);
-        setJobOffset(lr.nextOffset);
+      setJobLog((t) => t + `[stageCommit] job ${r.jobId}\n`);
+      await pollJob(r.jobId, 'stageCommit');
 
-        const jr = await apiGet<JobResp>(`/api/v1/jobs/${r.jobId}`);
-        if (jr.job.status === 'succeeded') break;
-        if (jr.job.status === 'failed') throw new Error('commit_failed');
-        await new Promise(res => setTimeout(res, 1000));
+      if (rebuildAfter) {
+        const rb = await apiPost<{ ok: true; jobId: string }>('/api/v1/rebuild', { from, to });
+        setJobId(rb.jobId);
+        setJobLog((t) => t + `\n[rebuild] job ${rb.jobId} (range ${from}..${to})\n`);
+        await pollJob(rb.jobId, 'rebuild');
       }
     } catch (e: any) {
       setErr(String(e?.message || e));
@@ -63,8 +82,22 @@ export default function StagingPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold">Staging</h1>
-      <p className="text-zinc-400 mt-1">Paste a /hisab block. Parse preview first, then commit to Excel.</p>
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-xl font-semibold">Staging</h1>
+          <p className="text-zinc-400 mt-1">Paste a /hisab block. Parse preview first, then commit to Excel.</p>
+        </div>
+        <div className="flex items-end gap-2">
+          <div>
+            <label className="text-xs text-zinc-400">Rebuild from</label>
+            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={from} onChange={(e) => { const v = e.target.value; setFrom(v); saveRange({ from: v, to }); }} />
+          </div>
+          <div>
+            <label className="text-xs text-zinc-400">Rebuild to</label>
+            <input className="block mt-1 px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={to} onChange={(e) => { const v = e.target.value; setTo(v); saveRange({ from, to: v }); }} />
+          </div>
+        </div>
+      </div>
 
       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="p-4 border border-zinc-800 rounded-lg">
@@ -80,8 +113,11 @@ export default function StagingPage() {
             <button className="px-3 py-2 rounded-md bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50" disabled={busy || !text.trim()} onClick={() => doParse()}>
               {busy ? 'Working…' : 'Parse preview'}
             </button>
-            <button className="px-3 py-2 rounded-md bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50" disabled={busy || !text.trim()} onClick={() => doCommit()}>
+            <button className="px-3 py-2 rounded-md bg-zinc-100 text-zinc-950 font-medium disabled:opacity-50" disabled={busy || !text.trim()} onClick={() => doCommit(false)}>
               Commit to Excel
+            </button>
+            <button className="px-3 py-2 rounded-md bg-emerald-500 text-emerald-950 font-semibold disabled:opacity-50" disabled={busy || !text.trim()} onClick={() => doCommit(true)}>
+              Commit + rebuild cache
             </button>
           </div>
         </div>
