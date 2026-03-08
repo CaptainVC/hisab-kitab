@@ -30,10 +30,19 @@ export async function registerReviewRoutes(app: FastifyInstance, opts: { cacheDi
 
     const st = loadReviewState(opts.reviewStateFile);
 
-    const items = rows
+    const candidates = rows
       .map((r: any) => ({ row: r, reason: needsReview(r) }))
       .filter((x: any) => !!x.reason)
-      .filter((x: any) => !st.resolvedTxnIds?.[x.row.txn_id])
+      .filter((x: any) => !st.resolvedTxnIds?.[x.row.txn_id]);
+
+    const oldestDate = candidates.reduce((min: string | null, x: any) => {
+      const d = x?.row?.date ? String(x.row.date) : '';
+      if (!d) return min;
+      if (!min) return d;
+      return d < min ? d : min;
+    }, null);
+
+    const items = candidates
       .slice(0, 500)
       .map((x: any) => ({
         txn_id: x.row.txn_id,
@@ -48,7 +57,7 @@ export async function registerReviewRoutes(app: FastifyInstance, opts: { cacheDi
         raw: x.row
       }));
 
-    return reply.send({ ok: true, count: items.length, items });
+    return reply.send({ ok: true, count: items.length, oldestDate, items });
   });
 
   app.post('/api/v1/review/resolve', async (req, reply) => {

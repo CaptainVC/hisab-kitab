@@ -80,6 +80,8 @@ export default function DashboardPage() {
 
   const cacheMissing = err === 'cache_missing';
 
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
   const [fType, setFType] = useState<string>('');
   const [fSource, setFSource] = useState<string>('');
   const [fLocation, setFLocation] = useState<string>('');
@@ -192,9 +194,23 @@ export default function DashboardPage() {
         <div className="mt-3 text-sm text-red-400">{err}</div>
       ) : null}
 
-      <div className="mt-6 p-4 border border-zinc-800 rounded-lg">
-        <div className="text-sm font-semibold">Filters</div>
-        <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="mt-6 flex items-center justify-between">
+        <div className="text-sm text-zinc-400">Filters</div>
+        <button className="px-3 py-2 rounded-md bg-zinc-800 hover:bg-zinc-700" onClick={() => setFiltersOpen(true)}>
+          Open filters
+        </button>
+      </div>
+
+      {filtersOpen ? (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setFiltersOpen(false)} />
+          <div className="absolute left-0 top-0 h-full w-[320px] md:w-[380px] bg-zinc-950 border-r border-zinc-800 p-4 overflow-auto">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold">Filters</div>
+              <button className="text-zinc-400 hover:text-white" onClick={() => setFiltersOpen(false)}>✕</button>
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 gap-3">
           <div>
             <label className="text-xs text-zinc-400">Type</label>
             <select className="mt-1 w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-800" value={fType} onChange={(e) => setFType(e.target.value)}>
@@ -306,8 +322,19 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
-        <div className="mt-3 text-xs text-zinc-500">Showing {filteredRows.length} / {rows.length} transactions (filters). Transactions table paginates.</div>
-      </div>
+
+            <div className="mt-4">
+              <button className="w-full px-3 py-2 rounded-md bg-zinc-800 hover:bg-zinc-700" onClick={() => setFiltersOpen(false)}>
+                Close
+              </button>
+            </div>
+
+            <div className="mt-3 text-xs text-zinc-500">Showing {filteredRows.length} / {rows.length} transactions</div>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-3 text-xs text-zinc-500">Showing {filteredRows.length} / {rows.length} transactions (filters). Transactions table paginates.</div>
 
       <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="p-4 border border-zinc-800 rounded-lg md:col-span-2">

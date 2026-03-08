@@ -27,10 +27,19 @@ export async function registerReviewRoutes(app, opts) {
         const data = JSON.parse(fs.readFileSync(fp, 'utf8'));
         const rows = Array.isArray(data?.rows) ? data.rows : [];
         const st = loadReviewState(opts.reviewStateFile);
-        const items = rows
+        const candidates = rows
             .map((r) => ({ row: r, reason: needsReview(r) }))
             .filter((x) => !!x.reason)
-            .filter((x) => !st.resolvedTxnIds?.[x.row.txn_id])
+            .filter((x) => !st.resolvedTxnIds?.[x.row.txn_id]);
+        const oldestDate = candidates.reduce((min, x) => {
+            const d = x?.row?.date ? String(x.row.date) : '';
+            if (!d)
+                return min;
+            if (!min)
+                return d;
+            return d < min ? d : min;
+        }, null);
+        const items = candidates
             .slice(0, 500)
             .map((x) => ({
             txn_id: x.row.txn_id,
@@ -44,7 +53,7 @@ export async function registerReviewRoutes(app, opts) {
             reason: x.reason,
             raw: x.row
         }));
-        return reply.send({ ok: true, count: items.length, items });
+        return reply.send({ ok: true, count: items.length, oldestDate, items });
     });
     app.post('/api/v1/review/resolve', async (req, reply) => {
         if (!requireAuth(req, reply))

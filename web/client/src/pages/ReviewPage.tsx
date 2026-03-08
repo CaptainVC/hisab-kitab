@@ -15,7 +15,7 @@ type ReviewItem = {
   reason: string;
 };
 
-type ItemsResp = { ok: true; count: number; items: ReviewItem[] };
+type ItemsResp = { ok: true; count: number; oldestDate?: string | null; items: ReviewItem[] };
 
 export default function ReviewPage() {
   const def = useMemo(() => loadRange(), []);
@@ -23,6 +23,7 @@ export default function ReviewPage() {
   const [to, setTo] = useState(def.to);
 
   const [items, setItems] = useState<ReviewItem[]>([]);
+  const [oldestDate, setOldestDate] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -36,6 +37,7 @@ export default function ReviewPage() {
     try {
       const r = await apiGet<ItemsResp>(`/api/v1/review/items?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
       setItems(r.items);
+      setOldestDate((r.oldestDate as any) ?? null);
     } catch (e: any) {
       setErr(String(e?.message || e));
     } finally {
@@ -102,6 +104,7 @@ export default function ReviewPage() {
         <div>
           <h1 className="text-xl font-semibold">Needs Review</h1>
           <p className="text-zinc-400 mt-1">Auto-generated list: parse errors + missing category/subcategory (excluding resolved).</p>
+          <div className="mt-1 text-xs text-zinc-500">Oldest pending item: {oldestDate || '—'}</div>
         </div>
         <div className="flex items-end gap-2">
           <div>
