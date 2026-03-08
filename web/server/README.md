@@ -19,10 +19,23 @@ HK_COOKIE_SECRET='...' HK_BIND_HOST=127.0.0.1 HK_BASE_DIR=~/HisabKitab \
   node dist/scripts/set_password.js
 ```
 
+## Build (client + server)
+
+```bash
+./web/scripts/build_web.sh
+```
+
 ## Run
 
 ```bash
 cd web/server
-npm run build
 HK_COOKIE_SECRET='...' HK_BIND_HOST=127.0.0.1 HK_BASE_DIR=~/HisabKitab node dist/index.js
+```
+
+## systemd
+
+```bash
+./web/scripts/restart_web.sh
+# logs
+journalctl --user -u hisab-kitab-web.service -f
 ```
