@@ -356,8 +356,12 @@ export default function DashboardPage() {
           <button className="px-3 py-2 rounded-md hk-btn-secondary" onClick={() => { setFDate(''); setFType(''); setFSource(''); setFLocation(''); setFMerchant(''); setFCategory(''); setFSubcategory(''); setFTags([]); setPage(1); }}>
             Clear filters
           </button>
-          <button className="px-3 py-2 rounded-md hk-btn-secondary" onClick={() => setFiltersOpen(true)}>
-            Open filters
+          <button
+            className="px-3 py-2 rounded-md hk-btn-secondary"
+            title="Open filters"
+            onClick={() => setFiltersOpen(true)}
+          >
+            ›
           </button>
         </div>
       </div>
