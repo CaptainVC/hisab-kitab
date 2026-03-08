@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost } from '../api/client';
 import { currentQuarterRange } from '../app/range';
 
-type Merchant = { code: string; name: string; archived?: boolean };
+type Merchant = { code: string; name: string; archived?: boolean; default?: { category?: string; subcategory?: string; tags?: string[] } };
 
 type Category = { code: string; name: string; archived?: boolean };
 
@@ -96,11 +96,28 @@ export default function RefsPage() {
     }
   }
 
-  async function renameMerchant(code: string) {
+  async function editMerchant(code: string) {
     const cur = merchants.find(x => x.code === code);
-    const name = prompt(`Rename ${code} to:`, cur?.name || code);
+    const name = prompt(`Merchant name for ${code}:`, cur?.name || code);
     if (name === null) return;
-    await apiPost(`/api/v1/refs/merchants/${encodeURIComponent(code)}`, { name });
+
+    const defaultCategory = prompt(`Default category code for ${code} (blank to keep):`, cur?.default?.category || '');
+    if (defaultCategory === null) return;
+
+    const defaultSubcategory = prompt(`Default subcategory code for ${code} (blank to keep):`, cur?.default?.subcategory || '');
+    if (defaultSubcategory === null) return;
+
+    const tagsCsv = prompt(`Default tags CSV for ${code} (blank to keep):`, (cur?.default?.tags || []).join(','));
+    if (tagsCsv === null) return;
+
+    const payload: any = { name };
+    payload.default = {
+      category: defaultCategory,
+      subcategory: defaultSubcategory,
+      tags: tagsCsv.trim() ? tagsCsv.split(',').map(s => s.trim()).filter(Boolean) : []
+    };
+
+    await apiPost(`/api/v1/refs/merchants/${encodeURIComponent(code)}`, payload);
     await refresh();
   }
 
@@ -197,6 +214,7 @@ export default function RefsPage() {
               <tr>
                 <th className="text-left px-3 py-2">Code</th>
                 <th className="text-left px-3 py-2">Name</th>
+                <th className="text-left px-3 py-2">Default</th>
                 <th className="text-left px-3 py-2">Email support</th>
                 <th className="text-right px-3 py-2">Emails seen</th>
                 <th className="text-left px-3 py-2">Last email</th>
@@ -211,13 +229,16 @@ export default function RefsPage() {
                   <tr key={m.code} className="border-t border-zinc-800">
                     <td className="px-3 py-2 font-mono text-xs">{m.code}</td>
                     <td className="px-3 py-2">{m.name}</td>
+                    <td className="px-3 py-2 text-xs text-zinc-400">
+                      {m.default?.category || '—'}{m.default?.subcategory ? ` / ${m.default.subcategory}` : ''}
+                    </td>
                     <td className="px-3 py-2">{c?.emailSupport || '—'}</td>
                     <td className="px-3 py-2 text-right">{c ? c.emailSeenCount : '—'}</td>
                     <td className="px-3 py-2 text-xs text-zinc-400">{c?.lastEmailAt ? new Date(c.lastEmailAt).toLocaleString() : '—'}</td>
                     <td className="px-3 py-2">{c ? (c.ruleConfigured ? 'configured' : '—') : '—'}</td>
                     <td className="px-3 py-2">
                       <div className="flex gap-2">
-                        <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => renameMerchant(m.code).catch(() => {})}>Edit</button>
+                        <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => editMerchant(m.code).catch(() => {})}>Edit</button>
                         <button className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700" onClick={() => archiveMerchant(m.code).catch(() => {})}>Archive</button>
                       </div>
                     </td>

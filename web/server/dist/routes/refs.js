@@ -39,16 +39,35 @@ export async function registerRefsRoutes(app, opts) {
             patch.name = String(body.name || '').trim();
         if (body.archived !== undefined)
             patch.archived = !!body.archived;
-        if (body.defaultCategory !== undefined)
-            patch.defaultCategory = body.defaultCategory ? String(body.defaultCategory) : undefined;
-        if (body.defaultSubcategory !== undefined)
-            patch.defaultSubcategory = body.defaultSubcategory ? String(body.defaultSubcategory) : undefined;
-        if (body.defaultTags !== undefined)
-            patch.defaultTags = Array.isArray(body.defaultTags) ? body.defaultTags.map(String) : undefined;
+        // default mappings
+        if (body.default !== undefined && body.default && typeof body.default === 'object') {
+            const d = body.default;
+            patch.default = {
+                category: d.category !== undefined ? String(d.category || '') : undefined,
+                subcategory: d.subcategory !== undefined ? String(d.subcategory || '') : undefined,
+                tags: Array.isArray(d.tags) ? d.tags.map(String) : undefined
+            };
+        }
+        else {
+            // allow flat keys too
+            const hasFlat = body.defaultCategory !== undefined || body.defaultSubcategory !== undefined || body.defaultTags !== undefined;
+            if (hasFlat) {
+                patch.default = {
+                    category: body.defaultCategory !== undefined ? String(body.defaultCategory || '') : undefined,
+                    subcategory: body.defaultSubcategory !== undefined ? String(body.defaultSubcategory || '') : undefined,
+                    tags: Array.isArray(body.defaultTags) ? body.defaultTags.map(String) : undefined
+                };
+            }
+        }
         const fp = refsPath(opts.baseDir, 'merchants.json');
         const merchants = readJson(fp, {});
         const cur = merchants[c] || { name: c };
-        merchants[c] = { ...cur, ...patch };
+        const next = { ...cur, ...patch };
+        // merge default object instead of clobbering
+        if (patch.default) {
+            next.default = { ...(cur.default || {}), ...(patch.default || {}) };
+        }
+        merchants[c] = next;
         writeJson(fp, merchants);
         return reply.send({ ok: true, code: c, merchant: merchants[c] });
     });
