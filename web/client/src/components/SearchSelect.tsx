@@ -36,18 +36,8 @@ export function SearchSelect({
   const filtered = useMemo(() => {
     const qq = q.trim().toLowerCase();
     if (!qq) return options;
-
-    // When a user opens the dropdown, we seed q with the current label so typing refines.
-    // But that can accidentally filter down to just the current option.
-    // If query exactly equals the current selection, show all options.
-    if (open && current) {
-      const cl = String(current.label || '').toLowerCase();
-      const cv = String(current.value || '').toLowerCase();
-      if (qq === cl || qq === cv) return options;
-    }
-
     return options.filter((o) => o.label.toLowerCase().includes(qq) || o.value.toLowerCase().includes(qq));
-  }, [options, q, open, current]);
+  }, [options, q]);
 
   useEffect(() => {
     function onDocDown(e: MouseEvent) {
@@ -61,10 +51,11 @@ export function SearchSelect({
   }, []);
 
   useEffect(() => {
-    // When opening, seed query from current label so typing refines.
+    // When opening, start with empty query so the full list is visible.
+    // Typing refines; current selection is still shown in the input.
     if (open) {
-      setQ(current ? current.label : '');
-      setTimeout(() => inputRef.current?.select(), 0);
+      setQ('');
+      setTimeout(() => inputRef.current?.focus(), 0);
 
       const updateRect = () => {
         const el = ref.current;
@@ -85,7 +76,7 @@ export function SearchSelect({
     }
   }, [open, current]);
 
-  const displayValue = open ? q : (current ? current.label : '');
+  const displayValue = open ? (q !== '' ? q : (current ? current.label : '')) : (current ? current.label : '');
 
   return (
     <div ref={ref} className="relative">
