@@ -397,11 +397,18 @@ export default function DashboardPage() {
   const analyticsRows = fType === 'EXPENSE'
     ? filteredRows.filter((r: any) => {
         if (r.type !== 'EXPENSE') return false;
-        // Common data error: transfer rows marked as EXPENSE.
-        // Hide them for expense analytics by default, but if the user explicitly filters Category=TRANSFER,
+
+        const rowCat = String(r.category || '');
+        const rowCatName = String(r.category_name || '');
+        const isTransferRow = rowCat === 'TRANSFER' || rowCatName === 'Transfers';
+
+        const wantsTransfer = fCategory === 'TRANSFER' || fCategory === 'Transfers';
+
+        // Common data error: transfer-category rows marked as EXPENSE.
+        // Hide them for expense analytics by default, but if the user explicitly filters Transfers,
         // then show them (user intent is clear).
-        if (!fCategory && String(r.category || '') === 'TRANSFER') return false;
-        if (fCategory && fCategory !== 'TRANSFER' && String(r.category || '') === 'TRANSFER') return false;
+        if (isTransferRow && !wantsTransfer) return false;
+
         return true;
       })
     : filteredRows;
