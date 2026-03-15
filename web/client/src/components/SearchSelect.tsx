@@ -5,13 +5,16 @@ export type SearchSelectOption = {
   label: string;
 };
 
+import { createPortal } from 'react-dom';
+
 export function SearchSelect({
   value,
   onChange,
   options,
   placeholder = '(none)',
   className = 'hk-input',
-  disabled
+  disabled,
+  portal
 }: {
   value: string;
   onChange: (next: string) => void;
@@ -19,11 +22,13 @@ export function SearchSelect({
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  portal?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const ref = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const [rect, setRect] = useState<{ left: number; top: number; width: number } | null>(null);
 
   const current = useMemo(() => options.find((o) => o.value === value) || null, [options, value]);
 
@@ -48,10 +53,25 @@ export function SearchSelect({
     if (open) {
       setQ(current ? current.label : '');
       setTimeout(() => inputRef.current?.select(), 0);
+
+      const updateRect = () => {
+        const el = ref.current;
+        if (!el) return;
+        const box = el.getBoundingClientRect();
+        setRect({ left: box.left, top: box.bottom, width: box.width });
+      };
+      updateRect();
+      window.addEventListener('scroll', updateRect, true);
+      window.addEventListener('resize', updateRect);
+      return () => {
+        window.removeEventListener('scroll', updateRect, true);
+        window.removeEventListener('resize', updateRect);
+      };
     } else {
       setQ('');
+      setRect(null);
     }
-  }, [open]);
+  }, [open, current]);
 
   const displayValue = open ? q : (current ? current.label : '');
 
@@ -92,38 +112,54 @@ export function SearchSelect({
         </button>
       </div>
 
-      {open ? (
-        <div className="absolute z-50 mt-1 w-full rounded border border-zinc-800 bg-zinc-950 shadow-xl overflow-hidden text-sm">
-          <div className="max-h-[420px] overflow-y-scroll overflow-x-hidden">
-            <button
-              type="button"
-              className={`w-full text-left px-3 py-2 hover:bg-white/5 truncate ${value === '' ? 'bg-white/10' : ''} ${!placeholder ? 'hidden' : ''}`}
-              onClick={() => {
-                onChange('');
-                setOpen(false);
-                setQ('');
-              }}
-            >
-              {placeholder}
-            </button>
-            {filtered.map((o) => (
-              <button
-                key={o.value}
-                type="button"
-                className={`w-full text-left px-3 py-2 hover:bg-white/5 truncate ${o.value === value ? 'bg-white/10' : ''}`}
-                onClick={() => {
-                  onChange(o.value);
-                  setOpen(false);
-                  setQ('');
-                }}
+      {open
+        ? (() => {
+            const menu = (
+              <div
+                className={`${portal ? 'fixed' : 'absolute'} z-[1000] mt-1 rounded border border-zinc-800 bg-zinc-950 shadow-xl overflow-hidden text-sm`}
+                style={
+                  portal && rect
+                    ? { left: rect.left, top: rect.top, width: rect.width }
+                    : undefined
+                }
               >
-                {o.label}
-              </button>
-            ))}
-            {!filtered.length ? <div className="px-3 py-2 text-sm text-[color:var(--hk-muted)]">No matches</div> : null}
-          </div>
-        </div>
-      ) : null}
+                <div className="max-h-[420px] overflow-y-auto overflow-x-hidden">
+                  <button
+                    type="button"
+                    className={`w-full text-left px-3 py-2 hover:bg-white/5 truncate ${value === '' ? 'bg-white/10' : ''} ${!placeholder ? 'hidden' : ''}`}
+                    onClick={() => {
+                      onChange('');
+                      setOpen(false);
+                      setQ('');
+                    }}
+                  >
+                    {placeholder}
+                  </button>
+                  {filtered.map((o) => (
+                    <button
+                      key={o.value}
+                      type="button"
+                      className={`w-full text-left px-3 py-2 hover:bg-white/5 truncate ${o.value === value ? 'bg-white/10' : ''}`}
+                      onClick={() => {
+                        onChange(o.value);
+                        setOpen(false);
+                        setQ('');
+                      }}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                  {!filtered.length ? <div className="px-3 py-2 text-sm text-[color:var(--hk-muted)]">No matches</div> : null}
+                </div>
+              </div>
+            );
+
+            if (portal) {
+              return rect ? createPortal(menu, document.body) : null;
+            }
+            return menu;
+          })()
+        : null}
     </div>
   );
 }

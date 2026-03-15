@@ -827,46 +827,34 @@ export default function DashboardPage() {
                         <div className="grid grid-cols-1 gap-2">
                           <div>
                             <label className="text-xs text-[color:var(--hk-muted)]">Merchant</label>
-                            <select
-                              className="mt-1 w-full hk-input"
+                            <SearchSelect
+                              portal
                               value={ln.merchant_code}
-                              onChange={(e) => setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, merchant_code:e.target.value}:x))}
-                            >
-                              <option value="">(none)</option>
-                              {merchantOptions.map((m) => (
-                                <option key={m.code} value={m.code}>{m.code}</option>
-                              ))}
-                            </select>
+                              onChange={(v) => setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, merchant_code:v}:x))}
+                              options={merchantOptions.map((m) => ({ value: m.code, label: m.name || m.code }))}
+                              placeholder="(none)"
+                            />
                           </div>
                           <div>
                             <label className="text-xs text-[color:var(--hk-muted)]">Category</label>
-                            <select
-                              className="mt-1 w-full hk-input"
+                            <SearchSelect
+                              portal
                               value={ln.category}
-                              onChange={(e) => {
-                                const v = e.target.value;
-                                setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, category:v, subcategory: ''}:x));
-                              }}
-                            >
-                              <option value="">(none)</option>
-                              {categoryOptions.map((c) => (
-                                <option key={c.code} value={c.code}>{c.code}</option>
-                              ))}
-                            </select>
+                              onChange={(v) => setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, category:v, subcategory: ''}:x))}
+                              options={categoryOptions.map((c) => ({ value: c.code, label: c.name || c.code }))}
+                              placeholder="(none)"
+                            />
                           </div>
                           <div>
                             <label className="text-xs text-[color:var(--hk-muted)]">Subcategory</label>
-                            <select
-                              className="mt-1 w-full hk-input"
+                            <SearchSelect
+                              portal
                               value={ln.subcategory}
-                              onChange={(e) => setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, subcategory:e.target.value}:x))}
+                              onChange={(v) => setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, subcategory:v}:x))}
+                              options={subcategoryOptions.filter((s) => !ln.category || s.category === ln.category).map((s) => ({ value: s.code, label: s.name || s.code }))}
+                              placeholder="(none)"
                               disabled={!ln.category}
-                            >
-                              <option value="">(none)</option>
-                              {subcategoryOptions.filter((s) => !ln.category || s.category === ln.category).map((s) => (
-                                <option key={s.code} value={s.code}>{s.code}</option>
-                              ))}
-                            </select>
+                            />
                           </div>
                         </div>
                       </div>
