@@ -830,10 +830,15 @@ export default function DashboardPage() {
             {Object.entries(totals.byLoc || {})
               .sort((a: any, b: any) => b[1] - a[1])
               .map(([k, v]) => (
-                <div key={k} className="flex justify-between gap-3 text-sm">
-                  <span className="text-[color:var(--hk-muted)] truncate max-w-[240px]">{k}</span>
+                <button
+                  key={k}
+                  className="w-full flex justify-between gap-3 text-sm hover:bg-white/5 rounded px-1 py-0.5"
+                  title="Filter by this location"
+                  onClick={() => { setFLocation(k === 'Unknown' ? MISSING : k); setPage(1); }}
+                >
+                  <span className="text-[color:var(--hk-muted)] truncate max-w-[240px] text-left">{k}</span>
                   <span className="font-semibold">{formatINR(v)}</span>
-                </div>
+                </button>
               ))}
             {!Object.keys(totals.byLoc || {}).length ? (
               <div className="text-xs text-[color:var(--hk-faint)]">—</div>
