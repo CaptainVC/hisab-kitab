@@ -1021,16 +1021,18 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="mt-4 flex justify-between gap-2 flex-wrap">
-                  <button className="hk-btn-secondary" onClick={() => { setSplitOpen(!splitOpen); }}>Split…</button>
+                  <button className="hk-btn-secondary disabled:opacity-50" disabled={busy} onClick={() => { setSplitOpen(!splitOpen); }}>Split…</button>
                   <div className="flex flex-col items-end gap-2">
                     {editTxnErr ? (
                       <div className="max-w-[520px] text-xs text-red-400">{editTxnErr}</div>
                     ) : null}
                     <div className="flex justify-end gap-2">
-                      <button className="hk-btn-secondary" onClick={() => setEditTxnOpen(false)}>Cancel</button>
+                      <button className="hk-btn-secondary disabled:opacity-50" disabled={busy} onClick={() => setEditTxnOpen(false)}>Cancel</button>
                       <button
-                      className="hk-btn-primary"
+                      className="hk-btn-primary disabled:opacity-50"
+                      disabled={busy}
                       onClick={async () => {
+                        if (busy) return;
                         try {
                           if (!editTxn?.txn_id) return;
                           setEditTxnErr('');
@@ -1078,7 +1080,7 @@ export default function DashboardPage() {
                         }
                       }}
                     >
-                      Save
+                      {busy ? 'Saving…' : 'Save'}
                     </button>
                     </div>
                   </div>
