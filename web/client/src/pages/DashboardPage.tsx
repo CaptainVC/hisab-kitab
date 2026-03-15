@@ -1227,7 +1227,22 @@ export default function DashboardPage() {
               ))}
             </select>
             <button className="px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)] hover:bg-zinc-800 disabled:opacity-50" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</button>
-            <div className="text-[color:var(--hk-faint)]">{page} / {totalPages}</div>
+            <div className="flex items-center gap-2">
+              <div className="text-[color:var(--hk-faint)]">{page} / {totalPages}</div>
+              <input
+                className="w-[72px] px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)] text-sm"
+                defaultValue={String(page)}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  const v = Number((e.target as HTMLInputElement).value);
+                  if (!Number.isFinite(v)) return;
+                  const next = Math.max(1, Math.min(totalPages, Math.floor(v)));
+                  setPage(next);
+                }}
+                placeholder="page"
+                title="Type a page number and press Enter"
+              />
+            </div>
             <button className="px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)] hover:bg-zinc-800 disabled:opacity-50" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</button>
           </div>
         </div>
