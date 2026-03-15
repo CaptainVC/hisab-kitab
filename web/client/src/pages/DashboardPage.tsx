@@ -47,6 +47,127 @@ export default function DashboardPage() {
   const [editAmount, setEditAmount] = useState('');
   const [editReimbStatus, setEditReimbStatus] = useState('');
 
+  function parseAmountExpr(input: string): { ok: true; value: number } | { ok: false; error: string } {
+    const raw = String(input || '').trim();
+    if (!raw) return { ok: false, error: 'empty' };
+
+    // Allow: plain number OR expressions like "=3373-2650".
+    const expr0 = raw.startsWith('=') ? raw.slice(1) : raw;
+    const expr = expr0.replace(/\s+/g, '');
+
+    // Validate characters
+    if (!/^[0-9+\-*.()]+$/.test(expr)) return { ok: false, error: 'bad_chars' };
+
+    // Tokenize
+    const tokens: string[] = [];
+    let i = 0;
+    while (i < expr.length) {
+      const ch = expr[i];
+      if (ch >= '0' && ch <= '9' || ch === '.') {
+        let j = i + 1;
+        while (j < expr.length && ((expr[j] >= '0' && expr[j] <= '9') || expr[j] === '.')) j++;
+        tokens.push(expr.slice(i, j));
+        i = j;
+        continue;
+      }
+      if ('+-*()'.includes(ch)) {
+        tokens.push(ch);
+        i++;
+        continue;
+      }
+      return { ok: false, error: 'bad_token' };
+    }
+
+    // Shunting-yard -> RPN (supports unary minus)
+    const prec: Record<string, number> = { '+': 1, '-': 1, '*': 2 };
+    const out: string[] = [];
+    const ops: string[] = [];
+
+    const isOp = (t: string) => t === '+' || t === '-' || t === '*';
+    const isNum = (t: string) => /^\d+(?:\.\d+)?$/.test(t);
+
+    let prev: string | null = null;
+    for (const t of tokens) {
+      if (isNum(t)) {
+        out.push(t);
+        prev = 'num';
+        continue;
+      }
+
+      if (t === '(') {
+        ops.push(t);
+        prev = '(';
+        continue;
+      }
+
+      if (t === ')') {
+        while (ops.length && ops[ops.length - 1] !== '(') out.push(ops.pop()!);
+        if (!ops.length) return { ok: false, error: 'mismatched_parens' };
+        ops.pop();
+        prev = ')';
+        continue;
+      }
+
+      if (isOp(t)) {
+        // unary minus: if '-' and previous is start or '(' or another operator
+        if (t === '-' && (!prev || prev === '(' || prev === 'op')) {
+          // encode unary minus as 'u-'
+          ops.push('u-');
+          prev = 'op';
+          continue;
+        }
+
+        while (ops.length) {
+          const top = ops[ops.length - 1];
+          if (top === '(') break;
+          if (top === 'u-') {
+            out.push(ops.pop()!);
+            continue;
+          }
+          if (prec[top] >= prec[t]) out.push(ops.pop()!);
+          else break;
+        }
+        ops.push(t);
+        prev = 'op';
+        continue;
+      }
+
+      return { ok: false, error: 'bad_syntax' };
+    }
+
+    while (ops.length) {
+      const op = ops.pop()!;
+      if (op === '(') return { ok: false, error: 'mismatched_parens' };
+      out.push(op);
+    }
+
+    // Evaluate RPN
+    const st: number[] = [];
+    for (const t of out) {
+      if (isNum(t)) {
+        st.push(Number(t));
+        continue;
+      }
+      if (t === 'u-') {
+        if (st.length < 1) return { ok: false, error: 'bad_unary' };
+        st.push(-st.pop()!);
+        continue;
+      }
+      if (t === '+' || t === '-' || t === '*') {
+        if (st.length < 2) return { ok: false, error: 'bad_op' };
+        const b = st.pop()!;
+        const a = st.pop()!;
+        const v = t === '+' ? a + b : t === '-' ? a - b : a * b;
+        st.push(v);
+        continue;
+      }
+      return { ok: false, error: 'bad_rpn' };
+    }
+
+    if (st.length !== 1 || !Number.isFinite(st[0])) return { ok: false, error: 'bad_result' };
+    return { ok: true, value: st[0] };
+  }
+
   const [splitOpen, setSplitOpen] = useState(false);
   const [splitLines, setSplitLines] = useState<Array<{ amount: string; raw_text: string; merchant_code: string; category: string; subcategory: string; reimbursable?: boolean;  }>>([]);
 
@@ -704,7 +825,18 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs text-[color:var(--hk-muted)]">Amount</label>
-                    <input className="mt-1 w-full hk-input" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} />
+                    <input
+                      className="mt-1 w-full hk-input"
+                      value={editAmount}
+                      onChange={(e) => setEditAmount(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const r = parseAmountExpr(editAmount);
+                          if (r.ok) setEditAmount(String(Math.round(r.value * 100) / 100));
+                        }
+                      }}
+                      placeholder="e.g. 498 or =3373-2650"
+                    />
                   </div>
                   <div>
                     <label className="text-xs text-[color:var(--hk-muted)]">Merchant</label>
@@ -799,8 +931,11 @@ export default function DashboardPage() {
                           if (!editTxn?.txn_id) return;
                           setEditTxnOpen(false);
                           setBusy(true);
+                          const pr = parseAmountExpr(editAmount);
+                          if (!pr.ok) throw new Error('bad_amount_expr');
+
                           const r = await apiPut<{ ok: true; jobId: string }>(`/api/v1/txns/${encodeURIComponent(editTxn.txn_id)}`, {
-                            amount: Number(editAmount),
+                            amount: pr.value,
                             merchant_code: editMerchant,
                             category: editCategory,
                             subcategory: editSubcategory,
