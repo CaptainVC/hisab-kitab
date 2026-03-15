@@ -25,6 +25,14 @@ export default function StagingPage() {
   const [parseRows, setParseRows] = useState<any[]>([]);
   const [parseErrors, setParseErrors] = useState<any[]>([]);
 
+  const [location, setLocation] = useState<string>(() => {
+    try {
+      return localStorage.getItem('hk_staging_location') || 'Bengaluru';
+    } catch {
+      return 'Bengaluru';
+    }
+  });
+
   const [merchRefs, setMerchRefs] = useState<MerchantRef[]>([]);
   const [catRefs, setCatRefs] = useState<CategoryRef[]>([]);
   const [subRefs, setSubRefs] = useState<SubcategoryRef[]>([]);
@@ -56,7 +64,8 @@ export default function StagingPage() {
     try {
       await ensureRefsLoaded();
       const r = await apiPost<ParseResp>('/api/v1/staging/parse', { text });
-      setParseRows(r.rows || []);
+      const rows = (r.rows || []).map((it: any) => ({ ...it, location: it.location || location }));
+      setParseRows(rows);
       setParseErrors(r.errors || []);
     } catch (e: any) {
       setErr(String(e?.message || e));
@@ -140,6 +149,13 @@ export default function StagingPage() {
   const merchCodes = useMemo(() => new Set(merchRefs.map((m) => m.code)), [merchRefs]);
   const catCodes = useMemo(() => new Set(catRefs.map((c) => c.code)), [catRefs]);
   const subCodes = useMemo(() => new Map(subRefs.map((s) => [s.code, s.category] as const)), [subRefs]);
+
+  const locationOptions = useMemo(() => {
+    const base = ['Bengaluru', 'Mulki', 'Ahmedabad', 'Mumbai', 'Balotra', 'Mysuru', 'Unknown'];
+    const extra = Array.from(new Set(parseRows.map((r) => String(r.location || '').trim()).filter(Boolean)));
+    const all = Array.from(new Set([...base, ...extra]));
+    return all.map((v) => ({ value: v, label: v }));
+  }, [parseRows]);
 
   function isValidMerchant(code: string) {
     if (!code) return true;
@@ -231,7 +247,26 @@ export default function StagingPage() {
             placeholder="/hisab Day (08/03/26)\n260/- Something (mk)"
           />
           {err ? <div className="mt-3 text-sm text-red-400">{err}</div> : null}
-          <div className="mt-3 flex gap-2 flex-wrap">
+          <div className="mt-3 flex gap-2 flex-wrap items-end">
+            <div>
+              <label className="text-xs text-[color:var(--hk-muted)]">Location</label>
+              <div className="mt-1 w-44">
+                <SearchSelect
+                  portal
+                  value={location}
+                  onChange={(v) => {
+                    setLocation(v);
+                    try { localStorage.setItem('hk_staging_location', v); } catch {}
+                    setParseRows((xs) => xs.map((r) => ({ ...r, location: v })));
+                  }}
+                  options={locationOptions}
+                  placeholder="(none)"
+                  className="px-2 py-1 rounded bg-zinc-900 border [var(--hk-border)] text-xs"
+                  menuClassName="text-xs"
+                />
+              </div>
+            </div>
+
             <button className="px-3 py-2 rounded-md hk-btn-secondary disabled:opacity-50" disabled={busy || !text.trim()} onClick={() => doParse()}>
               {busy ? 'Working…' : 'Parse preview'}
             </button>
@@ -290,6 +325,7 @@ export default function StagingPage() {
                   <th className="text-left px-2 py-1">Date</th>
                   <th className="text-right px-2 py-1">Amt</th>
                   <th className="text-left px-2 py-1">Source</th>
+                  <th className="text-left px-2 py-1">Location</th>
                   <th className="text-left px-2 py-1">Merchant</th>
                   <th className="text-left px-2 py-1">Category</th>
                   <th className="text-left px-2 py-1">Subcat</th>
@@ -302,6 +338,21 @@ export default function StagingPage() {
                     <td className="px-2 py-1 whitespace-nowrap">{r.date}</td>
                     <td className="px-2 py-1 text-right">{formatINR(r.amount)}</td>
                     <td className="px-2 py-1">{r.source}</td>
+                    <td className="px-2 py-1">
+                      <div className="w-32">
+                        <SearchSelect
+                          portal
+                          value={r.location || ''}
+                          onChange={(v) => {
+                            setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, location: v } : it));
+                          }}
+                          options={locationOptions}
+                          placeholder="(none)"
+                          className="px-1 py-0.5 rounded bg-zinc-950 border [var(--hk-border)] text-[11px]"
+                          menuClassName="text-xs"
+                        />
+                      </div>
+                    </td>
                     <td className="px-2 py-1">
                       <div className="flex items-center gap-1">
                         <div className={`w-36 ${!isValidMerchant(r.merchant_code || '') ? 'ring-1 ring-amber-500 rounded' : ''}`}>
@@ -374,7 +425,7 @@ export default function StagingPage() {
                   </tr>
                 ))}
                 {parseRows.length === 0 ? (
-                  <tr><td className="px-2 py-2 text-[color:var(--hk-faint)]" colSpan={7}>Parse something to see preview.</td></tr>
+                  <tr><td className="px-2 py-2 text-[color:var(--hk-faint)]" colSpan={8}>Parse something to see preview.</td></tr>
                 ) : null}
               </tbody>
             </table>
