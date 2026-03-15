@@ -449,6 +449,7 @@ export default function DashboardPage() {
   const totals = (() => {
     // Totals should follow the same filtered set the table uses.
     // Also: if a row is categorized as TRANSFER, treat it as TRANSFER for totals even if type is wrong.
+    // When user explicitly filters Type=EXPENSE, transfers card should be 0 (show only expenses).
     const rowsForTotals = filteredRows;
 
     let sum = 0;
@@ -486,6 +487,8 @@ export default function DashboardPage() {
       const loc = String(r.location_name || r.location || 'Unknown') || 'Unknown';
       byLoc[loc] = (byLoc[loc] || 0) + a;
     }
+
+    if (fType === 'EXPENSE') transfer = 0;
 
     return {
       count: rowsForTotals.length,
