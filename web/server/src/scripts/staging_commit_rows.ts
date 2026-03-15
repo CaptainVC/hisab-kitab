@@ -31,9 +31,12 @@ async function main() {
   }
 
   // Load storeAppend from repo source.
-  // This script is run via `node` from the server, with repoDir working directory.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { storeAppend } = require(path.join(process.cwd(), 'src', 'excel', 'workbook_store'));
+  // This script runs as ESM (tsc output), so use dynamic import.
+  const { pathToFileURL } = await import('node:url');
+  const modPath = path.join(process.cwd(), 'src', 'excel', 'workbook_store.js');
+  const mod: any = await import(pathToFileURL(modPath).href);
+  const storeAppend = mod.storeAppend || mod?.default?.storeAppend;
+  if (typeof storeAppend !== 'function') throw new Error('storeAppend_missing');
 
   const outputs = storeAppend({ baseDir, headers, rows });
   process.stdout.write(JSON.stringify({ ok: true, outputs, imported: rows.length }, null, 2));
