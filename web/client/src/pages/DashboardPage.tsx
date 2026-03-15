@@ -520,9 +520,11 @@ export default function DashboardPage() {
     const expRowsMine = expRowsAll.filter((r: any) => !isReimb(r));
     const reimbRows = expRowsAll.filter((r: any) => isReimb(r));
 
-    const totalExpenses = expRowsMine.reduce((acc: number, r: any) => acc + Number(r.amount || 0), 0);
-    const mineExpenses = totalExpenses;
+    const mineExpenses = expRowsMine.reduce((acc: number, r: any) => acc + Number(r.amount || 0), 0);
     const reimbTotal = reimbRows.reduce((acc: number, r: any) => acc + Number(r.amount || 0), 0);
+
+    // Total expenses = what you paid overall = your spend + paid_for_others (reimbursable)
+    const totalExpenses = mineExpenses + reimbTotal;
 
     const topCategory = (() => {
       const sums: Record<string, number> = {};
@@ -842,7 +844,7 @@ export default function DashboardPage() {
           <div className="mt-1 text-lg font-semibold">{totals.count}</div>
         </div>
         <div className="p-3 hk-card min-h-[84px]">
-          <div className="text-[11px] text-[color:var(--hk-muted)]">Total expenses</div>
+          <div className="text-[11px] text-[color:var(--hk-muted)]">Total expenses (incl. paid_for_others)</div>
           <div className="mt-1 text-lg font-semibold">{formatINR(totals.totalExpenses || 0)}</div>
         </div>
         <div className="p-3 hk-card min-h-[84px]">
