@@ -514,13 +514,14 @@ export default function DashboardPage() {
       return tags.includes('reimbursable');
     };
 
-    // Total expenses = your expenses + paid_for_others (reimbursable)
+    // Expenses should NOT include reimbursable rows.
+    // (Reimbursable is tracked separately.)
     const expRowsAll = rowsForTotals.filter((r: any) => normTypeOf(r) === 'EXPENSE');
     const expRowsMine = expRowsAll.filter((r: any) => !isReimb(r));
     const reimbRows = expRowsAll.filter((r: any) => isReimb(r));
 
-    const totalExpenses = expRowsAll.reduce((acc: number, r: any) => acc + Number(r.amount || 0), 0);
-    const mineExpenses = expRowsMine.reduce((acc: number, r: any) => acc + Number(r.amount || 0), 0);
+    const totalExpenses = expRowsMine.reduce((acc: number, r: any) => acc + Number(r.amount || 0), 0);
+    const mineExpenses = totalExpenses;
     const reimbTotal = reimbRows.reduce((acc: number, r: any) => acc + Number(r.amount || 0), 0);
 
     const topCategory = (() => {
@@ -841,7 +842,7 @@ export default function DashboardPage() {
           <div className="mt-1 text-lg font-semibold">{totals.count}</div>
         </div>
         <div className="p-3 hk-card min-h-[84px]">
-          <div className="text-[11px] text-[color:var(--hk-muted)]">Total expenses (mine + paid_for_others)</div>
+          <div className="text-[11px] text-[color:var(--hk-muted)]">Total expenses</div>
           <div className="mt-1 text-lg font-semibold">{formatINR(totals.totalExpenses || 0)}</div>
         </div>
         <div className="p-3 hk-card min-h-[84px]">
@@ -878,7 +879,7 @@ export default function DashboardPage() {
           <div className="mt-1 text-lg font-semibold">{formatINR(totals.topCategory?.amount || 0)}</div>
         </div>
         <div className="p-3 hk-card min-h-[84px]">
-          <div className="text-[11px] text-[color:var(--hk-muted)]">Expenses (mine only)</div>
+          <div className="text-[11px] text-[color:var(--hk-muted)]">Expenses</div>
           <div className="mt-1 text-lg font-semibold">{formatINR(totals.expenseCard?.total || 0)}</div>
           <div className="text-[11px] text-[color:var(--hk-faint)]">excludes reimbursable</div>
         </div>
