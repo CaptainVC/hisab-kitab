@@ -72,12 +72,12 @@ function normalizeRow(r) {
   out.amount = Number(out.amount || 0);
   out.date = String(out.date || '');
   out.type = String(out.type || '').toUpperCase();
-  out.source = String(out.source || '');
-  out.location = String(out.location || '');
-  out.category = String(out.category || '');
-  out.subcategory = String(out.subcategory || '');
-  out.merchant_code = String(out.merchant_code || '');
-  out.tags = String(out.tags || '');
+  out.source = String(out.source || '').trim();
+  out.location = String(out.location || '').trim();
+  out.category = String(out.category || '').trim();
+  out.subcategory = String(out.subcategory || '').trim();
+  out.merchant_code = String(out.merchant_code || '').trim();
+  out.tags = String(out.tags || '').trim();
   out._tags = out.tags.split(',').map(s => s.trim()).filter(Boolean);
   return out;
 }
