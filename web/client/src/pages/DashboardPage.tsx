@@ -683,7 +683,7 @@ export default function DashboardPage() {
 
       {editTxnOpen ? (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" onClick={() => setEditTxnOpen(false)}>
-          <div className="w-full max-w-lg hk-card p-4" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-5xl hk-card p-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-semibold">Edit transaction</div>
@@ -695,128 +695,201 @@ export default function DashboardPage() {
             <div className="mt-3 text-sm text-[color:var(--hk-muted)]">{editTxn ? `${editTxn.date} • ${formatINR(editTxn.amount)} • ${editTxn.raw_text || ''}` : ''}</div>
             {/* notice removed */}
 
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className={`mt-4 grid grid-cols-1 ${splitOpen ? 'lg:grid-cols-[1fr_420px]' : ''} gap-4`}>
+              {/* Left: main edit form */}
               <div>
-                <label className="text-xs text-[color:var(--hk-muted)]">Amount</label>
-                <input className="mt-1 w-full hk-input" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} />
-              </div>
-              <div>
-                <label className="text-xs text-[color:var(--hk-muted)]">Merchant</label>
-                <SearchSelect
-                  value={editMerchant}
-                  onChange={setEditMerchant}
-                  options={merchantOptions.map((m) => ({ value: m.code, label: m.name }))}
-                  placeholder="(none)"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-[color:var(--hk-muted)]">Category</label>
-                <SearchSelect
-                  value={editCategory}
-                  onChange={(v) => {
-                    setEditCategory(v);
-                    const ok = subcategoryOptions.some((s) => s.code === editSubcategory && s.category === v);
-                    if (!ok) setEditSubcategory('');
-                  }}
-                  options={categoryOptions.map((c) => ({ value: c.code, label: c.name }))}
-                  placeholder="(none)"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-[color:var(--hk-muted)]">Subcategory</label>
-                <SearchSelect
-                  value={editSubcategory}
-                  onChange={setEditSubcategory}
-                  options={subcategoryOptions
-                    .filter((s) => !editCategory || s.category === editCategory)
-                    .map((s) => ({ value: s.code, label: s.name }))}
-                  placeholder="(none)"
-                  disabled={!editCategory}
-                />
-              </div>
-              <div>
-                <label className="text-xs text-[color:var(--hk-muted)]">Tags</label>
-                <input className="mt-1 w-full hk-input" value={editTags} onChange={(e) => setEditTags(e.target.value)} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-[color:var(--hk-muted)]">Amount</label>
+                    <input className="mt-1 w-full hk-input" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-[color:var(--hk-muted)]">Merchant</label>
+                    <SearchSelect value={editMerchant} onChange={setEditMerchant} options={merchantOptions.map((m) => ({ value: m.code, label: m.name }))} placeholder="(none)" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-[color:var(--hk-muted)]">Category</label>
+                    <SearchSelect
+                      value={editCategory}
+                      onChange={(v) => {
+                        setEditCategory(v);
+                        const ok = subcategoryOptions.some((s) => s.code === editSubcategory && s.category === v);
+                        if (!ok) setEditSubcategory('');
+                      }}
+                      options={categoryOptions.map((c) => ({ value: c.code, label: c.name }))}
+                      placeholder="(none)"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-[color:var(--hk-muted)]">Subcategory</label>
+                    <SearchSelect
+                      value={editSubcategory}
+                      onChange={setEditSubcategory}
+                      options={subcategoryOptions.filter((s) => !editCategory || s.category === editCategory).map((s) => ({ value: s.code, label: s.name }))}
+                      placeholder="(none)"
+                      disabled={!editCategory}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-[color:var(--hk-muted)]">Tags</label>
+                    <input className="mt-1 w-full hk-input" value={editTags} onChange={(e) => setEditTags(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-[color:var(--hk-muted)]">Source</label>
+                    <SearchSelect value={editSource} onChange={setEditSource} options={sourceOptions.map((s) => ({ value: s.code, label: s.display }))} placeholder="(none)" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-[color:var(--hk-muted)]">Location</label>
+                    <SearchSelect value={editLocation} onChange={setEditLocation} options={locationOptions.map((l) => ({ value: l.code, label: l.name }))} placeholder="(none)" />
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <label className="text-xs text-[color:var(--hk-muted)]">Notes</label>
+                  <input className="mt-1 w-full hk-input" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
+                </div>
+
+                <div className="mt-4 flex justify-between gap-2 flex-wrap">
+                  <button className="hk-btn-secondary" onClick={() => { setSplitOpen(!splitOpen); }}>Split…</button>
+                  <div className="flex justify-end gap-2">
+                    <button className="hk-btn-secondary" onClick={() => setEditTxnOpen(false)}>Cancel</button>
+                    <button
+                      className="hk-btn-primary"
+                      onClick={async () => {
+                        try {
+                          if (!editTxn?.txn_id) return;
+                          setEditTxnOpen(false);
+                          setBusy(true);
+                          const r = await apiPut<{ ok: true; jobId: string }>(`/api/v1/txns/${encodeURIComponent(editTxn.txn_id)}`, {
+                            amount: Number(editAmount),
+                            merchant_code: editMerchant,
+                            category: editCategory,
+                            subcategory: editSubcategory,
+                            source: editSource,
+                            location: editLocation,
+                            tags: editTags,
+                            notes: editNotes
+                          });
+
+                          for (let i = 0; i < 60; i++) {
+                            const jr = await apiGet<JobResp>(`/api/v1/jobs/${r.jobId}`);
+                            if (jr.job.status === 'succeeded') break;
+                            if (jr.job.status === 'failed') throw new Error('edit_failed');
+                            await new Promise(res => setTimeout(res, 1000));
+                          }
+
+                          const rb = await apiPost<RebuildResp>('/api/v1/rebuild', { from, to });
+                          setLastJobId(rb.jobId);
+                          for (let i = 0; i < 60; i++) {
+                            const jr = await apiGet<JobResp>(`/api/v1/jobs/${rb.jobId}`);
+                            if (jr.job.status === 'succeeded') break;
+                            if (jr.job.status === 'failed') throw new Error('rebuild_failed');
+                            await new Promise(res => setTimeout(res, 1000));
+                          }
+
+                          await loadData();
+                          setBusy(false);
+                        } catch (e: any) {
+                          setBusy(false);
+                          setErr(String(e?.message || e));
+                        }
+                      }}
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="text-xs text-[color:var(--hk-muted)]">Source</label>
-                <SearchSelect
-                  value={editSource}
-                  onChange={setEditSource}
-                  options={sourceOptions.map((s) => ({ value: s.code, label: s.display }))}
-                  placeholder="(none)"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-[color:var(--hk-muted)]">Location</label>
-                <SearchSelect
-                  value={editLocation}
-                  onChange={setEditLocation}
-                  options={locationOptions.map((l) => ({ value: l.code, label: l.name }))}
-                  placeholder="(none)"
-                />
-              </div>
-            </div>
-            <div className="mt-3">
-              <label className="text-xs text-[color:var(--hk-muted)]">Notes</label>
-              <input className="mt-1 w-full hk-input" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
-            </div>
+              {/* Right: split drawer */}
+              {splitOpen ? (
+                <div className="border-l [var(--hk-border)] pl-4 max-h-[70vh] overflow-auto">
+                  <div className="text-sm font-semibold">Split transaction</div>
+                  <div className="mt-1 text-xs text-[color:var(--hk-muted)]">
+                    Original will be tagged <span className="font-mono">superseded</span>.
+                  </div>
 
-            <div className="mt-4 flex justify-between gap-2 flex-wrap">
-              <button className="hk-btn-secondary" onClick={() => { setSplitOpen(!splitOpen); }}>Split…</button>
-              <div className="flex justify-end gap-2">
-                <button className="hk-btn-secondary" onClick={() => setEditTxnOpen(false)}>Cancel</button>
-                <button
-                  className="hk-btn-primary"
-                  onClick={async () => {
-                  try {
-                    if (!editTxn?.txn_id) return;
-                    // Close modal immediately
-                    setEditTxnOpen(false);
+                  <datalist id="hk_split_merchants">{merchantOptions.map((m) => <option key={m.code} value={m.code} />)}</datalist>
+                  <datalist id="hk_split_categories">{categoryOptions.map((c) => <option key={c.code} value={c.code} />)}</datalist>
+                  <datalist id="hk_split_subcategories">{subcategoryOptions.map((s) => <option key={s.code} value={s.code} />)}</datalist>
 
-                    // 1) Save into Excel (job)
-                    setBusy(true);
-                    const r = await apiPut<{ ok: true; jobId: string }>(`/api/v1/txns/${encodeURIComponent(editTxn.txn_id)}`, {
-                      amount: Number(editAmount),
-                      merchant_code: editMerchant,
-                      category: editCategory,
-                      subcategory: editSubcategory,
-                      source: editSource,
-                      location: editLocation,
-                      tags: editTags,
-                      notes: editNotes
-                    });
+                  <div className="mt-3 space-y-2">
+                    {splitLines.map((ln, idx) => (
+                      <div key={idx} className="grid grid-cols-1 gap-2">
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <label className="text-xs text-[color:var(--hk-muted)]">Amt</label>
+                            <input className="mt-1 w-full hk-input" value={ln.amount} onChange={(e) => setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, amount:e.target.value}:x))} />
+                          </div>
+                          <div className="col-span-2">
+                            <label className="text-xs text-[color:var(--hk-muted)]">Text</label>
+                            <input className="mt-1 w-full hk-input" value={ln.raw_text} onChange={(e) => setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, raw_text:e.target.value}:x))} />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2">
+                          <div>
+                            <label className="text-xs text-[color:var(--hk-muted)]">Merchant</label>
+                            <input list="hk_split_merchants" className="mt-1 w-full hk-input" value={ln.merchant_code} onChange={(e) => setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, merchant_code:e.target.value}:x))} />
+                          </div>
+                          <div>
+                            <label className="text-xs text-[color:var(--hk-muted)]">Category</label>
+                            <input list="hk_split_categories" className="mt-1 w-full hk-input" value={ln.category} onChange={(e) => setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, category:e.target.value}:x))} />
+                          </div>
+                          <div>
+                            <label className="text-xs text-[color:var(--hk-muted)]">Subcategory</label>
+                            <input list="hk_split_subcategories" className="mt-1 w-full hk-input" value={ln.subcategory} onChange={(e) => setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, subcategory:e.target.value}:x))} />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
 
-                    // Poll edit job
-                    for (let i = 0; i < 60; i++) {
-                      const jr = await apiGet<JobResp>(`/api/v1/jobs/${r.jobId}`);
-                      if (jr.job.status === 'succeeded') break;
-                      if (jr.job.status === 'failed') throw new Error('edit_failed');
-                      await new Promise(res => setTimeout(res, 1000));
-                    }
+                  <div className="mt-3 flex justify-between gap-2">
+                    <button className="hk-btn-secondary" onClick={() => setSplitLines(xs => xs.concat([{ amount:'', raw_text:'', merchant_code: editMerchant, category: editCategory, subcategory: editSubcategory }]))}>+ Add line</button>
+                    <button
+                      className="hk-btn-primary"
+                      onClick={async () => {
+                        try {
+                          if (!editTxn?.txn_id) return;
+                          const splits = splitLines
+                            .map((x) => ({ amount: Number(x.amount), raw_text: x.raw_text, merchant_code: x.merchant_code, category: x.category, subcategory: x.subcategory }))
+                            .filter((x) => Number.isFinite(x.amount) && x.amount > 0);
+                          if (!splits.length) throw new Error('no_split_lines');
 
-                    // 2) Rebuild selected range
-                    const rb = await apiPost<RebuildResp>('/api/v1/rebuild', { from, to });
-                    setLastJobId(rb.jobId);
-                    for (let i = 0; i < 60; i++) {
-                      const jr = await apiGet<JobResp>(`/api/v1/jobs/${rb.jobId}`);
-                      if (jr.job.status === 'succeeded') break;
-                      if (jr.job.status === 'failed') throw new Error('rebuild_failed');
-                      await new Promise(res => setTimeout(res, 1000));
-                    }
+                          setBusy(true);
+                          setErr(null);
+                          const r = await apiPost<{ ok: true; jobId: string }>(`/api/v1/txns/${encodeURIComponent(editTxn.txn_id)}/split`, { splits });
+                          for (let i = 0; i < 60; i++) {
+                            const jr = await apiGet<JobResp>(`/api/v1/jobs/${r.jobId}`);
+                            if (jr.job.status === 'succeeded') break;
+                            if (jr.job.status === 'failed') throw new Error('split_failed');
+                            await new Promise(res => setTimeout(res, 1000));
+                          }
 
-                    await loadData();
-                    setBusy(false);
-                  } catch (e: any) {
-                    setBusy(false);
-                    setErr(String(e?.message || e));
-                  }
-                }}
-              >
-                Save
-              </button>
-              </div>
+                          const rb = await apiPost<RebuildResp>('/api/v1/rebuild', { from, to });
+                          setLastJobId(rb.jobId);
+                          for (let i = 0; i < 60; i++) {
+                            const jr = await apiGet<JobResp>(`/api/v1/jobs/${rb.jobId}`);
+                            if (jr.job.status === 'succeeded') break;
+                            if (jr.job.status === 'failed') throw new Error('rebuild_failed');
+                            await new Promise(res => setTimeout(res, 1000));
+                          }
+
+                          await loadData();
+                          setBusy(false);
+                          setSplitOpen(false);
+                          setEditTxnOpen(false);
+                        } catch (e: any) {
+                          setBusy(false);
+                          setErr(String(e?.message || e));
+                        }
+                      }}
+                    >
+                      Split + rebuild
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             {splitOpen ? (
