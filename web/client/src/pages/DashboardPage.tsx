@@ -391,7 +391,8 @@ export default function DashboardPage() {
     return true;
   });
 
-  const expenseRows = filteredRows.filter((r: any) => r.type === 'EXPENSE');
+  // For expense analytics, ignore rows categorized as TRANSFER even if type was set to EXPENSE by mistake.
+  const expenseRows = filteredRows.filter((r: any) => r.type === 'EXPENSE' && String(r.category || '') !== 'TRANSFER');
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
   const curPage = Math.min(page, totalPages);
