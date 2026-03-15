@@ -472,8 +472,9 @@ export default function DashboardPage() {
       days: days.size,
       expense: (byType.EXPENSE || 0) + (byType.TRANSFER_FOR_OTHERS || 0),
       income: byType.INCOME || 0,
-      // Transfers total should exclude "Paid For Someone Else" transfers (counted as expense)
-      transfer: (byType.TRANSFER || 0) - (byType.TRANSFER_FOR_OTHERS || 0),
+      // byType.TRANSFER already excludes TRANSFER_FOR_OTHERS (we bucketed those separately above)
+      transfer: (byType.TRANSFER || 0),
+      transferForOthers: (byType.TRANSFER_FOR_OTHERS || 0),
       net: (byType.INCOME || 0) - ((byType.EXPENSE || 0) + (byType.TRANSFER_FOR_OTHERS || 0))
     };
   })();
@@ -772,6 +773,7 @@ export default function DashboardPage() {
         <div className="p-3 hk-card">
           <div className="text-[11px] text-[color:var(--hk-muted)]">Transfers (excl. for-others)</div>
           <div className="mt-1 text-lg font-semibold">{formatINR(totals.transfer)}</div>
+          <div className="text-[11px] text-[color:var(--hk-faint)]">for-others: {formatINR(totals.transferForOthers || 0)}</div>
         </div>
         <div className="p-3 hk-card">
           <div className="text-[11px] text-[color:var(--hk-muted)]">Avg / day (expense)</div>
