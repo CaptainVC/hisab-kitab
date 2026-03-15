@@ -309,9 +309,10 @@ export default function StagingPage() {
                             portal
                             value={r.merchant_code || ''}
                             onChange={(v) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, merchant_code: v } : it))}
-                            options={merchRefs.map((m) => ({ value: m.code, label: `${m.code} — ${m.name}` }))}
+                            options={merchRefs.map((m) => ({ value: m.code, label: m.name || m.code }))}
                             placeholder="(none)"
-                            className="px-1 py-0.5 rounded bg-zinc-950 border [var(--hk-border)] text-xs"
+                            className="px-1 py-0.5 rounded bg-zinc-950 border [var(--hk-border)] text-[11px]"
+                            menuClassName="text-xs"
                           />
                         </div>
                         {!isValidMerchant(r.merchant_code || '') ? (
@@ -328,9 +329,10 @@ export default function StagingPage() {
                             portal
                             value={r.category || ''}
                             onChange={(v) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, category: v, subcategory: '' } : it))}
-                            options={catRefs.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }))}
+                            options={catRefs.map((c) => ({ value: c.code, label: c.name || c.code }))}
                             placeholder="(none)"
-                            className="px-1 py-0.5 rounded bg-zinc-950 border [var(--hk-border)] text-xs"
+                            className="px-1 py-0.5 rounded bg-zinc-950 border [var(--hk-border)] text-[11px]"
+                            menuClassName="text-xs"
                           />
                         </div>
                         {!isValidCategory(r.category || '') ? (
@@ -349,9 +351,10 @@ export default function StagingPage() {
                             onChange={(v) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, subcategory: v } : it))}
                             options={subRefs
                               .filter((s) => !r.category || s.category === r.category)
-                              .map((s) => ({ value: s.code, label: `${s.code} — ${s.name}` }))}
+                              .map((s) => ({ value: s.code, label: s.name || s.code }))}
                             placeholder="(none)"
-                            className="px-1 py-0.5 rounded bg-zinc-950 border [var(--hk-border)] text-xs"
+                            className="px-1 py-0.5 rounded bg-zinc-950 border [var(--hk-border)] text-[11px]"
+                            menuClassName="text-xs"
                             disabled={!r.category}
                           />
                         </div>

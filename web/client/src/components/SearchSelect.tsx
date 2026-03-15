@@ -13,6 +13,7 @@ export function SearchSelect({
   options,
   placeholder = '(none)',
   className = 'hk-input',
+  menuClassName = '',
   disabled,
   portal
 }: {
@@ -21,6 +22,7 @@ export function SearchSelect({
   options: SearchSelectOption[];
   placeholder?: string;
   className?: string;
+  menuClassName?: string;
   disabled?: boolean;
   portal?: boolean;
 }) {
@@ -120,7 +122,7 @@ export function SearchSelect({
             const menu = (
               <div
                 ref={menuRef}
-                className={`${portal ? 'fixed' : 'absolute'} z-[1000] mt-1 rounded border border-zinc-800 bg-zinc-950 shadow-xl overflow-hidden text-sm`}
+                className={`${portal ? 'fixed' : 'absolute'} z-[1000] mt-1 rounded border border-zinc-800 bg-zinc-950 shadow-xl overflow-hidden text-sm ${menuClassName}`}
                 style={
                   portal && rect
                     ? { left: rect.left, top: rect.top, width: rect.width }
