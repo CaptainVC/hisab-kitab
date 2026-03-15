@@ -447,35 +447,38 @@ export default function DashboardPage() {
   })();
 
   const totals = (() => {
-    const rowsForTotals = analyticsRows;
-    const byType: Record<string, number> = {};
+    // Totals should follow the same filtered set the table uses.
+    // Also: if a row is categorized as TRANSFER, treat it as TRANSFER for totals even if type is wrong.
+    const rowsForTotals = filteredRows;
+
     let sum = 0;
-    const days = new Set<string>();
+    let expense = 0;
+    let transfer = 0;
+    const expenseDays = new Set<string>();
 
     for (const r of rowsForTotals) {
       const a = Number(r.amount || 0);
       if (Number.isFinite(a)) sum += a;
-      if (r.date) days.add(String(r.date));
 
-      // Special case: treat "Paid For Someone Else" transfers as expense.
-      const sub = String(r.subcategory || '');
-      const subName = String(r.subcategory_name || '');
-      const isForOthers = sub === 'TRANSFER_FOR_OTHERS' || subName === 'Paid For Someone Else';
+      const rowCat = String(r.category || '');
+      const rowCatName = String(r.category_name || '');
+      const isTransferCat = rowCat === 'TRANSFER' || rowCatName === 'Transfers';
+      const normType = isTransferCat ? 'TRANSFER' : String(r.type || '');
 
-      const t = isForOthers ? 'TRANSFER_FOR_OTHERS' : String(r.type || '');
-      byType[t] = (byType[t] || 0) + (Number.isFinite(a) ? a : 0);
+      if (normType === 'EXPENSE') {
+        expense += Number.isFinite(a) ? a : 0;
+        if (r.date) expenseDays.add(String(r.date));
+      } else if (normType === 'TRANSFER') {
+        transfer += Number.isFinite(a) ? a : 0;
+      }
     }
 
     return {
       count: rowsForTotals.length,
       sum,
-      days: days.size,
-      expense: (byType.EXPENSE || 0) + (byType.TRANSFER_FOR_OTHERS || 0),
-      income: byType.INCOME || 0,
-      // byType.TRANSFER already excludes TRANSFER_FOR_OTHERS (we bucketed those separately above)
-      transfer: (byType.TRANSFER || 0),
-      transferForOthers: (byType.TRANSFER_FOR_OTHERS || 0),
-      net: (byType.INCOME || 0) - ((byType.EXPENSE || 0) + (byType.TRANSFER_FOR_OTHERS || 0))
+      expense,
+      transfer,
+      expenseDays: expenseDays.size
     };
   })();
 
@@ -767,18 +770,17 @@ export default function DashboardPage() {
           <div className="mt-1 text-lg font-semibold">{formatINR(totals.sum)}</div>
         </div>
         <div className="p-3 hk-card">
-          <div className="text-[11px] text-[color:var(--hk-muted)]">Expense (incl. for-others)</div>
+          <div className="text-[11px] text-[color:var(--hk-muted)]">Expense</div>
           <div className="mt-1 text-lg font-semibold">{formatINR(totals.expense)}</div>
         </div>
         <div className="p-3 hk-card">
-          <div className="text-[11px] text-[color:var(--hk-muted)]">Transfers (excl. for-others)</div>
+          <div className="text-[11px] text-[color:var(--hk-muted)]">Transfers</div>
           <div className="mt-1 text-lg font-semibold">{formatINR(totals.transfer)}</div>
-          <div className="text-[11px] text-[color:var(--hk-faint)]">for-others: {formatINR(totals.transferForOthers || 0)}</div>
         </div>
         <div className="p-3 hk-card">
           <div className="text-[11px] text-[color:var(--hk-muted)]">Avg / day (expense)</div>
-          <div className="mt-1 text-lg font-semibold">{formatINR(totals.days ? (totals.expense / totals.days) : 0)}</div>
-          <div className="text-[11px] text-[color:var(--hk-faint)]">{totals.days || 0} days</div>
+          <div className="mt-1 text-lg font-semibold">{formatINR(totals.expenseDays ? (totals.expense / totals.expenseDays) : 0)}</div>
+          <div className="text-[11px] text-[color:var(--hk-faint)]">{totals.expenseDays || 0} days</div>
         </div>
       </div>
 
