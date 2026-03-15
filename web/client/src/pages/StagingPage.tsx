@@ -6,6 +6,7 @@ type CategoryRef = { code: string; name: string; archived?: boolean };
 type SubcategoryRef = { code: string; name: string; category: string; archived?: boolean };
 import { formatINR } from '../app/format';
 import { loadRange, saveRange } from '../app/range';
+import { SearchSelect } from '../components/SearchSelect';
 
 type ParseResp = { ok: true; dryRun: true; imported: number; rows: any[]; errors: any[] };
 
@@ -303,12 +304,16 @@ export default function StagingPage() {
                     <td className="px-2 py-1">{r.source}</td>
                     <td className="px-2 py-1">
                       <div className="flex items-center gap-1">
-                        <input
-                          list="hk_merchants"
-                          className={`w-28 px-1 py-0.5 rounded bg-zinc-950 border ${isValidMerchant(r.merchant_code || '') ? '[var(--hk-border)]' : 'border-amber-500'}`}
-                          value={r.merchant_code || ''}
-                          onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, merchant_code: e.target.value } : it))}
-                        />
+                        <div className={`w-36 ${!isValidMerchant(r.merchant_code || '') ? 'ring-1 ring-amber-500 rounded' : ''}`}>
+                          <SearchSelect
+                            portal
+                            value={r.merchant_code || ''}
+                            onChange={(v) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, merchant_code: v } : it))}
+                            options={merchRefs.map((m) => ({ value: m.code, label: `${m.code} — ${m.name}` }))}
+                            placeholder="(none)"
+                            className="px-1 py-0.5 rounded bg-zinc-950 border [var(--hk-border)] text-xs"
+                          />
+                        </div>
                         {!isValidMerchant(r.merchant_code || '') ? (
                           <button className="px-1.5 py-0.5 rounded bg-emerald-500 text-emerald-950 text-[11px]" onClick={() => quickAddMerchant(r.merchant_code || '').catch(() => {})}>
                             +
@@ -318,12 +323,16 @@ export default function StagingPage() {
                     </td>
                     <td className="px-2 py-1">
                       <div className="flex items-center gap-1">
-                        <input
-                          list="hk_categories"
-                          className={`w-24 px-1 py-0.5 rounded bg-zinc-950 border ${isValidCategory(r.category || '') ? '[var(--hk-border)]' : 'border-amber-500'}`}
-                          value={r.category || ''}
-                          onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, category: e.target.value } : it))}
-                        />
+                        <div className={`w-32 ${!isValidCategory(r.category || '') ? 'ring-1 ring-amber-500 rounded' : ''}`}>
+                          <SearchSelect
+                            portal
+                            value={r.category || ''}
+                            onChange={(v) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, category: v, subcategory: '' } : it))}
+                            options={catRefs.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }))}
+                            placeholder="(none)"
+                            className="px-1 py-0.5 rounded bg-zinc-950 border [var(--hk-border)] text-xs"
+                          />
+                        </div>
                         {!isValidCategory(r.category || '') ? (
                           <button className="px-1.5 py-0.5 rounded bg-emerald-500 text-emerald-950 text-[11px]" onClick={() => quickAddCategory(r.category || '').catch(() => {})}>
                             +
@@ -333,27 +342,27 @@ export default function StagingPage() {
                     </td>
                     <td className="px-2 py-1">
                       <div className="flex items-center gap-1">
-                        <input
-                          list={`hk_subcats_${r.txn_id}`}
-                          className={`w-28 px-1 py-0.5 rounded bg-zinc-950 border ${isValidSubcategory(r.category || '', r.subcategory || '') ? '[var(--hk-border)]' : 'border-amber-500'}`}
-                          value={r.subcategory || ''}
-                          onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, subcategory: e.target.value } : it))}
-                        />
+                        <div className={`w-44 ${!isValidSubcategory(r.category || '', r.subcategory || '') ? 'ring-1 ring-amber-500 rounded' : ''}`}>
+                          <SearchSelect
+                            portal
+                            value={r.subcategory || ''}
+                            onChange={(v) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, subcategory: v } : it))}
+                            options={subRefs
+                              .filter((s) => !r.category || s.category === r.category)
+                              .map((s) => ({ value: s.code, label: `${s.code} — ${s.name}` }))}
+                            placeholder="(none)"
+                            className="px-1 py-0.5 rounded bg-zinc-950 border [var(--hk-border)] text-xs"
+                            disabled={!r.category}
+                          />
+                        </div>
                         {!isValidSubcategory(r.category || '', r.subcategory || '') ? (
                           <button className="px-1.5 py-0.5 rounded bg-emerald-500 text-emerald-950 text-[11px]" onClick={() => quickAddSubcategory(r.category || '', r.subcategory || '').catch(() => {})}>
                             +
                           </button>
                         ) : null}
                       </div>
-                      <datalist id={`hk_subcats_${r.txn_id}`}>
-                        {subRefs
-                          .filter((s) => !r.category || s.category === r.category)
-                          .map((s) => (
-                            <option key={s.code} value={s.code}>{s.code} — {s.name}</option>
-                          ))}
-                      </datalist>
                       <div className="mt-1">
-                        <input className="w-28 px-1 py-0.5 rounded bg-zinc-950 border [var(--hk-border)] text-[11px]" value={r.tags || ''} placeholder="tags" onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, tags: e.target.value } : it))} />
+                        <input className="w-44 px-1 py-0.5 rounded bg-zinc-950 border [var(--hk-border)] text-[11px]" value={r.tags || ''} placeholder="tags" onChange={(e) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, tags: e.target.value } : it))} />
                       </div>
                     </td>
                     <td className="px-2 py-1">
@@ -370,16 +379,7 @@ export default function StagingPage() {
         </div>
       </div>
 
-      <datalist id="hk_merchants">
-        {merchRefs.map((m) => (
-          <option key={m.code} value={m.code}>{m.code} — {m.name}</option>
-        ))}
-      </datalist>
-      <datalist id="hk_categories">
-        {catRefs.map((c) => (
-          <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
-        ))}
-      </datalist>
+      {/* SearchSelect used in preview; legacy datalists removed. */}
 
       <div className="mt-6">
         <h2 className="text-sm font-semibold text-zinc-200">Commit job log {jobId ? `(job ${jobId})` : ''}</h2>
