@@ -537,8 +537,20 @@ export default function DashboardPage() {
           ) : null}
         </div>
 
-        <div className="flex gap-2">
-          <button className="px-3 py-2 rounded-md hk-btn-secondary" onClick={() => { setFDate(''); setFType(''); setFSource(''); setFLocation(''); setFMerchant(''); setFCategory(''); setFSubcategory(''); setFTags([]); setPage(1); }}>
+        <div className="flex gap-2 items-end">
+          <div className="min-w-[240px]">
+            <label className="text-[11px] text-[color:var(--hk-muted)]">Search</label>
+            <input
+              className="mt-1 hk-input"
+              value={fSearch}
+              onChange={(e) => setFSearch(e.target.value)}
+              placeholder="regex / text"
+            />
+          </div>
+          <button
+            className="px-3 py-2 rounded-md hk-btn-secondary"
+            onClick={() => { setFDate(''); setFType(''); setFSource(''); setFLocation(''); setFMerchant(''); setFCategory(''); setFSubcategory(''); setFTags([]); setFSearch(''); setPage(1); }}
+          >
             Clear filters
           </button>
           {/* open filters moved to left side */}
@@ -603,16 +615,7 @@ export default function DashboardPage() {
               ))}
             </datalist>
           </div>
-          <div>
-            <label className="text-xs text-[color:var(--hk-muted)]">Global search (regex)</label>
-            <input
-              className="mt-1 w-full hk-input"
-              value={fSearch}
-              onChange={(e) => setFSearch(e.target.value)}
-              placeholder="e.g. poha|gatorade|instax|\brefund\b"
-            />
-            <div className="mt-1 text-[11px] text-[color:var(--hk-faint)]">Searches across text/notes/merchant/category/source/tags. Invalid regex falls back to plain text.</div>
-          </div>
+          {/* Global search moved to header bar (next to Clear filters) */}
 
           <div>
             <label className="text-xs text-[color:var(--hk-muted)]">Tags (any)</label>
