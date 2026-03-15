@@ -834,7 +834,7 @@ export default function DashboardPage() {
                 {(() => {
                   const sums: Record<string, number> = {};
                   for (const r of expenseRows) {
-                    const k = r.merchant_name || r.merchant_code || 'Unknown';
+                    const k = r.merchant_known ? (r.merchant_name || 'Unknown') : 'Unknown';
                     sums[k] = (sums[k] || 0) + Number(r.amount || 0);
                   }
                   return Object.entries(sums)
