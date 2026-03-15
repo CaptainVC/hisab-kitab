@@ -280,6 +280,7 @@ export default function DashboardPage() {
   // Special tokens for "missing" values from charts/tables
   const MISSING = '__MISSING__';
   const [fTags, setFTags] = useState<string[]>([]);
+  const [fSearch, setFSearch] = useState<string>('');
   const [fDate, setFDate] = useState<string>(''); // YYYY-MM-DD
 
   const [page, setPage] = useState(1);
@@ -354,6 +355,37 @@ export default function DashboardPage() {
     if (fTags.length) {
       // Any-match (OR)
       if (!fTags.some((t) => tags.includes(t))) return false;
+    }
+
+    if (fSearch.trim()) {
+      const hay = [
+        r.txn_id,
+        r.type,
+        r.amount,
+        r.raw_text,
+        r.notes,
+        r.merchant_name,
+        r.merchant_code,
+        r.category_name,
+        r.category,
+        r.subcategory_name,
+        r.subcategory,
+        r.source_name,
+        r.source,
+        r.location_name,
+        r.location,
+        tags.join(','),
+      ]
+        .filter(Boolean)
+        .join(' | ');
+
+      try {
+        const re = new RegExp(fSearch, 'i');
+        if (!re.test(hay)) return false;
+      } catch {
+        // fallback: substring match if regex is invalid
+        if (!hay.toLowerCase().includes(fSearch.trim().toLowerCase())) return false;
+      }
     }
 
     return true;
@@ -567,6 +599,17 @@ export default function DashboardPage() {
             </datalist>
           </div>
           <div>
+            <label className="text-xs text-[color:var(--hk-muted)]">Global search (regex)</label>
+            <input
+              className="mt-1 w-full hk-input"
+              value={fSearch}
+              onChange={(e) => setFSearch(e.target.value)}
+              placeholder="e.g. poha|gatorade|instax|\brefund\b"
+            />
+            <div className="mt-1 text-[11px] text-[color:var(--hk-faint)]">Searches across text/notes/merchant/category/source/tags. Invalid regex falls back to plain text.</div>
+          </div>
+
+          <div>
             <label className="text-xs text-[color:var(--hk-muted)]">Tags (any)</label>
             <select
               multiple
@@ -627,7 +670,7 @@ export default function DashboardPage() {
             </datalist>
           </div>
           <div className="flex items-end">
-            <button className="w-full px-3 py-2 rounded-md hk-btn-secondary" onClick={() => { setFDate(''); setFType(''); setFSource(''); setFLocation(''); setFMerchant(''); setFCategory(''); setFSubcategory(''); setFTags([]); setPage(1); }}>
+            <button className="w-full px-3 py-2 rounded-md hk-btn-secondary" onClick={() => { setFDate(''); setFType(''); setFSource(''); setFLocation(''); setFMerchant(''); setFCategory(''); setFSubcategory(''); setFTags([]); setFSearch(''); setPage(1); }}>
               Clear filters
             </button>
           </div>
