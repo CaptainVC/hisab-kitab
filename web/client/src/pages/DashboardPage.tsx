@@ -270,7 +270,7 @@ export default function DashboardPage() {
 
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const [fType, setFType] = useState<string>('');
+  const [fType, setFType] = useState<string>('EXPENSE');
   const [fSource, setFSource] = useState<string>('');
   const [fLocation, setFLocation] = useState<string>('');
   const [fMerchant, setFMerchant] = useState<string>('');
