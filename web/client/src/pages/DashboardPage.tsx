@@ -44,6 +44,7 @@ export default function DashboardPage() {
   const [editNotes, setEditNotes] = useState('');
   const [editSource, setEditSource] = useState('');
   const [editLocation, setEditLocation] = useState('');
+  const [editAmount, setEditAmount] = useState('');
 
   const [splitOpen, setSplitOpen] = useState(false);
   const [splitLines, setSplitLines] = useState<Array<{ amount: string; raw_text: string; merchant_code: string; category: string; subcategory: string }>>([]);
@@ -59,6 +60,7 @@ export default function DashboardPage() {
     setEditNotes(String(r.notes || ''));
     setEditSource(String(r.source || ''));
     setEditLocation(String(r.location || ''));
+    setEditAmount(String(r.amount || ''));
 
     // prime split UI with 2 lines (common case)
     setSplitLines([
@@ -695,6 +697,10 @@ export default function DashboardPage() {
 
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
+                <label className="text-xs text-[color:var(--hk-muted)]">Amount</label>
+                <input className="mt-1 w-full hk-input" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} />
+              </div>
+              <div>
                 <label className="text-xs text-[color:var(--hk-muted)]">Merchant</label>
                 <SearchSelect
                   value={editMerchant}
@@ -772,6 +778,7 @@ export default function DashboardPage() {
                     // 1) Save into Excel (job)
                     setBusy(true);
                     const r = await apiPut<{ ok: true; jobId: string }>(`/api/v1/txns/${encodeURIComponent(editTxn.txn_id)}`, {
+                      amount: Number(editAmount),
                       merchant_code: editMerchant,
                       category: editCategory,
                       subcategory: editSubcategory,

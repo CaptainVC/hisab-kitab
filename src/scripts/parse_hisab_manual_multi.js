@@ -218,12 +218,31 @@ function main() {
 
   rows.sort((a,b) => String(a.date).localeCompare(String(b.date)) || String(a.raw_text).localeCompare(String(b.raw_text)) || Number(a.amount)-Number(b.amount));
 
+  // Mark duplicates (do not remove): tag subsequent occurrences as 'duplicate'.
+  // Key uses stable fields; note that meta/notes differences are ignored.
+  const dupKey = (r) => [r.date, r.type, r.amount, r.source, r.merchant_code, String(r.raw_text||'').toLowerCase().trim()].join('||');
+  const seen = new Map();
+  let duplicateTagged = 0;
+  for (const r of rows) {
+    if (!r || r.exclude) continue;
+    const k = dupKey(r);
+    const n = seen.get(k) || 0;
+    if (n >= 1) {
+      const tags = Array.isArray(r.tags) ? r.tags : [];
+      if (!tags.includes('duplicate')) tags.push('duplicate');
+      r.tags = tags;
+      duplicateTagged++;
+    }
+    seen.set(k, n + 1);
+  }
+
   // basic stats
   const report = {
     ok: true,
     files: inFiles.map(f => path.basename(f)),
     totalRows: rows.length,
     excludedRows: rows.filter(r=>r.exclude).length,
+    duplicateTagged,
     transfers: rows.filter(r=>String(r.type)==='TRANSFER' && !r.exclude).length,
     expenses: rows.filter(r=>String(r.type)==='EXPENSE' && !r.exclude).length,
     sources: rows.reduce((acc,r)=>{ const s=r.source||'unknown'; acc[s]=(acc[s]||0)+1; return acc; }, {})

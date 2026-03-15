@@ -11,10 +11,19 @@ export async function registerTxnRoutes(app, opts) {
             return reply.code(400).send({ ok: false, error: 'missing_txn_id' });
         const body = (req.body || {});
         const patch = {};
-        const allowed = ['merchant_code', 'category', 'subcategory', 'tags', 'notes', 'source', 'location'];
+        const allowed = ['merchant_code', 'category', 'subcategory', 'tags', 'notes', 'source', 'location', 'amount'];
         for (const k of allowed) {
-            if (body[k] !== undefined)
+            if (body[k] === undefined)
+                continue;
+            if (k === 'amount') {
+                const n = Number(body[k]);
+                if (!Number.isFinite(n) || n <= 0)
+                    return reply.code(400).send({ ok: false, error: 'bad_amount' });
+                patch[k] = n;
+            }
+            else {
                 patch[k] = String(body[k] ?? '');
+            }
         }
         if (Object.keys(patch).length === 0)
             return reply.code(400).send({ ok: false, error: 'missing_patch' });
