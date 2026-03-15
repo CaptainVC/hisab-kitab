@@ -395,7 +395,15 @@ export default function DashboardPage() {
   // - If Type filter is EXPENSE, exclude rows categorized as TRANSFER (common data error).
   // - Otherwise (All / TRANSFER / INCOME), chart whatever is currently filtered.
   const analyticsRows = fType === 'EXPENSE'
-    ? filteredRows.filter((r: any) => r.type === 'EXPENSE' && String(r.category || '') !== 'TRANSFER')
+    ? filteredRows.filter((r: any) => {
+        if (r.type !== 'EXPENSE') return false;
+        // Common data error: transfer rows marked as EXPENSE.
+        // Hide them for expense analytics by default, but if the user explicitly filters Category=TRANSFER,
+        // then show them (user intent is clear).
+        if (!fCategory && String(r.category || '') === 'TRANSFER') return false;
+        if (fCategory && fCategory !== 'TRANSFER' && String(r.category || '') === 'TRANSFER') return false;
+        return true;
+      })
     : filteredRows;
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
