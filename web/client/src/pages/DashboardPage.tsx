@@ -341,13 +341,17 @@ export default function DashboardPage() {
       }
     }
 
+    const tags: string[] = Array.isArray(r._tags)
+      ? r._tags
+      : String(r.tags || '')
+          .split(',')
+          .map((s: string) => s.trim())
+          .filter(Boolean);
+
+    // Hide archived rows by default. To see them, explicitly filter by the 'archived' tag.
+    if (tags.includes('archived') && !fTags.includes('archived')) return false;
+
     if (fTags.length) {
-      const tags: string[] = Array.isArray(r._tags)
-        ? r._tags
-        : String(r.tags || '')
-            .split(',')
-            .map((s: string) => s.trim())
-            .filter(Boolean);
       // Any-match (OR)
       if (!fTags.some((t) => tags.includes(t))) return false;
     }
@@ -919,6 +923,20 @@ export default function DashboardPage() {
                           }}
                         />
                         For someone else
+                      </label>
+
+                      <label className="inline-flex items-center gap-2 text-xs text-[color:var(--hk-muted)]">
+                        <input
+                          type="checkbox"
+                          checked={String(editTags || '').split(',').map(s => s.trim()).filter(Boolean).includes('archived')}
+                          onChange={(e) => {
+                            const parts = String(editTags || '').split(',').map(s => s.trim()).filter(Boolean);
+                            const has = parts.includes('archived');
+                            const next = e.target.checked ? (has ? parts : parts.concat(['archived'])) : parts.filter(x => x !== 'archived');
+                            setEditTags(next.join(','));
+                          }}
+                        />
+                        Archived (hide)
                       </label>
                     </div>
                   </div>
