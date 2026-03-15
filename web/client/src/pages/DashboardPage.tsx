@@ -452,6 +452,14 @@ export default function DashboardPage() {
     // When user explicitly filters Type=EXPENSE, transfers card should be 0 (show only expenses).
     const rowsForTotals = filteredRows;
 
+    const isTransferCatRow = (r: any) => {
+      const rowCat = String(r.category || '');
+      const rowCatName = String(r.category_name || '');
+      return rowCat === 'TRANSFER' || rowCatName === 'Transfers';
+    };
+
+    const normTypeOf = (r: any) => (isTransferCatRow(r) ? 'TRANSFER' : String(r.type || ''));
+
     let sum = 0;
     let expense = 0;
     let transfer = 0;
@@ -461,11 +469,7 @@ export default function DashboardPage() {
       const a = Number(r.amount || 0);
       if (Number.isFinite(a)) sum += a;
 
-      const rowCat = String(r.category || '');
-      const rowCatName = String(r.category_name || '');
-      const isTransferCat = rowCat === 'TRANSFER' || rowCatName === 'Transfers';
-      const normType = isTransferCat ? 'TRANSFER' : String(r.type || '');
-
+      const normType = normTypeOf(r);
       if (normType === 'EXPENSE') {
         expense += Number.isFinite(a) ? a : 0;
         if (r.date) expenseDays.add(String(r.date));
@@ -479,14 +483,35 @@ export default function DashboardPage() {
     for (const r of rowsForTotals) {
       const a = Number(r.amount || 0);
       if (!Number.isFinite(a)) continue;
-      const rowCat = String(r.category || '');
-      const rowCatName = String(r.category_name || '');
-      const isTransferCat = rowCat === 'TRANSFER' || rowCatName === 'Transfers';
-      const normType = isTransferCat ? 'TRANSFER' : String(r.type || '');
+      const normType = normTypeOf(r);
       if (normType !== 'EXPENSE') continue;
       const loc = String(r.location_name || r.location || 'Unknown') || 'Unknown';
       byLoc[loc] = (byLoc[loc] || 0) + a;
     }
+
+    // Extra KPI cards (expense-focused)
+    const expRows = rowsForTotals.filter((r: any) => normTypeOf(r) === 'EXPENSE');
+    const topCategory = (() => {
+      const sums: Record<string, number> = {};
+      for (const r of expRows) {
+        const k = String(r.category_name || r.category || 'Uncategorized');
+        sums[k] = (sums[k] || 0) + Number(r.amount || 0);
+      }
+      const top = Object.entries(sums).sort((a, b) => b[1] - a[1])[0];
+      return top ? { name: top[0], amount: top[1] } : { name: '—', amount: 0 };
+    })();
+
+    const topMerchant = (() => {
+      const sums: Record<string, number> = {};
+      for (const r of expRows) {
+        const k = r.merchant_known ? String(r.merchant_name || 'Unknown') : 'Unknown';
+        sums[k] = (sums[k] || 0) + Number(r.amount || 0);
+      }
+      const top = Object.entries(sums).sort((a, b) => b[1] - a[1])[0];
+      return top ? { name: top[0], amount: top[1] } : { name: '—', amount: 0 };
+    })();
+
+    const needsCategorization = expRows.filter((r: any) => !String(r.category || '').trim() || !String(r.subcategory || '').trim()).length;
 
     if (fType === 'EXPENSE') transfer = 0;
 
@@ -496,7 +521,10 @@ export default function DashboardPage() {
       expense,
       transfer,
       expenseDays: expenseDays.size,
-      byLoc
+      byLoc,
+      topCategory,
+      topMerchant,
+      needsCategorization
     };
   })();
 
@@ -778,28 +806,29 @@ export default function DashboardPage() {
         Oldest loaded: {rows.length ? String(rows.reduce((min:any, r:any)=>{ const d=String(r.date||''); if(!d) return min; if(!min) return d; return d<min?d:min; }, null)) : '—'} • Showing {filteredRows.length} / {rows.length} transactions (filters). Transactions table paginates.
       </div>
 
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-5 gap-3">
-        <div className="p-3 hk-card">
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-[repeat(3,minmax(0,1fr))_minmax(0,1.35fr)] gap-3 auto-rows-fr">
+        {/* Row 1 */}
+        <div className="p-3 hk-card min-h-[84px]">
           <div className="text-[11px] text-[color:var(--hk-muted)]">Transactions</div>
           <div className="mt-1 text-lg font-semibold">{totals.count}</div>
         </div>
-        <div className="p-3 hk-card">
+        <div className="p-3 hk-card min-h-[84px]">
           <div className="text-[11px] text-[color:var(--hk-muted)]">Expense</div>
           <div className="mt-1 text-lg font-semibold">{formatINR(totals.expense)}</div>
         </div>
-        <div className="p-3 hk-card">
+        <div className="p-3 hk-card min-h-[84px]">
           <div className="text-[11px] text-[color:var(--hk-muted)]">Transfers</div>
           <div className="mt-1 text-lg font-semibold">{formatINR(totals.transfer)}</div>
         </div>
-        <div className="p-3 hk-card md:col-span-2">
+
+        <div className="p-3 hk-card row-span-2 min-h-[176px]">
           <div className="text-[11px] text-[color:var(--hk-muted)]">Expense by location</div>
-          <div className="mt-2 space-y-1">
+          <div className="mt-2 max-h-[132px] overflow-auto pr-1 space-y-1">
             {Object.entries(totals.byLoc || {})
               .sort((a: any, b: any) => b[1] - a[1])
-              .slice(0, 6)
               .map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-3 text-sm">
-                  <span className="text-[color:var(--hk-muted)] truncate max-w-[220px]">{k}</span>
+                  <span className="text-[color:var(--hk-muted)] truncate max-w-[240px]">{k}</span>
                   <span className="font-semibold">{formatINR(v)}</span>
                 </div>
               ))}
@@ -807,6 +836,23 @@ export default function DashboardPage() {
               <div className="text-xs text-[color:var(--hk-faint)]">—</div>
             ) : null}
           </div>
+        </div>
+
+        {/* Row 2 */}
+        <div className="p-3 hk-card min-h-[84px]">
+          <div className="text-[11px] text-[color:var(--hk-muted)]">Top category</div>
+          <div className="mt-1 text-sm text-[color:var(--hk-muted)] truncate" title={totals.topCategory?.name || ''}>{totals.topCategory?.name || '—'}</div>
+          <div className="mt-1 text-lg font-semibold">{formatINR(totals.topCategory?.amount || 0)}</div>
+        </div>
+        <div className="p-3 hk-card min-h-[84px]">
+          <div className="text-[11px] text-[color:var(--hk-muted)]">Top merchant</div>
+          <div className="mt-1 text-sm text-[color:var(--hk-muted)] truncate" title={totals.topMerchant?.name || ''}>{totals.topMerchant?.name || '—'}</div>
+          <div className="mt-1 text-lg font-semibold">{formatINR(totals.topMerchant?.amount || 0)}</div>
+        </div>
+        <div className="p-3 hk-card min-h-[84px]">
+          <div className="text-[11px] text-[color:var(--hk-muted)]">Needs category/subcat</div>
+          <div className="mt-1 text-lg font-semibold">{totals.needsCategorization || 0}</div>
+          <div className="text-[11px] text-[color:var(--hk-faint)]">expense rows missing fields</div>
         </div>
       </div>
 
