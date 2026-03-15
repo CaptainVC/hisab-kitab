@@ -321,7 +321,7 @@ export default function DashboardPage() {
     }
     if (fLocation && (r.location_name || r.location) !== fLocation && r.location !== fLocation) return false;
 
-    const merch = r.merchant_name || r.merchant_code || '';
+    const merch = r.merchant_known ? (r.merchant_name || '') : '';
     if (fMerchant) {
       if (fMerchant === MISSING) {
         if (String(merch || '').trim()) return false;
@@ -646,7 +646,7 @@ export default function DashboardPage() {
             <label className="text-xs text-[color:var(--hk-muted)]">Merchant</label>
             <input className="mt-1 w-full hk-input" list="hk-filter-merchant" value={fMerchant} onChange={(e) => setFMerchant(e.target.value)} placeholder="(all)" />
             <datalist id="hk-filter-merchant">
-              {Array.from(new Set(rows.map((r:any)=>r.merchant_name || r.merchant_code).filter(Boolean))).sort().map((m) => (
+              {Array.from(new Set(rows.filter((r:any)=>r.merchant_known).map((r:any)=>r.merchant_name).filter(Boolean))).sort().map((m) => (
                 <option key={m} value={m} />
               ))}
             </datalist>
@@ -1266,7 +1266,7 @@ export default function DashboardPage() {
                   <td className="px-3 py-2 whitespace-nowrap">{r.date}</td>
                   <td className="px-3 py-2">{r.type}</td>
                   <td className="px-3 py-2 text-right">{formatINR(r.amount)}</td>
-                  <td className="px-3 py-2">{r.merchant_name || r.merchant_code || ''}</td>
+                  <td className="px-3 py-2">{r.merchant_known ? (r.merchant_name || '') : ''}</td>
                   <td className="px-3 py-2">{r.messageId ? 'Mail' : (r.source_name || r.source || '')}</td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">

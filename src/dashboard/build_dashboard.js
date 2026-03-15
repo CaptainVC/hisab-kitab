@@ -117,7 +117,8 @@ function enrichRows(rows, refs) {
   for (const r of rows) {
     r.category_name = refs.categories?.[r.category]?.name || r.category || '';
     r.subcategory_name = refs.subcategories?.[r.subcategory]?.name || r.subcategory || '';
-    r.merchant_name = refs.merchants?.[r.merchant_code]?.name || r.merchant_code || '';
+    r.merchant_known = !!(r.merchant_code && refs.merchants?.[r.merchant_code]);
+    r.merchant_name = r.merchant_known ? (refs.merchants?.[r.merchant_code]?.name || '') : '';
     r.source_name = refs.sources?.[r.source]?.display || r.source || '';
     r.location_name = refs.locations?.[r.location]?.name || r.location || '';
   }
