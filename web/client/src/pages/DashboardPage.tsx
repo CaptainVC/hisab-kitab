@@ -473,12 +473,27 @@ export default function DashboardPage() {
       }
     }
 
+    // Expense by location
+    const byLoc: Record<string, number> = {};
+    for (const r of rowsForTotals) {
+      const a = Number(r.amount || 0);
+      if (!Number.isFinite(a)) continue;
+      const rowCat = String(r.category || '');
+      const rowCatName = String(r.category_name || '');
+      const isTransferCat = rowCat === 'TRANSFER' || rowCatName === 'Transfers';
+      const normType = isTransferCat ? 'TRANSFER' : String(r.type || '');
+      if (normType !== 'EXPENSE') continue;
+      const loc = String(r.location_name || r.location || 'Unknown') || 'Unknown';
+      byLoc[loc] = (byLoc[loc] || 0) + a;
+    }
+
     return {
       count: rowsForTotals.length,
       sum,
       expense,
       transfer,
-      expenseDays: expenseDays.size
+      expenseDays: expenseDays.size,
+      byLoc
     };
   })();
 
@@ -760,14 +775,10 @@ export default function DashboardPage() {
         Oldest loaded: {rows.length ? String(rows.reduce((min:any, r:any)=>{ const d=String(r.date||''); if(!d) return min; if(!min) return d; return d<min?d:min; }, null)) : '—'} • Showing {filteredRows.length} / {rows.length} transactions (filters). Transactions table paginates.
       </div>
 
-      <div className="mt-4 grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-5 gap-3">
         <div className="p-3 hk-card">
           <div className="text-[11px] text-[color:var(--hk-muted)]">Transactions</div>
           <div className="mt-1 text-lg font-semibold">{totals.count}</div>
-        </div>
-        <div className="p-3 hk-card">
-          <div className="text-[11px] text-[color:var(--hk-muted)]">Total amount</div>
-          <div className="mt-1 text-lg font-semibold">{formatINR(totals.sum)}</div>
         </div>
         <div className="p-3 hk-card">
           <div className="text-[11px] text-[color:var(--hk-muted)]">Expense</div>
@@ -777,10 +788,22 @@ export default function DashboardPage() {
           <div className="text-[11px] text-[color:var(--hk-muted)]">Transfers</div>
           <div className="mt-1 text-lg font-semibold">{formatINR(totals.transfer)}</div>
         </div>
-        <div className="p-3 hk-card">
-          <div className="text-[11px] text-[color:var(--hk-muted)]">Avg / day (expense)</div>
-          <div className="mt-1 text-lg font-semibold">{formatINR(totals.expenseDays ? (totals.expense / totals.expenseDays) : 0)}</div>
-          <div className="text-[11px] text-[color:var(--hk-faint)]">{totals.expenseDays || 0} days</div>
+        <div className="p-3 hk-card md:col-span-2">
+          <div className="text-[11px] text-[color:var(--hk-muted)]">Expense by location</div>
+          <div className="mt-2 space-y-1">
+            {Object.entries(totals.byLoc || {})
+              .sort((a: any, b: any) => b[1] - a[1])
+              .slice(0, 6)
+              .map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-3 text-sm">
+                  <span className="text-[color:var(--hk-muted)] truncate max-w-[220px]">{k}</span>
+                  <span className="font-semibold">{formatINR(v)}</span>
+                </div>
+              ))}
+            {!Object.keys(totals.byLoc || {}).length ? (
+              <div className="text-xs text-[color:var(--hk-faint)]">—</div>
+            ) : null}
+          </div>
         </div>
       </div>
 
