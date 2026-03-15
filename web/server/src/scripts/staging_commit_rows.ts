@@ -25,6 +25,7 @@ async function main() {
 
   // Ensure fields exist for stable sheets
   for (const r of rows) {
+    if (r.txn_id === undefined) r.txn_id = '';
     if (r.messageId === undefined) r.messageId = '';
     if (r.tags === undefined) r.tags = '';
     if (Array.isArray(r._tags) && !r.tags) r.tags = r._tags.join(',');
@@ -36,7 +37,67 @@ async function main() {
   const modPath = path.join(process.cwd(), 'src', 'excel', 'workbook_store.js');
   const mod: any = await import(pathToFileURL(modPath).href);
   const storeAppend = mod.storeAppend || mod?.default?.storeAppend;
+  const ensureWorkbook = mod.ensureWorkbook || mod?.default?.ensureWorkbook;
+  const readSheetRows = mod.readSheetRows || mod?.default?.readSheetRows;
+
   if (typeof storeAppend !== 'function') throw new Error('storeAppend_missing');
+
+  // Fill missing txn_id values before append so rows are editable.
+  // txn_id format: hisab_YYYY-MM-DD_00000 (sequence per date).
+  const maxByDate = new Map<string, number>();
+  const pad5 = (n: number) => String(n).padStart(5, '0');
+
+  function parseSeq(id: string) {
+    const m = String(id || '').match(/_(\d{5})$/);
+    if (!m) return null;
+    const n = Number(m[1]);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  // Pre-scan existing sheets for dates we are about to insert.
+  const dates = Array.from(new Set(rows.map((r) => String(r.date || '')).filter(Boolean)));
+  for (const d of dates) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) continue;
+    if (maxByDate.has(d)) continue;
+
+    try {
+      // Compute workbook + sheet names (same convention as workbook_store.js)
+      const yy = Number(d.slice(0, 4));
+      const mm = Number(d.slice(5, 7));
+
+      const q = Math.floor((mm - 1) / 3) + 1;
+      const wbName = `HK_${yy}_Q${q}.xlsx`;
+      const mon = new Date(Date.UTC(yy, mm - 1, 1)).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' });
+      const sheetName = `${mon}-${yy}`;
+
+      const wbPath = path.join(baseDir, wbName);
+      const wb = typeof ensureWorkbook === 'function' ? ensureWorkbook(wbPath) : null;
+      const existing = wb && typeof readSheetRows === 'function' ? readSheetRows(wb, sheetName) : [];
+
+      let max = -1;
+      for (const r of existing || []) {
+        const id = String((r as any).txn_id || '').trim();
+        if (!id) continue;
+        if (!id.startsWith(`hisab_${d}_`)) continue;
+        const seq = parseSeq(id);
+        if (seq === null) continue;
+        if (seq > max) max = seq;
+      }
+      maxByDate.set(d, max);
+    } catch {
+      maxByDate.set(d, -1);
+    }
+  }
+
+  for (const r of rows) {
+    const d = String(r.date || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) continue;
+    const cur = String(r.txn_id || '').trim();
+    if (cur) continue;
+    const next = (maxByDate.get(d) ?? -1) + 1;
+    maxByDate.set(d, next);
+    r.txn_id = `hisab_${d}_${pad5(next)}`;
+  }
 
   const outputs = storeAppend({ baseDir, headers, rows });
   process.stdout.write(JSON.stringify({ ok: true, outputs, imported: rows.length }, null, 2));
