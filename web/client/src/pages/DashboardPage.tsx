@@ -352,6 +352,9 @@ export default function DashboardPage() {
     // Hide archived rows by default. To see them, explicitly filter by the 'archived' tag.
     if (tags.includes('archived') && !fTags.includes('archived')) return false;
 
+    // Hide reimbursable rows by default (they shouldn't affect spend totals); show them when explicitly filtered.
+    if (tags.includes('reimbursable') && !fTags.includes('reimbursable')) return false;
+
     if (fTags.length) {
       // Any-match (OR)
       if (!fTags.some((t) => tags.includes(t))) return false;

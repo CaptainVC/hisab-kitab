@@ -136,11 +136,10 @@ function buildData(baseDir) {
   }
 
   // Exclude transactions that have been superseded by an item-level breakdown import.
-  // Also exclude reimbursable rows (you track these for reference, but they should not count toward spend totals).
+  // NOTE: reimbursable rows should stay in the dataset so you can filter/review them.
   const filtered = all.filter(r => {
     const tags = Array.isArray(r._tags) ? r._tags : [];
     if (tags.includes('superseded')) return false;
-    if (tags.includes('reimbursable')) return false;
     return true;
   });
 
