@@ -391,8 +391,12 @@ export default function DashboardPage() {
     return true;
   });
 
-  // For expense analytics, ignore rows categorized as TRANSFER even if type was set to EXPENSE by mistake.
-  const expenseRows = filteredRows.filter((r: any) => r.type === 'EXPENSE' && String(r.category || '') !== 'TRANSFER');
+  // Analytics rows (charts):
+  // - If Type filter is EXPENSE, exclude rows categorized as TRANSFER (common data error).
+  // - Otherwise (All / TRANSFER / INCOME), chart whatever is currently filtered.
+  const analyticsRows = fType === 'EXPENSE'
+    ? filteredRows.filter((r: any) => r.type === 'EXPENSE' && String(r.category || '') !== 'TRANSFER')
+    : filteredRows;
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
   const curPage = Math.min(page, totalPages);
@@ -401,7 +405,7 @@ export default function DashboardPage() {
 
   const daily = (() => {
     const sums: Record<string, number> = {};
-    for (const r of expenseRows) {
+    for (const r of analyticsRows) {
       const k = r.date;
       sums[k] = (sums[k] || 0) + Number(r.amount || 0);
     }
@@ -410,7 +414,7 @@ export default function DashboardPage() {
 
   const topCats = (() => {
     const sums: Record<string, number> = {};
-    for (const r of expenseRows) {
+    for (const r of analyticsRows) {
       const k = r.category_name || r.category || 'Uncategorized';
       sums[k] = (sums[k] || 0) + Number(r.amount || 0);
     }
@@ -694,7 +698,7 @@ export default function DashboardPage() {
 
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="p-4 hk-card">
-          <div className="text-sm font-semibold">Daily expense (trend)</div>
+          <div className="text-sm font-semibold">Daily {fType ? fType.toLowerCase() : 'amount'} (trend)</div>
           <div className="mt-2 h-[220px]">
             <DailyLineChart
               labels={daily.map(x => x[0])}
@@ -707,7 +711,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="p-4 hk-card">
-          <div className="text-sm font-semibold">Top categories (click to filter)</div>
+          <div className="text-sm font-semibold">Top categories ({fType ? fType.toLowerCase() : 'all'})</div>
           {(() => {
             const h = Math.max(260, topCats.length * 28);
             return (
@@ -729,12 +733,12 @@ export default function DashboardPage() {
         </div>
 
         <div className="p-4 hk-card">
-          <div className="text-sm font-semibold">Top merchants (expense)</div>
+          <div className="text-sm font-semibold">Top merchants ({fType ? fType.toLowerCase() : 'all'})</div>
           <div className="mt-2 h-[220px]">
             {(() => {
               const sums: Record<string, number> = {};
-              for (const r of expenseRows) {
-                const k = r.merchant_name || r.merchant_code || 'Unknown';
+              for (const r of analyticsRows) {
+                const k = r.merchant_known ? (r.merchant_name || 'Unknown') : 'Unknown';
                 sums[k] = (sums[k] || 0) + Number(r.amount || 0);
               }
               const top = Object.entries(sums).sort((a, b) => b[1] - a[1]).slice(0, 8);
@@ -743,13 +747,12 @@ export default function DashboardPage() {
                   labels={top.map(x => x[0])}
                   values={top.map(x => Math.round(x[1]))}
                   height={Math.max(260, top.length * 28)}
-                  label="Expense"
+                  label={fType ? fType : 'Amount'}
                   indexAxis="y"
                   tickMax={50}
                   showValueLabels
                   formatValue={(v) => formatINR(v)}
                   onBarClick={(label) => {
-                    setFType('EXPENSE');
                     setFMerchant(label === 'Unknown' ? MISSING : label);
                     setPage(1);
                   }}
@@ -764,7 +767,7 @@ export default function DashboardPage() {
           <div className="mt-2 h-[220px]">
             {(() => {
               const sums: Record<string, number> = {};
-              for (const r of expenseRows) {
+              for (const r of analyticsRows) {
                 // If a row comes from mail ingest, treat its source as "Mail".
                 const k = r.messageId ? 'Mail' : (r.source_name || r.source || 'Unknown');
                 sums[k] = (sums[k] || 0) + Number(r.amount || 0);
@@ -802,7 +805,7 @@ export default function DashboardPage() {
               <tbody>
                 {(() => {
                   const sums: Record<string, number> = {};
-                  for (const r of expenseRows) {
+                  for (const r of analyticsRows) {
                     const k = r.subcategory_name || r.subcategory || 'Uncategorized';
                     sums[k] = (sums[k] || 0) + Number(r.amount || 0);
                   }
@@ -834,7 +837,7 @@ export default function DashboardPage() {
               <tbody>
                 {(() => {
                   const sums: Record<string, number> = {};
-                  for (const r of expenseRows) {
+                  for (const r of analyticsRows) {
                     const k = r.merchant_known ? (r.merchant_name || 'Unknown') : 'Unknown';
                     sums[k] = (sums[k] || 0) + Number(r.amount || 0);
                   }
