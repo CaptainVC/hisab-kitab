@@ -396,20 +396,30 @@ export default function DashboardPage() {
   // - Otherwise (All / TRANSFER / INCOME), chart whatever is currently filtered.
   const analyticsRows = fType === 'EXPENSE'
     ? filteredRows.filter((r: any) => {
-        if (r.type !== 'EXPENSE') return false;
-
         const rowCat = String(r.category || '');
         const rowCatName = String(r.category_name || '');
-        const isTransferRow = rowCat === 'TRANSFER' || rowCatName === 'Transfers';
+        const rowSub = String(r.subcategory || '');
+        const rowSubName = String(r.subcategory_name || '');
 
-        const wantsTransfer = fCategory === 'TRANSFER' || fCategory === 'Transfers';
+        const isTransferCat = rowCat === 'TRANSFER' || rowCatName === 'Transfers';
+        const isForOthers = rowSub === 'TRANSFER_FOR_OTHERS' || rowSubName === 'Paid For Someone Else';
 
-        // Common data error: transfer-category rows marked as EXPENSE.
-        // Hide them for expense analytics by default, but if the user explicitly filters Transfers,
-        // then show them (user intent is clear).
-        if (isTransferRow && !wantsTransfer) return false;
+        // Expense mode should include:
+        // - normal EXPENSE rows
+        // - TRANSFER rows only when they are "Paid For Someone Else" (these are effectively expenses, just not for you)
+        if (r.type === 'EXPENSE') {
+          // Common data error: transfer-category rows marked as EXPENSE.
+          // Hide them unless user explicitly filtered Transfers.
+          const wantsTransfer = fCategory === 'TRANSFER' || fCategory === 'Transfers';
+          if (isTransferCat && !wantsTransfer && !isForOthers) return false;
+          return true;
+        }
 
-        return true;
+        if (r.type === 'TRANSFER') {
+          return isForOthers;
+        }
+
+        return false;
       })
     : filteredRows;
 
@@ -446,7 +456,13 @@ export default function DashboardPage() {
       const a = Number(r.amount || 0);
       if (Number.isFinite(a)) sum += a;
       if (r.date) days.add(String(r.date));
-      const t = String(r.type || '');
+
+      // Special case: treat "Paid For Someone Else" transfers as expense.
+      const sub = String(r.subcategory || '');
+      const subName = String(r.subcategory_name || '');
+      const isForOthers = sub === 'TRANSFER_FOR_OTHERS' || subName === 'Paid For Someone Else';
+
+      const t = isForOthers ? 'TRANSFER_FOR_OTHERS' : String(r.type || '');
       byType[t] = (byType[t] || 0) + (Number.isFinite(a) ? a : 0);
     }
 
@@ -454,10 +470,11 @@ export default function DashboardPage() {
       count: rowsForTotals.length,
       sum,
       days: days.size,
-      expense: byType.EXPENSE || 0,
+      expense: (byType.EXPENSE || 0) + (byType.TRANSFER_FOR_OTHERS || 0),
       income: byType.INCOME || 0,
-      transfer: byType.TRANSFER || 0,
-      net: (byType.INCOME || 0) - (byType.EXPENSE || 0)
+      // Transfers total should exclude "Paid For Someone Else" transfers (counted as expense)
+      transfer: (byType.TRANSFER || 0) - (byType.TRANSFER_FOR_OTHERS || 0),
+      net: (byType.INCOME || 0) - ((byType.EXPENSE || 0) + (byType.TRANSFER_FOR_OTHERS || 0))
     };
   })();
 
@@ -739,7 +756,7 @@ export default function DashboardPage() {
         Oldest loaded: {rows.length ? String(rows.reduce((min:any, r:any)=>{ const d=String(r.date||''); if(!d) return min; if(!min) return d; return d<min?d:min; }, null)) : '—'} • Showing {filteredRows.length} / {rows.length} transactions (filters). Transactions table paginates.
       </div>
 
-      <div className="mt-4 grid grid-cols-2 md:grid-cols-6 gap-3">
+      <div className="mt-4 grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="p-3 hk-card">
           <div className="text-[11px] text-[color:var(--hk-muted)]">Transactions</div>
           <div className="mt-1 text-lg font-semibold">{totals.count}</div>
@@ -749,15 +766,11 @@ export default function DashboardPage() {
           <div className="mt-1 text-lg font-semibold">{formatINR(totals.sum)}</div>
         </div>
         <div className="p-3 hk-card">
-          <div className="text-[11px] text-[color:var(--hk-muted)]">Expense</div>
+          <div className="text-[11px] text-[color:var(--hk-muted)]">Expense (incl. for-others)</div>
           <div className="mt-1 text-lg font-semibold">{formatINR(totals.expense)}</div>
         </div>
         <div className="p-3 hk-card">
-          <div className="text-[11px] text-[color:var(--hk-muted)]">Income</div>
-          <div className="mt-1 text-lg font-semibold">{formatINR(totals.income)}</div>
-        </div>
-        <div className="p-3 hk-card">
-          <div className="text-[11px] text-[color:var(--hk-muted)]">Transfers</div>
+          <div className="text-[11px] text-[color:var(--hk-muted)]">Transfers (excl. for-others)</div>
           <div className="mt-1 text-lg font-semibold">{formatINR(totals.transfer)}</div>
         </div>
         <div className="p-3 hk-card">
