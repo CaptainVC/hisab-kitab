@@ -45,9 +45,11 @@ export default function DashboardPage() {
   const [editSource, setEditSource] = useState('');
   const [editLocation, setEditLocation] = useState('');
   const [editAmount, setEditAmount] = useState('');
+  const [editReimbStatus, setEditReimbStatus] = useState('');
+  const [editCounterparty, setEditCounterparty] = useState('');
 
   const [splitOpen, setSplitOpen] = useState(false);
-  const [splitLines, setSplitLines] = useState<Array<{ amount: string; raw_text: string; merchant_code: string; category: string; subcategory: string }>>([]);
+  const [splitLines, setSplitLines] = useState<Array<{ amount: string; raw_text: string; merchant_code: string; category: string; subcategory: string; reimbursable?: boolean; counterparty?: string }>>([]);
 
   function openEditTxn(r: any) {
     setEditTxn(r);
@@ -61,11 +63,13 @@ export default function DashboardPage() {
     setEditSource(String(r.source || ''));
     setEditLocation(String(r.location || ''));
     setEditAmount(String(r.amount || ''));
+    setEditReimbStatus(String(r.reimb_status || ''));
+    setEditCounterparty(String(r.counterparty || ''));
 
     // prime split UI with 2 lines (common case)
     setSplitLines([
-      { amount: '', raw_text: '', merchant_code: String(r.merchant_code || ''), category: String(r.category || ''), subcategory: String(r.subcategory || '') },
-      { amount: '', raw_text: '', merchant_code: String(r.merchant_code || ''), category: String(r.category || ''), subcategory: String(r.subcategory || '') }
+      { amount: '', raw_text: '', merchant_code: String(r.merchant_code || ''), category: String(r.category || ''), subcategory: String(r.subcategory || ''), reimbursable: false, counterparty: '' },
+      { amount: '', raw_text: '', merchant_code: String(r.merchant_code || ''), category: String(r.category || ''), subcategory: String(r.subcategory || ''), reimbursable: false, counterparty: '' }
     ]);
 
     setEditTxnOpen(true);
@@ -733,6 +737,29 @@ export default function DashboardPage() {
                   <div>
                     <label className="text-xs text-[color:var(--hk-muted)]">Tags</label>
                     <input className="mt-1 w-full hk-input" value={editTags} onChange={(e) => setEditTags(e.target.value)} />
+                    <label className="mt-2 inline-flex items-center gap-2 text-xs text-[color:var(--hk-muted)]">
+                      <input
+                        type="checkbox"
+                        checked={String(editTags || '').split(',').map(s => s.trim()).filter(Boolean).includes('reimbursable')}
+                        onChange={(e) => {
+                          const parts = String(editTags || '').split(',').map(s => s.trim()).filter(Boolean);
+                          const has = parts.includes('reimbursable');
+                          const next = e.target.checked ? (has ? parts : parts.concat(['reimbursable'])) : parts.filter(x => x !== 'reimbursable');
+                          setEditTags(next.join(','));
+                          if (e.target.checked && !editReimbStatus) setEditReimbStatus('expected');
+                          if (!e.target.checked && editReimbStatus === 'expected') setEditReimbStatus('');
+                        }}
+                      />
+                      Reimbursable
+                    </label>
+                  </div>
+                  <div>
+                    <label className="text-xs text-[color:var(--hk-muted)]">Reimb status</label>
+                    <input className="mt-1 w-full hk-input" value={editReimbStatus} onChange={(e) => setEditReimbStatus(e.target.value)} placeholder="expected/received" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-[color:var(--hk-muted)]">Counterparty</label>
+                    <input className="mt-1 w-full hk-input" value={editCounterparty} onChange={(e) => setEditCounterparty(e.target.value)} placeholder="Name" />
                   </div>
                   <div>
                     <label className="text-xs text-[color:var(--hk-muted)]">Source</label>
@@ -768,6 +795,8 @@ export default function DashboardPage() {
                             source: editSource,
                             location: editLocation,
                             tags: editTags,
+                            reimb_status: editReimbStatus,
+                            counterparty: editCounterparty,
                             notes: editNotes
                           });
 
@@ -834,6 +863,27 @@ export default function DashboardPage() {
                               options={merchantOptions.map((m) => ({ value: m.code, label: m.name || m.code }))}
                               placeholder="(none)"
                             />
+
+                            <label className="mt-2 inline-flex items-center gap-2 text-xs text-[color:var(--hk-muted)]">
+                              <input
+                                type="checkbox"
+                                checked={!!ln.reimbursable}
+                                onChange={(e) => setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, reimbursable:e.target.checked}:x))}
+                              />
+                              Reimbursable
+                            </label>
+
+                            {ln.reimbursable ? (
+                              <div className="mt-2">
+                                <label className="text-xs text-[color:var(--hk-muted)]">Counterparty</label>
+                                <input
+                                  className="mt-1 w-full hk-input"
+                                  value={ln.counterparty || ''}
+                                  onChange={(e) => setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, counterparty:e.target.value}:x))}
+                                  placeholder="Name"
+                                />
+                              </div>
+                            ) : null}
                           </div>
                           <div>
                             <label className="text-xs text-[color:var(--hk-muted)]">Category</label>
@@ -862,14 +912,23 @@ export default function DashboardPage() {
                   </div>
 
                   <div className="mt-3 flex justify-between gap-2">
-                    <button className="hk-btn-secondary" onClick={() => setSplitLines(xs => xs.concat([{ amount:'', raw_text:'', merchant_code: editMerchant, category: editCategory, subcategory: editSubcategory }]))}>+ Add line</button>
+                    <button className="hk-btn-secondary" onClick={() => setSplitLines(xs => xs.concat([{ amount:'', raw_text:'', merchant_code: editMerchant, category: editCategory, subcategory: editSubcategory, reimbursable: false, counterparty: '' }]))}>+ Add line</button>
                     <button
                       className="hk-btn-primary"
                       onClick={async () => {
                         try {
                           if (!editTxn?.txn_id) return;
                           const splits = splitLines
-                            .map((x) => ({ amount: Number(x.amount), raw_text: x.raw_text, merchant_code: x.merchant_code, category: x.category, subcategory: x.subcategory }))
+                            .map((x) => ({
+                              amount: Number(x.amount),
+                              raw_text: x.raw_text,
+                              merchant_code: x.merchant_code,
+                              category: x.category,
+                              subcategory: x.subcategory,
+                              reimb_status: x.reimbursable ? 'expected' : '',
+                              counterparty: x.reimbursable ? (x.counterparty || '') : '',
+                              tags: x.reimbursable ? 'reimbursable' : ''
+                            }))
                             .filter((x) => Number.isFinite(x.amount) && x.amount > 0);
                           if (!splits.length) throw new Error('no_split_lines');
 

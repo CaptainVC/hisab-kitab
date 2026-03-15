@@ -14,7 +14,7 @@ export async function registerTxnRoutes(app: FastifyInstance, opts: { runner: Jo
 
     const body = (req.body || {}) as any;
     const patch: any = {};
-    const allowed = ['merchant_code', 'category', 'subcategory', 'tags', 'notes', 'source', 'location', 'amount'];
+    const allowed = ['merchant_code', 'category', 'subcategory', 'tags', 'notes', 'source', 'location', 'amount', 'reimb_status', 'counterparty'];
     for (const k of allowed) {
       if (body[k] === undefined) continue;
       if (k === 'amount') {
