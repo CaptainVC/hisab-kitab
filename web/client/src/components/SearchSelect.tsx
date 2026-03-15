@@ -27,6 +27,7 @@ export function SearchSelect({
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const ref = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [rect, setRect] = useState<{ left: number; top: number; width: number } | null>(null);
 
@@ -50,8 +51,9 @@ export function SearchSelect({
 
   useEffect(() => {
     function onDocDown(e: MouseEvent) {
-      if (!ref.current) return;
-      if (ref.current.contains(e.target as any)) return;
+      const t = e.target as any;
+      if (ref.current && ref.current.contains(t)) return;
+      if (menuRef.current && menuRef.current.contains(t)) return;
       setOpen(false);
     }
     document.addEventListener('mousedown', onDocDown);
@@ -126,6 +128,7 @@ export function SearchSelect({
         ? (() => {
             const menu = (
               <div
+                ref={menuRef}
                 className={`${portal ? 'fixed' : 'absolute'} z-[1000] mt-1 rounded border border-zinc-800 bg-zinc-950 shadow-xl overflow-hidden text-sm`}
                 style={
                   portal && rect
