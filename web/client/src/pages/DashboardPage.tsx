@@ -683,7 +683,7 @@ export default function DashboardPage() {
 
       {editTxnOpen ? (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" onClick={() => setEditTxnOpen(false)}>
-          <div className="w-full max-w-5xl hk-card p-4" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-6xl hk-card p-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-semibold">Edit transaction</div>
@@ -803,15 +803,13 @@ export default function DashboardPage() {
 
               {/* Right: split drawer */}
               {splitOpen ? (
-                <div className="border-l [var(--hk-border)] pl-4 max-h-[70vh] overflow-auto">
+                <div className="border-l [var(--hk-border)] pl-4 max-h-[80vh] overflow-auto">
                   <div className="text-sm font-semibold">Split transaction</div>
                   <div className="mt-1 text-xs text-[color:var(--hk-muted)]">
                     Original will be tagged <span className="font-mono">superseded</span>.
                   </div>
 
-                  <datalist id="hk_split_merchants">{merchantOptions.map((m) => <option key={m.code} value={m.code} />)}</datalist>
-                  <datalist id="hk_split_categories">{categoryOptions.map((c) => <option key={c.code} value={c.code} />)}</datalist>
-                  <datalist id="hk_split_subcategories">{subcategoryOptions.map((s) => <option key={s.code} value={s.code} />)}</datalist>
+                  {/* Split uses selects (not SearchSelect) to avoid dropdown clipping inside scroll container */}
 
                   <div className="mt-3 space-y-2">
                     {splitLines.map((ln, idx) => (
@@ -829,15 +827,46 @@ export default function DashboardPage() {
                         <div className="grid grid-cols-1 gap-2">
                           <div>
                             <label className="text-xs text-[color:var(--hk-muted)]">Merchant</label>
-                            <input list="hk_split_merchants" className="mt-1 w-full hk-input" value={ln.merchant_code} onChange={(e) => setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, merchant_code:e.target.value}:x))} />
+                            <select
+                              className="mt-1 w-full hk-input"
+                              value={ln.merchant_code}
+                              onChange={(e) => setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, merchant_code:e.target.value}:x))}
+                            >
+                              <option value="">(none)</option>
+                              {merchantOptions.map((m) => (
+                                <option key={m.code} value={m.code}>{m.code}</option>
+                              ))}
+                            </select>
                           </div>
                           <div>
                             <label className="text-xs text-[color:var(--hk-muted)]">Category</label>
-                            <input list="hk_split_categories" className="mt-1 w-full hk-input" value={ln.category} onChange={(e) => setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, category:e.target.value}:x))} />
+                            <select
+                              className="mt-1 w-full hk-input"
+                              value={ln.category}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, category:v, subcategory: ''}:x));
+                              }}
+                            >
+                              <option value="">(none)</option>
+                              {categoryOptions.map((c) => (
+                                <option key={c.code} value={c.code}>{c.code}</option>
+                              ))}
+                            </select>
                           </div>
                           <div>
                             <label className="text-xs text-[color:var(--hk-muted)]">Subcategory</label>
-                            <input list="hk_split_subcategories" className="mt-1 w-full hk-input" value={ln.subcategory} onChange={(e) => setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, subcategory:e.target.value}:x))} />
+                            <select
+                              className="mt-1 w-full hk-input"
+                              value={ln.subcategory}
+                              onChange={(e) => setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, subcategory:e.target.value}:x))}
+                              disabled={!ln.category}
+                            >
+                              <option value="">(none)</option>
+                              {subcategoryOptions.filter((s) => !ln.category || s.category === ln.category).map((s) => (
+                                <option key={s.code} value={s.code}>{s.code}</option>
+                              ))}
+                            </select>
                           </div>
                         </div>
                       </div>
