@@ -308,7 +308,7 @@ export default function DashboardPage() {
     return d >= start && d < endExclusive;
   }
 
-  const filteredRows = rows.filter((r: any) => {
+  const baseFilteredRows = rows.filter((r: any) => {
     if (!inSelectedRange(String(r.date || ''))) return false;
     if (fDate && String(r.date || '') !== fDate) return false;
     if (fType && r.type !== fType) return false;
@@ -349,12 +349,6 @@ export default function DashboardPage() {
           .map((s: string) => s.trim())
           .filter(Boolean);
 
-    // Hide archived rows by default. To see them, explicitly filter by the 'archived' tag.
-    if (tags.includes('archived') && !fTags.includes('archived')) return false;
-
-    // Hide reimbursable rows by default (they shouldn't affect spend totals); show them when explicitly filtered.
-    if (tags.includes('reimbursable') && !fTags.includes('reimbursable')) return false;
-
     if (fTags.length) {
       // Any-match (OR)
       if (!fTags.some((t) => tags.includes(t))) return false;
@@ -390,6 +384,24 @@ export default function DashboardPage() {
         if (!hay.toLowerCase().includes(fSearch.trim().toLowerCase())) return false;
       }
     }
+
+    return true;
+  });
+
+  // Table + charts default hides
+  const filteredRows = baseFilteredRows.filter((r: any) => {
+    const tags: string[] = Array.isArray(r._tags)
+      ? r._tags
+      : String(r.tags || '')
+          .split(',')
+          .map((s: string) => s.trim())
+          .filter(Boolean);
+
+    // Hide archived rows by default. To see them, explicitly filter by the 'archived' tag.
+    if (tags.includes('archived') && !fTags.includes('archived')) return false;
+
+    // Hide reimbursable rows by default; show them when explicitly filtered.
+    if (tags.includes('reimbursable') && !fTags.includes('reimbursable')) return false;
 
     return true;
   });
@@ -453,7 +465,7 @@ export default function DashboardPage() {
     // Totals should follow the same filtered set the table uses.
     // Also: if a row is categorized as TRANSFER, treat it as TRANSFER for totals even if type is wrong.
     // When user explicitly filters Type=EXPENSE, transfers card should be 0 (show only expenses).
-    const rowsForTotals = filteredRows;
+    const rowsForTotals = baseFilteredRows;
 
     const isTransferCatRow = (r: any) => {
       const rowCat = String(r.category || '');
@@ -492,11 +504,28 @@ export default function DashboardPage() {
       byLoc[loc] = (byLoc[loc] || 0) + a;
     }
 
-    // Extra KPI cards (expense-focused)
-    const expRows = rowsForTotals.filter((r: any) => normTypeOf(r) === 'EXPENSE');
+    const isReimb = (r: any) => {
+      const tags: string[] = Array.isArray(r._tags)
+        ? r._tags
+        : String(r.tags || '')
+            .split(',')
+            .map((s: string) => s.trim())
+            .filter(Boolean);
+      return tags.includes('reimbursable');
+    };
+
+    // Total expenses = your expenses + paid_for_others (reimbursable)
+    const expRowsAll = rowsForTotals.filter((r: any) => normTypeOf(r) === 'EXPENSE');
+    const expRowsMine = expRowsAll.filter((r: any) => !isReimb(r));
+    const reimbRows = expRowsAll.filter((r: any) => isReimb(r));
+
+    const totalExpenses = expRowsAll.reduce((acc: number, r: any) => acc + Number(r.amount || 0), 0);
+    const mineExpenses = expRowsMine.reduce((acc: number, r: any) => acc + Number(r.amount || 0), 0);
+    const reimbTotal = reimbRows.reduce((acc: number, r: any) => acc + Number(r.amount || 0), 0);
+
     const topCategory = (() => {
       const sums: Record<string, number> = {};
-      for (const r of expRows) {
+      for (const r of expRowsMine) {
         const k = String(r.category_name || r.category || 'Uncategorized');
         sums[k] = (sums[k] || 0) + Number(r.amount || 0);
       }
@@ -504,17 +533,11 @@ export default function DashboardPage() {
       return top ? { name: top[0], amount: top[1] } : { name: '—', amount: 0 };
     })();
 
-    const topMerchant = (() => {
-      const sums: Record<string, number> = {};
-      for (const r of expRows) {
-        const k = r.merchant_known ? String(r.merchant_name || 'Unknown') : 'Unknown';
-        sums[k] = (sums[k] || 0) + Number(r.amount || 0);
-      }
-      const top = Object.entries(sums).sort((a, b) => b[1] - a[1])[0];
-      return top ? { name: top[0], amount: top[1] } : { name: '—', amount: 0 };
-    })();
+    const expenseCard = { total: mineExpenses };
 
-    const needsCategorization = expRows.filter((r: any) => !String(r.category || '').trim() || !String(r.subcategory || '').trim()).length;
+    const reimbursableCard = { total: reimbTotal, count: reimbRows.length };
+
+    const needsCategorization = expRowsMine.filter((r: any) => !String(r.category || '').trim() || !String(r.subcategory || '').trim()).length;
 
     if (fType === 'EXPENSE') transfer = 0;
 
@@ -526,7 +549,9 @@ export default function DashboardPage() {
       expenseDays: expenseDays.size,
       byLoc,
       topCategory,
-      topMerchant,
+      totalExpenses,
+      expenseCard,
+      reimbursableCard,
       needsCategorization
     };
   })();
@@ -816,8 +841,8 @@ export default function DashboardPage() {
           <div className="mt-1 text-lg font-semibold">{totals.count}</div>
         </div>
         <div className="p-3 hk-card min-h-[84px]">
-          <div className="text-[11px] text-[color:var(--hk-muted)]">Expense</div>
-          <div className="mt-1 text-lg font-semibold">{formatINR(totals.expense)}</div>
+          <div className="text-[11px] text-[color:var(--hk-muted)]">Total expenses (mine + paid_for_others)</div>
+          <div className="mt-1 text-lg font-semibold">{formatINR(totals.totalExpenses || 0)}</div>
         </div>
         <div className="p-3 hk-card min-h-[84px]">
           <div className="text-[11px] text-[color:var(--hk-muted)]">Transfers</div>
@@ -853,14 +878,14 @@ export default function DashboardPage() {
           <div className="mt-1 text-lg font-semibold">{formatINR(totals.topCategory?.amount || 0)}</div>
         </div>
         <div className="p-3 hk-card min-h-[84px]">
-          <div className="text-[11px] text-[color:var(--hk-muted)]">Top merchant</div>
-          <div className="mt-1 text-sm text-[color:var(--hk-muted)] truncate" title={totals.topMerchant?.name || ''}>{totals.topMerchant?.name || '—'}</div>
-          <div className="mt-1 text-lg font-semibold">{formatINR(totals.topMerchant?.amount || 0)}</div>
+          <div className="text-[11px] text-[color:var(--hk-muted)]">Expenses (mine only)</div>
+          <div className="mt-1 text-lg font-semibold">{formatINR(totals.expenseCard?.total || 0)}</div>
+          <div className="text-[11px] text-[color:var(--hk-faint)]">excludes reimbursable</div>
         </div>
         <div className="p-3 hk-card min-h-[84px]">
-          <div className="text-[11px] text-[color:var(--hk-muted)]">Needs category/subcat</div>
-          <div className="mt-1 text-lg font-semibold">{totals.needsCategorization || 0}</div>
-          <div className="text-[11px] text-[color:var(--hk-faint)]">expense rows missing fields</div>
+          <div className="text-[11px] text-[color:var(--hk-muted)]">Total reimbursable</div>
+          <div className="mt-1 text-lg font-semibold">{formatINR(totals.reimbursableCard?.total || 0)}</div>
+          <div className="text-[11px] text-[color:var(--hk-faint)]">{totals.reimbursableCard?.count || 0} txns</div>
         </div>
       </div>
 
