@@ -35,4 +35,32 @@ export async function registerTxnRoutes(app: FastifyInstance, opts: { runner: Jo
       return reply.code(500).send({ ok: false, error: 'start_failed', detail: String(e?.message || e) });
     }
   });
+
+  // Split one transaction into multiple child transactions.
+  // Patches the original txn to add tag `superseded` so it is excluded from dashboard totals.
+  app.post('/api/v1/txns/:txnId/split', async (req, reply) => {
+    if (!requireAuth(req, reply)) return;
+    const { txnId } = req.params as any;
+    const txn_id = String(txnId || '').trim();
+    if (!txn_id) return reply.code(400).send({ ok: false, error: 'missing_txn_id' });
+
+    const body = (req.body || {}) as any;
+    const splits = Array.isArray(body.splits) ? body.splits : null;
+    if (!splits || !splits.length) return reply.code(400).send({ ok: false, error: 'missing_splits' });
+
+    fs.mkdirSync(opts.stagingDir, { recursive: true });
+    const splitsFile = path.join(opts.stagingDir, `txn_splits_${txn_id}_${Date.now()}.json`);
+    fs.writeFileSync(splitsFile, JSON.stringify(splits, null, 2), 'utf8');
+
+    const script = path.join(opts.repoDir, 'web', 'server', 'dist', 'scripts', 'split_txn.js');
+    const args = [script, '--base-dir', opts.baseDir, '--txn-id', txn_id, '--splits-file', splitsFile];
+
+    try {
+      const job = await opts.runner.startJob('splitTxn', { txn_id, splitsFile, splitsCount: splits.length }, process.execPath, args, { cwd: opts.repoDir });
+      return reply.send({ ok: true, jobId: job.jobId });
+    } catch (e: any) {
+      if (String(e?.message || e) === 'job_already_running') return reply.code(409).send({ ok: false, error: 'job_already_running' });
+      return reply.code(500).send({ ok: false, error: 'start_failed', detail: String(e?.message || e) });
+    }
+  });
 }

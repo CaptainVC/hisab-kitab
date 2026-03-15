@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { nanoid } from 'nanoid';
 import { writeJson, readJson } from '../storage/jsonStore.js';
 
-export type JobType = 'ingest' | 'rebuild' | 'stageCommit' | 'stageCommitRows' | 'reviewReimburse' | 'mailIngestOrders' | 'mailMatchReport' | 'mailCrossref' | 'editTxn' | 'refsGitSync';
+export type JobType = 'ingest' | 'rebuild' | 'stageCommit' | 'stageCommitRows' | 'reviewReimburse' | 'mailIngestOrders' | 'mailMatchReport' | 'mailCrossref' | 'editTxn' | 'refsGitSync' | 'splitTxn';
 
 export type JobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'canceled';
 
