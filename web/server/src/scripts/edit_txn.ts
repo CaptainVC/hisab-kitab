@@ -1,5 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
 
 function getArg(args: string[], name: string) {
   const i = args.indexOf(name);
@@ -23,7 +26,6 @@ async function main() {
 
   const patch = JSON.parse(fs.readFileSync(patchFile, 'utf8')) as any;
 
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const XLSX = require('xlsx');
 
   const files = listQuarterlyFiles(baseDir);

@@ -26,7 +26,30 @@ type CategoryRef = { name: string; archived?: boolean };
 
 type SubcategoryRef = { name: string; category: string; archived?: boolean };
 
-export async function registerRefsRoutes(app: FastifyInstance, opts: { baseDir: string }) {
+import type { JobRunner } from '../jobs/jobRunner.js';
+
+export async function registerRefsRoutes(app: FastifyInstance, opts: { baseDir: string; runner: JobRunner; repoDir: string }) {
+  function refsRepoDir() {
+    return path.join(opts.baseDir, 'refs');
+  }
+
+  async function queueRefsGitSync(reason: string) {
+    const script = path.join(opts.repoDir, 'web', 'server', 'dist', 'scripts', 'refs_git_sync.js');
+    const args = [
+      script,
+      '--refs-dir', refsRepoDir(),
+      '--branch', 'main',
+      '--message', `refs: ${reason}`
+    ];
+
+    try {
+      await opts.runner.startJob('refsGitSync', { reason }, process.execPath, args, { cwd: opts.repoDir });
+    } catch (e: any) {
+      if (String(e?.message || e) === 'job_already_running') return;
+      // non-fatal; refs changes are still saved locally
+    }
+  }
+
   // Overview (oldest data in range for email-derived datasets)
   app.get('/api/v1/refs/overview', async (req, reply) => {
     if (!requireAuth(req, reply)) return;
@@ -123,6 +146,7 @@ export async function registerRefsRoutes(app: FastifyInstance, opts: { baseDir: 
 
     merchants[c] = next;
     writeJson(fp, merchants);
+    await queueRefsGitSync(`update merchant ${c}`);
     return reply.send({ ok: true, code: c, merchant: merchants[c] });
   });
 
@@ -136,6 +160,7 @@ export async function registerRefsRoutes(app: FastifyInstance, opts: { baseDir: 
     if (!merchants[c]) return reply.code(404).send({ ok: false, error: 'not_found' });
     merchants[c].archived = true;
     writeJson(fp, merchants);
+    await queueRefsGitSync(`archive merchant ${c}`);
     return reply.send({ ok: true });
   });
 
@@ -166,6 +191,7 @@ export async function registerRefsRoutes(app: FastifyInstance, opts: { baseDir: 
     const cur = cats[c] || { name: c };
     cats[c] = { ...cur, ...patch };
     writeJson(fp, cats);
+    await queueRefsGitSync(`update category ${c}`);
     return reply.send({ ok: true, code: c, category: cats[c] });
   });
 
@@ -179,6 +205,7 @@ export async function registerRefsRoutes(app: FastifyInstance, opts: { baseDir: 
     if (!cats[c]) return reply.code(404).send({ ok: false, error: 'not_found' });
     cats[c].archived = true;
     writeJson(fp, cats);
+    await queueRefsGitSync(`archive category ${c}`);
     return reply.send({ ok: true });
   });
 
@@ -211,6 +238,7 @@ export async function registerRefsRoutes(app: FastifyInstance, opts: { baseDir: 
     subs[c] = { ...cur, ...patch } as any;
     if (!subs[c].category) subs[c].category = '';
     writeJson(fp, subs);
+    await queueRefsGitSync(`update subcategory ${c}`);
     return reply.send({ ok: true, code: c, subcategory: subs[c] });
   });
 
@@ -224,15 +252,72 @@ export async function registerRefsRoutes(app: FastifyInstance, opts: { baseDir: 
     if (!subs[c]) return reply.code(404).send({ ok: false, error: 'not_found' });
     subs[c].archived = true;
     writeJson(fp, subs);
+    await queueRefsGitSync(`archive subcategory ${c}`);
     return reply.send({ ok: true });
   });
 
-  // Email rules view-only
+  // Email rules
   app.get('/api/v1/refs/email_rules', async (req, reply) => {
     if (!requireAuth(req, reply)) return;
     const merchants = readJson<any>(refsPath(opts.baseDir, 'email_merchants.json'), {});
     const payments = readJson<any>(refsPath(opts.baseDir, 'email_payments.json'), {});
     return reply.send({ ok: true, merchants, payments });
+  });
+
+  // Toggle a merchant in email_merchants.json (controls which labeled emails get parsed)
+  app.post('/api/v1/refs/email_rules/merchants/:code/enabled', async (req, reply) => {
+    if (!requireAuth(req, reply)) return;
+    const { code } = req.params as any;
+    const c = String(code || '').trim().toUpperCase();
+    if (!c) return reply.code(400).send({ ok: false, error: 'missing_code' });
+
+    const body = (req.body || {}) as any;
+    const enabled = body.enabled;
+    if (enabled === undefined) return reply.code(400).send({ ok: false, error: 'missing_enabled' });
+
+    const fp = refsPath(opts.baseDir, 'email_merchants.json');
+    const rules = readJson<any>(fp, {});
+    if (!rules[c]) return reply.code(404).send({ ok: false, error: 'not_found' });
+
+    rules[c].enabled = !!enabled;
+    writeJson(fp, rules);
+    await queueRefsGitSync(`toggle email merchant ${c} ${rules[c].enabled ? 'on' : 'off'}`);
+    return reply.send({ ok: true, code: c, enabled: !!rules[c].enabled });
+  });
+
+  // Git sync status (refs are a git working tree)
+  app.get('/api/v1/refs/syncStatus', async (req, reply) => {
+    if (!requireAuth(req, reply)) return;
+    const refsDir = refsRepoDir();
+    const statusFp = path.join(refsDir, '.sync_status.json');
+    let status: any = null;
+    try {
+      status = JSON.parse(fs.readFileSync(statusFp, 'utf8'));
+    } catch {
+      status = null;
+    }
+
+    // also include current dirty flag
+    let dirty = null as any;
+    try {
+      const r = await (async () => {
+        const { spawnSync } = await import('node:child_process');
+        const x = spawnSync('git', ['status', '--porcelain'], { cwd: refsDir, encoding: 'utf8' });
+        return { ok: x.status === 0, out: String(x.stdout || '') };
+      })();
+      dirty = r.ok ? r.out.trim().length > 0 : null;
+    } catch {
+      dirty = null;
+    }
+
+    return reply.send({ ok: true, refsDir, dirty, status });
+  });
+
+  // Trigger git sync now
+  app.post('/api/v1/refs/syncNow', async (req, reply) => {
+    if (!requireAuth(req, reply)) return;
+    await queueRefsGitSync('sync now');
+    return reply.send({ ok: true });
   });
 
   // Merchant email coverage (derived from HisabKitab labeled parsed outputs)

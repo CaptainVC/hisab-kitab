@@ -10,6 +10,7 @@ const ZEPTO_PDF_V1 = require('./orders/zepto_pdf_v1');
 const BLINKIT_PDF_V1 = require('./orders/blinkit_pdf_v1');
 const ZOMATO_PDF_V1 = require('./orders/zomato_pdf_v1');
 const SWIGGY_PDF_V1 = require('./orders/swiggy_pdf_v1');
+const SWIGGY_INSTAMART_PDF_V1 = require('./orders/swiggy_instamart_pdf_v1');
 
 const AMAZON_ORDERED_EMAIL_V1 = require('./orders/amazon_ordered_email_v1');
 const AMAZON_ORDERED_EMAIL_V2 = require('./orders/amazon_ordered_email_v2');
@@ -41,6 +42,7 @@ const all = [
   BLINKIT_PDF_V1,
   ZOMATO_PDF_V1,
   SWIGGY_PDF_V1,
+  SWIGGY_INSTAMART_PDF_V1,
   AMAZON_ORDERED_EMAIL_V1,
   AMAZON_ORDERED_EMAIL_V2,
   SWIGGY_EMAIL_V1,

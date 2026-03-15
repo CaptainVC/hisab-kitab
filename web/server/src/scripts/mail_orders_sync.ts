@@ -55,6 +55,18 @@ export function syncMailOrders(baseDir: string) {
   const ordersDoc = readJson<any>(ordersFp, null);
   const orders = Array.isArray(ordersDoc?.orders) ? ordersDoc.orders : [];
 
+  // Respect enabled/disabled merchant rules (soft-disable): disabled merchants are ignored during sync.
+  const rulesFp = path.join(baseDir, 'refs', 'email_merchants.json');
+  const rules = readJson<any>(rulesFp, {});
+  const enabledMerchant = (code: string) => {
+    const c = String(code || '').trim().toUpperCase();
+    if (!c) return true;
+    const r = rules?.[c];
+    if (!r) return true; // if no rule exists, don't block
+    if (r.enabled === undefined) return true;
+    return !!r.enabled;
+  };
+
   const storeFp = path.join(baseDir, 'staging', 'mail_orders.json');
   const store = readJson<{ schemaVersion: 1; orders: MailOrderRecord[] }>(storeFp, { schemaVersion: 1, orders: [] });
   const byMid = new Map(store.orders.map((o) => [o.messageId, o] as const));
@@ -68,6 +80,7 @@ export function syncMailOrders(baseDir: string) {
     if (!mid) continue;
 
     const merchant = String(o?.merchant || '').toUpperCase();
+    if (!enabledMerchant(merchant)) continue;
     const ms = Number(o?.internalDateMs || 0);
     if (!ms) continue;
 

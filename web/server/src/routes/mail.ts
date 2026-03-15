@@ -115,6 +115,55 @@ export async function registerMailRoutes(app: FastifyInstance, opts: { baseDir: 
     return reply.send({ ok: true, file: fp, report: j });
   });
 
+  // Manual-Hisab match report (mail orders -> cleansed manual Hisab dataset)
+  app.get('/api/v1/mail/manualMatchReport', async (req, reply) => {
+    if (!requireAuth(req, reply)) return;
+    const q = req.query as any;
+    const period = String(q.period || '').trim(); // e.g. 2025_Q2
+    if (!period) return reply.code(400).send({ ok: false, error: 'missing_period' });
+
+    const fp = path.join(opts.baseDir, 'cache', `mail_to_hisab_manual_${period}.json`);
+    const j = readJson<any>(fp, null);
+    if (!j) return reply.code(404).send({ ok: false, error: 'not_found', file: fp });
+    return reply.send({ ok: true, file: fp, report: j });
+  });
+
+  // List manual-match rows (derived from the report file)
+  app.get('/api/v1/mail/manualMatchRows', async (req, reply) => {
+    if (!requireAuth(req, reply)) return;
+    const q = req.query as any;
+    const period = String(q.period || '').trim();
+    const status = String(q.status || 'matched'); // matched|none|ambiguous
+    if (!period) return reply.code(400).send({ ok: false, error: 'missing_period' });
+
+    const fp = path.join(opts.baseDir, 'cache', `mail_to_hisab_manual_${period}.json`);
+    const j = readJson<any>(fp, null);
+    if (!j) return reply.code(404).send({ ok: false, error: 'not_found', file: fp });
+
+    if (status === 'matched') {
+      const rows = (Array.isArray(j.matches) ? j.matches : []).map((x: any) => ({
+        mail: x.mail,
+        hisab: x.match?.hisab || null,
+        dayDelta: x.match?.dayDelta ?? null,
+        amtDelta: x.match?.amtDelta ?? null
+      }));
+      return reply.send({ ok: true, file: fp, period, status, rows });
+    }
+
+    if (status === 'ambiguous') {
+      const rows = Array.isArray(j.examples?.ambiguous) ? j.examples.ambiguous : [];
+      return reply.send({ ok: true, file: fp, period, status, rows });
+    }
+
+    if (status === 'none') {
+      const rows = (Array.isArray(j.examples?.none) ? j.examples.none : []).map((x: any) => x.mail).filter(Boolean);
+      return reply.send({ ok: true, file: fp, period, status, rows });
+    }
+
+    return reply.code(400).send({ ok: false, error: 'bad_status' });
+  });
+
+
   // List mail orders from store (filterable by status and range)
   app.get('/api/v1/mail/crossrefOrders', async (req, reply) => {
     if (!requireAuth(req, reply)) return;

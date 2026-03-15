@@ -44,7 +44,7 @@ async function main() {
     await registerRebuildRoutes(app, { runner, baseDir: cfg.baseDir, repoDir, cacheDir: cfg.cacheDir });
     await registerReviewRoutes(app, { cacheDir: cfg.cacheDir, reviewStateFile: cfg.reviewStateFile, runner, baseDir: cfg.baseDir, repoDir, stagingDir: cfg.stagingDir });
     await registerStagingRoutes(app, { runner, baseDir: cfg.baseDir, repoDir, stagingDir: cfg.stagingDir });
-    await registerRefsRoutes(app, { baseDir: cfg.baseDir });
+    await registerRefsRoutes(app, { baseDir: cfg.baseDir, runner, repoDir });
     await registerMailRoutes(app, { baseDir: cfg.baseDir, repoDir, stagingDir: cfg.stagingDir, runner });
     await registerTxnRoutes(app, { runner, baseDir: cfg.baseDir, repoDir, stagingDir: cfg.stagingDir });
     await registerMetaRoutes(app, { baseDir: cfg.baseDir });

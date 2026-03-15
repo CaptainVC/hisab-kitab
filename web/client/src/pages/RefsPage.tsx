@@ -26,6 +26,8 @@ type CoverageResp = { ok: true; coverage: CoverageRow[] };
 
 type EmailRulesResp = { ok: true; merchants: any; payments: any };
 
+type SyncStatusResp = { ok: true; dirty: boolean | null; status: any | null; refsDir: string };
+
 type Tab = 'merchants' | 'categories' | 'subcategories' | 'email_rules';
 
 function TabBtn({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
@@ -57,6 +59,7 @@ export default function RefsPage() {
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
 
   const [emailRules, setEmailRules] = useState<EmailRulesResp | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatusResp | null>(null);
   const [overview, setOverview] = useState<{ oldestOrderMs: number | null; oldestPaymentMs: number | null } | null>(null);
 
   const [busy, setBusy] = useState(false);
@@ -94,6 +97,12 @@ export default function RefsPage() {
   async function loadEmailRules() {
     const r = await apiGet<EmailRulesResp>('/api/v1/refs/email_rules');
     setEmailRules(r);
+    try {
+      const s = await apiGet<SyncStatusResp>('/api/v1/refs/syncStatus');
+      setSyncStatus(s);
+    } catch {
+      setSyncStatus(null);
+    }
   }
 
   async function refresh() {
@@ -489,14 +498,79 @@ export default function RefsPage() {
       ) : null}
 
       {tab === 'email_rules' ? (
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="hk-card p-3">
-            <div className="text-sm font-semibold">email_merchants.json (view-only)</div>
-            <pre className="mt-2 text-xs overflow-auto max-h-[420px] whitespace-pre-wrap text-[color:var(--hk-muted)]">{emailRules ? JSON.stringify(emailRules.merchants, null, 2) : '(load to view)'}</pre>
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="hk-card p-3 lg:col-span-2">
+            <div className="flex items-end justify-between gap-2 flex-wrap">
+              <div>
+                <div className="text-sm font-semibold">Mail merchant controls</div>
+                <div className="mt-1 text-xs text-[color:var(--hk-muted)]">Toggle which merchants are parsed from the HisabKitab Gmail label (affects future parsing + mail_orders sync).</div>
+                <div className="mt-2 text-xs text-[color:var(--hk-faint)]">
+                  Git sync: {syncStatus?.status?.ok ? 'synced' : syncStatus?.dirty ? 'pending' : 'unknown'}
+                  {syncStatus?.status?.lastCommit ? <span className="ml-2 font-mono">{String(syncStatus.status.lastCommit).slice(0, 10)}</span> : null}
+                </div>
+              </div>
+              <button className="hk-btn-primary disabled:opacity-50" disabled={busy} onClick={() => refresh().catch(() => {})}>
+                {busy ? 'Loading…' : 'Refresh'}
+              </button>
+            </div>
+
+            <div className="mt-3 border border-zinc-800 rounded overflow-auto max-h-[520px]">
+              <table className="w-full text-sm">
+                <thead className="hk-table-head">
+                  <tr>
+                    <th className="text-left px-3 py-2">Merchant</th>
+                    <th className="text-left px-3 py-2">Enabled</th>
+                    <th className="text-left px-3 py-2">Parser</th>
+                    <th className="text-left px-3 py-2">Match</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {emailRules ? Object.entries(emailRules.merchants || {}).sort((a, b) => a[0].localeCompare(b[0])).map(([code, r]: any) => (
+                    <tr key={code} className="hover:bg-white/5">
+                      <td className="px-3 py-2 font-mono text-xs">{code}</td>
+                      <td className="px-3 py-2">
+                        <label className="inline-flex items-center gap-2 text-sm text-[color:var(--hk-muted)]">
+                          <input
+                            type="checkbox"
+                            checked={!!r?.enabled}
+                            onChange={async (e) => {
+                              try {
+                                setBusy(true);
+                                setErr(null);
+                                await apiPost(`/api/v1/refs/email_rules/merchants/${encodeURIComponent(code)}/enabled`, { enabled: e.target.checked });
+                                await refresh();
+                              } catch (ex: any) {
+                                setErr(String(ex?.message || ex));
+                              } finally {
+                                setBusy(false);
+                              }
+                            }}
+                          />
+                          {r?.enabled ? 'ON' : 'OFF'}
+                        </label>
+                      </td>
+                      <td className="px-3 py-2 text-xs text-[color:var(--hk-muted)]">
+                        <div className="font-mono">{r?.parser?.type || '—'} {r?.parser?.id ? `(${r.parser.id})` : ''}</div>
+                      </td>
+                      <td className="px-3 py-2 text-xs text-[color:var(--hk-muted)]">
+                        <div className="truncate max-w-[520px]" title={JSON.stringify(r?.match || {})}>
+                          fromContains: {(r?.match?.fromContains || []).join(', ') || '—'}; subjectContains: {(r?.match?.subjectContains || []).join(', ') || '—'}
+                        </div>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td className="px-3 py-4 text-center text-[color:var(--hk-faint)]" colSpan={4}>(load to view)</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
+
           <div className="hk-card p-3">
-            <div className="text-sm font-semibold">email_payments.json (view-only)</div>
-            <pre className="mt-2 text-xs overflow-auto max-h-[420px] whitespace-pre-wrap text-[color:var(--hk-muted)]">{emailRules ? JSON.stringify(emailRules.payments, null, 2) : '(load to view)'}</pre>
+            <div className="text-sm font-semibold">email_payments.json</div>
+            <pre className="mt-2 text-xs overflow-auto max-h-[520px] whitespace-pre-wrap text-[color:var(--hk-muted)]">{emailRules ? JSON.stringify(emailRules.payments, null, 2) : '(load to view)'}</pre>
           </div>
         </div>
       ) : null}

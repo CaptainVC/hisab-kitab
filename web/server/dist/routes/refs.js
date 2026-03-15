@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { requireAuth } from '../auth/session.js';
 import { readJson, writeJson } from '../storage/jsonStore.js';
@@ -6,6 +7,26 @@ function refsPath(baseDir, name) {
 }
 import { parseRangeToMs } from '../utils/range.js';
 export async function registerRefsRoutes(app, opts) {
+    function refsRepoDir() {
+        return path.join(opts.baseDir, 'refs');
+    }
+    async function queueRefsGitSync(reason) {
+        const script = path.join(opts.repoDir, 'web', 'server', 'dist', 'scripts', 'refs_git_sync.js');
+        const args = [
+            script,
+            '--refs-dir', refsRepoDir(),
+            '--branch', 'main',
+            '--message', `refs: ${reason}`
+        ];
+        try {
+            await opts.runner.startJob('refsGitSync', { reason }, process.execPath, args, { cwd: opts.repoDir });
+        }
+        catch (e) {
+            if (String(e?.message || e) === 'job_already_running')
+                return;
+            // non-fatal; refs changes are still saved locally
+        }
+    }
     // Overview (oldest data in range for email-derived datasets)
     app.get('/api/v1/refs/overview', async (req, reply) => {
         if (!requireAuth(req, reply))
@@ -102,6 +123,7 @@ export async function registerRefsRoutes(app, opts) {
         }
         merchants[c] = next;
         writeJson(fp, merchants);
+        await queueRefsGitSync(`update merchant ${c}`);
         return reply.send({ ok: true, code: c, merchant: merchants[c] });
     });
     app.post('/api/v1/refs/merchants/:code/archive', async (req, reply) => {
@@ -117,6 +139,7 @@ export async function registerRefsRoutes(app, opts) {
             return reply.code(404).send({ ok: false, error: 'not_found' });
         merchants[c].archived = true;
         writeJson(fp, merchants);
+        await queueRefsGitSync(`archive merchant ${c}`);
         return reply.send({ ok: true });
     });
     // Categories
@@ -148,6 +171,7 @@ export async function registerRefsRoutes(app, opts) {
         const cur = cats[c] || { name: c };
         cats[c] = { ...cur, ...patch };
         writeJson(fp, cats);
+        await queueRefsGitSync(`update category ${c}`);
         return reply.send({ ok: true, code: c, category: cats[c] });
     });
     app.post('/api/v1/refs/categories/:code/archive', async (req, reply) => {
@@ -163,6 +187,7 @@ export async function registerRefsRoutes(app, opts) {
             return reply.code(404).send({ ok: false, error: 'not_found' });
         cats[c].archived = true;
         writeJson(fp, cats);
+        await queueRefsGitSync(`archive category ${c}`);
         return reply.send({ ok: true });
     });
     // Subcategories
@@ -198,6 +223,7 @@ export async function registerRefsRoutes(app, opts) {
         if (!subs[c].category)
             subs[c].category = '';
         writeJson(fp, subs);
+        await queueRefsGitSync(`update subcategory ${c}`);
         return reply.send({ ok: true, code: c, subcategory: subs[c] });
     });
     app.post('/api/v1/refs/subcategories/:code/archive', async (req, reply) => {
@@ -213,15 +239,72 @@ export async function registerRefsRoutes(app, opts) {
             return reply.code(404).send({ ok: false, error: 'not_found' });
         subs[c].archived = true;
         writeJson(fp, subs);
+        await queueRefsGitSync(`archive subcategory ${c}`);
         return reply.send({ ok: true });
     });
-    // Email rules view-only
+    // Email rules
     app.get('/api/v1/refs/email_rules', async (req, reply) => {
         if (!requireAuth(req, reply))
             return;
         const merchants = readJson(refsPath(opts.baseDir, 'email_merchants.json'), {});
         const payments = readJson(refsPath(opts.baseDir, 'email_payments.json'), {});
         return reply.send({ ok: true, merchants, payments });
+    });
+    // Toggle a merchant in email_merchants.json (controls which labeled emails get parsed)
+    app.post('/api/v1/refs/email_rules/merchants/:code/enabled', async (req, reply) => {
+        if (!requireAuth(req, reply))
+            return;
+        const { code } = req.params;
+        const c = String(code || '').trim().toUpperCase();
+        if (!c)
+            return reply.code(400).send({ ok: false, error: 'missing_code' });
+        const body = (req.body || {});
+        const enabled = body.enabled;
+        if (enabled === undefined)
+            return reply.code(400).send({ ok: false, error: 'missing_enabled' });
+        const fp = refsPath(opts.baseDir, 'email_merchants.json');
+        const rules = readJson(fp, {});
+        if (!rules[c])
+            return reply.code(404).send({ ok: false, error: 'not_found' });
+        rules[c].enabled = !!enabled;
+        writeJson(fp, rules);
+        await queueRefsGitSync(`toggle email merchant ${c} ${rules[c].enabled ? 'on' : 'off'}`);
+        return reply.send({ ok: true, code: c, enabled: !!rules[c].enabled });
+    });
+    // Git sync status (refs are a git working tree)
+    app.get('/api/v1/refs/syncStatus', async (req, reply) => {
+        if (!requireAuth(req, reply))
+            return;
+        const refsDir = refsRepoDir();
+        const statusFp = path.join(refsDir, '.sync_status.json');
+        let status = null;
+        try {
+            status = JSON.parse(fs.readFileSync(statusFp, 'utf8'));
+        }
+        catch {
+            status = null;
+        }
+        // also include current dirty flag
+        let dirty = null;
+        try {
+            const r = await (async () => {
+                const { spawnSync } = await import('node:child_process');
+                const x = spawnSync('git', ['status', '--porcelain'], { cwd: refsDir, encoding: 'utf8' });
+                return { ok: x.status === 0, out: String(x.stdout || '') };
+            })();
+            dirty = r.ok ? r.out.trim().length > 0 : null;
+        }
+        catch {
+            dirty = null;
+        }
+        return reply.send({ ok: true, refsDir, dirty, status });
+    });
+    // Trigger git sync now
+    app.post('/api/v1/refs/syncNow', async (req, reply) => {
+        if (!requireAuth(req, reply))
+            return;
+        await queueRefsGitSync('sync now');
+        return reply.send({ ok: true });
     });
     // Merchant email coverage (derived from HisabKitab labeled parsed outputs)
     app.get('/api/v1/refs/merchants/coverage', async (req, reply) => {

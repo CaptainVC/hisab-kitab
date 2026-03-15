@@ -29,6 +29,13 @@ export default function MailPage() {
   const [crossrefOrders, setCrossrefOrders] = useState<any[]>([]);
   const [crossrefStatus, setCrossrefStatus] = useState<'matched' | 'unmatched'>('matched');
 
+  // Manual-Hisab matching (mail_orders -> cleansed manual Hisab ledger)
+  const [manualPeriod, setManualPeriod] = useState('2025_Q2');
+  const [manualStatus, setManualStatus] = useState<'matched' | 'none' | 'ambiguous'>('matched');
+  const [manualBusy, setManualBusy] = useState(false);
+  const [manualReport, setManualReport] = useState<any | null>(null);
+  const [manualRows, setManualRows] = useState<any[]>([]);
+
   async function loadCrossref() {
     try {
       const r = await apiGet<{ ok: true; file: string; report: any }>(`/api/v1/mail/crossrefReport?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
@@ -42,6 +49,25 @@ export default function MailPage() {
       setCrossrefOrders(o.orders || []);
     } catch {
       setCrossrefOrders([]);
+    }
+  }
+
+  async function loadManualMatch() {
+    setManualBusy(true);
+    try {
+      const r = await apiGet<{ ok: true; file: string; report: any }>(`/api/v1/mail/manualMatchReport?period=${encodeURIComponent(manualPeriod)}`);
+      setManualReport(r.report);
+    } catch {
+      setManualReport(null);
+    }
+
+    try {
+      const rr = await apiGet<{ ok: true; rows: any[] }>(`/api/v1/mail/manualMatchRows?period=${encodeURIComponent(manualPeriod)}&status=${encodeURIComponent(manualStatus)}`);
+      setManualRows(rr.rows || []);
+    } catch {
+      setManualRows([]);
+    } finally {
+      setManualBusy(false);
     }
   }
 
@@ -217,6 +243,94 @@ export default function MailPage() {
               {!crossrefOrders.length ? (
                 <tr>
                   <td className="px-3 py-4 text-center text-[color:var(--hk-faint)]" colSpan={5}>No rows</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="mt-4 p-4 hk-card">
+        <div className="flex items-end justify-between gap-3 flex-wrap">
+          <div>
+            <div className="text-sm font-semibold">Manual Hisab match</div>
+            <div className="mt-1 text-xs text-[color:var(--hk-muted)]">Matches mail invoices against your cleansed manual Hisab entries (quarter file), not Excel.</div>
+          </div>
+          <div className="flex items-end gap-2 flex-wrap">
+            <div>
+              <label className="text-xs text-[color:var(--hk-muted)]">Period</label>
+              <input className="mt-1 hk-input w-32" value={manualPeriod} onChange={(e) => setManualPeriod(e.target.value)} placeholder="2025_Q2" />
+            </div>
+            <div>
+              <label className="text-xs text-[color:var(--hk-muted)]">View</label>
+              <select className="mt-1 hk-input" value={manualStatus} onChange={(e) => setManualStatus(e.target.value as any)}>
+                <option value="matched">Matched</option>
+                <option value="ambiguous">Ambiguous</option>
+                <option value="none">No match</option>
+              </select>
+            </div>
+            <button className="hk-btn-secondary disabled:opacity-50" disabled={manualBusy} onClick={() => loadManualMatch().catch(() => {})}>
+              {manualBusy ? 'Loading…' : 'Load'}
+            </button>
+          </div>
+        </div>
+
+        {manualReport ? (
+          <div className="mt-3 text-xs text-[color:var(--hk-faint)]">
+            Considered: <span className="font-mono">{manualReport.considered}</span> • Matched: <span className="font-mono">{manualReport.matched}</span> • Ambiguous: <span className="font-mono">{manualReport.ambiguous}</span> • None: <span className="font-mono">{manualReport.none}</span>
+            <span className="ml-2">(buffer ±{manualReport.bufferDays}d, tol {manualReport.tol}, food tol {manualReport.tolFood})</span>
+          </div>
+        ) : (
+          <div className="mt-3 text-xs text-[color:var(--hk-faint)]">No manual match report loaded yet.</div>
+        )}
+
+        <div className="mt-3 border border-zinc-800 rounded overflow-auto max-h-80">
+          <table className="w-full text-sm">
+            <thead className="hk-table-head">
+              <tr>
+                <th className="text-left px-3 py-2">Mail date</th>
+                <th className="text-left px-3 py-2">Merchant</th>
+                <th className="text-right px-3 py-2">Total</th>
+                <th className="text-left px-3 py-2">Hisab date</th>
+                <th className="text-right px-3 py-2">Hisab amt</th>
+                <th className="text-left px-3 py-2">Hisab text</th>
+              </tr>
+            </thead>
+            <tbody>
+              {manualStatus === 'matched'
+                ? manualRows.map((r: any) => (
+                    <tr key={r?.mail?.messageId} className="hover:bg-white/5">
+                      <td className="px-3 py-2 whitespace-nowrap">{r?.mail?.date}</td>
+                      <td className="px-3 py-2">{r?.mail?.merchant_code || r?.mail?.merchant}</td>
+                      <td className="px-3 py-2 text-right">{Number(r?.mail?.total || 0).toFixed(0)}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">{r?.hisab?.date || '—'}</td>
+                      <td className="px-3 py-2 text-right">{r?.hisab?.amount ? Number(r.hisab.amount).toFixed(0) : '—'}</td>
+                      <td className="px-3 py-2 text-xs text-[color:var(--hk-muted)]">{r?.hisab?.raw_text || '—'}</td>
+                    </tr>
+                  ))
+                : manualStatus === 'none'
+                ? manualRows.map((m: any) => (
+                    <tr key={m?.messageId} className="hover:bg-white/5">
+                      <td className="px-3 py-2 whitespace-nowrap">{m?.date}</td>
+                      <td className="px-3 py-2">{m?.merchant_code || m?.merchant}</td>
+                      <td className="px-3 py-2 text-right">{Number(m?.total || 0).toFixed(0)}</td>
+                      <td className="px-3 py-2" colSpan={3}><span className="text-xs text-[color:var(--hk-faint)]">—</span></td>
+                    </tr>
+                  ))
+                : manualRows.map((x: any, idx: number) => (
+                    <tr key={idx} className="hover:bg-white/5">
+                      <td className="px-3 py-2 whitespace-nowrap">{x?.mail?.date}</td>
+                      <td className="px-3 py-2">{x?.mail?.merchant_code || x?.mail?.merchant}</td>
+                      <td className="px-3 py-2 text-right">{Number(x?.mail?.total || 0).toFixed(0)}</td>
+                      <td className="px-3 py-2" colSpan={3}>
+                        <span className="text-xs text-[color:var(--hk-muted)]">{(x?.candidates || []).length} candidates</span>
+                      </td>
+                    </tr>
+                  ))}
+
+              {!manualRows.length ? (
+                <tr>
+                  <td className="px-3 py-4 text-center text-[color:var(--hk-faint)]" colSpan={6}>No rows</td>
                 </tr>
               ) : null}
             </tbody>
