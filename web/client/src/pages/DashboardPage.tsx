@@ -504,27 +504,33 @@ export default function DashboardPage() {
       byLoc[loc] = (byLoc[loc] || 0) + a;
     }
 
-    const isReimb = (r: any) => {
-      const tags: string[] = Array.isArray(r._tags)
+    const getTags = (r: any): string[] =>
+      Array.isArray(r._tags)
         ? r._tags
         : String(r.tags || '')
             .split(',')
             .map((s: string) => s.trim())
             .filter(Boolean);
-      return tags.includes('reimbursable');
+
+    const isReimb = (r: any) => getTags(r).includes('reimbursable');
+    const isForOthers = (r: any) => {
+      const tags = getTags(r);
+      const sub = String(r.subcategory || '');
+      return tags.includes('for_others') || sub === 'OTH_PAID_FOR_OTHERS';
     };
 
-    // Expenses should NOT include reimbursable rows.
-    // (Reimbursable is tracked separately.)
     const expRowsAll = rowsForTotals.filter((r: any) => normTypeOf(r) === 'EXPENSE');
-    const expRowsMine = expRowsAll.filter((r: any) => !isReimb(r));
+    const expMine = expRowsAll.filter((r: any) => !isForOthers(r) && !isReimb(r));
+    const expForOthersNonReimb = expRowsAll.filter((r: any) => isForOthers(r) && !isReimb(r));
     const reimbRows = expRowsAll.filter((r: any) => isReimb(r));
 
-    const mineExpenses = expRowsMine.reduce((acc: number, r: any) => acc + Number(r.amount || 0), 0);
+    const mineExpenses = expMine.reduce((acc: number, r: any) => acc + Number(r.amount || 0), 0);
+    const paidForOthersNonReimb = expForOthersNonReimb.reduce((acc: number, r: any) => acc + Number(r.amount || 0), 0);
     const reimbTotal = reimbRows.reduce((acc: number, r: any) => acc + Number(r.amount || 0), 0);
 
-    // Total expenses = what you paid overall = your spend + paid_for_others (reimbursable)
-    const totalExpenses = mineExpenses + reimbTotal;
+    // Total expenses = your expenses + paid_for_others (non-reimbursable).
+    // Reimbursable is shown separately and NOT included in total expenses.
+    const totalExpenses = mineExpenses + paidForOthersNonReimb;
 
     const topCategory = (() => {
       const sums: Record<string, number> = {};
@@ -537,10 +543,11 @@ export default function DashboardPage() {
     })();
 
     const expenseCard = { total: mineExpenses };
+    const totalExpensesCard = { total: totalExpenses, paidForOthers: paidForOthersNonReimb };
 
     const reimbursableCard = { total: reimbTotal, count: reimbRows.length };
 
-    const needsCategorization = expRowsMine.filter((r: any) => !String(r.category || '').trim() || !String(r.subcategory || '').trim()).length;
+    const needsCategorization = expMine.filter((r: any) => !String(r.category || '').trim() || !String(r.subcategory || '').trim()).length;
 
     if (fType === 'EXPENSE') transfer = 0;
 
@@ -554,6 +561,7 @@ export default function DashboardPage() {
       topCategory,
       totalExpenses,
       expenseCard,
+      totalExpensesCard,
       reimbursableCard,
       needsCategorization
     };
@@ -844,8 +852,9 @@ export default function DashboardPage() {
           <div className="mt-1 text-lg font-semibold">{totals.count}</div>
         </div>
         <div className="p-3 hk-card min-h-[84px]">
-          <div className="text-[11px] text-[color:var(--hk-muted)]">Total expenses (incl. paid_for_others)</div>
-          <div className="mt-1 text-lg font-semibold">{formatINR(totals.totalExpenses || 0)}</div>
+          <div className="text-[11px] text-[color:var(--hk-muted)]">Total expenses</div>
+          <div className="mt-1 text-lg font-semibold">{formatINR(totals.totalExpensesCard?.total || totals.totalExpenses || 0)}</div>
+          <div className="text-[11px] text-[color:var(--hk-faint)]">paid_for_others: {formatINR(totals.totalExpensesCard?.paidForOthers || 0)}</div>
         </div>
         <div className="p-3 hk-card min-h-[84px]">
           <div className="text-[11px] text-[color:var(--hk-muted)]">Transfers</div>
