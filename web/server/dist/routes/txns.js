@@ -17,7 +17,8 @@ export async function registerTxnRoutes(app, opts) {
                 continue;
             if (k === 'amount') {
                 const n = Number(body[k]);
-                if (!Number.isFinite(n) || n <= 0)
+                // allow negative amounts (refunds / reversals). Disallow 0 / NaN / infinities.
+                if (!Number.isFinite(n) || n === 0)
                     return reply.code(400).send({ ok: false, error: 'bad_amount' });
                 patch[k] = n;
             }

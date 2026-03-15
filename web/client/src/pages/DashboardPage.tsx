@@ -37,6 +37,7 @@ export default function DashboardPage() {
 
   const [editTxnOpen, setEditTxnOpen] = useState(false);
   const [editTxn, setEditTxn] = useState<any | null>(null);
+  const [editTxnErr, setEditTxnErr] = useState<string>('');
   const [editMerchant, setEditMerchant] = useState('');
   const [editCategory, setEditCategory] = useState('');
   const [editSubcategory, setEditSubcategory] = useState('');
@@ -182,9 +183,9 @@ export default function DashboardPage() {
     setEditNotes(String(r.notes || ''));
     setEditSource(String(r.source || ''));
     setEditLocation(String(r.location || ''));
-    setEditAmount(String(r.amount || ''));
+    setEditAmount(String(r.amount ?? ''));
     setEditReimbStatus(String(r.reimb_status || ''));
-
+    setEditTxnErr('');
 
     // prime split UI with 2 lines (common case)
     setSplitLines([
@@ -922,17 +923,22 @@ export default function DashboardPage() {
 
                 <div className="mt-4 flex justify-between gap-2 flex-wrap">
                   <button className="hk-btn-secondary" onClick={() => { setSplitOpen(!splitOpen); }}>Split…</button>
-                  <div className="flex justify-end gap-2">
-                    <button className="hk-btn-secondary" onClick={() => setEditTxnOpen(false)}>Cancel</button>
-                    <button
+                  <div className="flex flex-col items-end gap-2">
+                    {editTxnErr ? (
+                      <div className="max-w-[520px] text-xs text-red-400">{editTxnErr}</div>
+                    ) : null}
+                    <div className="flex justify-end gap-2">
+                      <button className="hk-btn-secondary" onClick={() => setEditTxnOpen(false)}>Cancel</button>
+                      <button
                       className="hk-btn-primary"
                       onClick={async () => {
                         try {
                           if (!editTxn?.txn_id) return;
-                          setEditTxnOpen(false);
+                          setEditTxnErr('');
                           setBusy(true);
+
                           const pr = parseAmountExpr(editAmount);
-                          if (!pr.ok) throw new Error('bad_amount_expr');
+                          if (!pr.ok) throw new Error('bad_amount');
 
                           const r = await apiPut<{ ok: true; jobId: string }>(`/api/v1/txns/${encodeURIComponent(editTxn.txn_id)}`, {
                             amount: pr.value,
@@ -964,14 +970,18 @@ export default function DashboardPage() {
 
                           await loadData();
                           setBusy(false);
+                          setEditTxnOpen(false);
                         } catch (e: any) {
                           setBusy(false);
-                          setErr(String(e?.message || e));
+                          const msg = String(e?.message || e);
+                          setEditTxnErr(msg);
+                          setErr(msg);
                         }
                       }}
                     >
                       Save
                     </button>
+                    </div>
                   </div>
                 </div>
               </div>
