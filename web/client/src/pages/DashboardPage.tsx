@@ -891,20 +891,36 @@ export default function DashboardPage() {
                   <div>
                     <label className="text-xs text-[color:var(--hk-muted)]">Tags</label>
                     <input className="mt-1 w-full hk-input" value={editTags} onChange={(e) => setEditTags(e.target.value)} />
-                    <label className="mt-2 inline-flex items-center gap-2 text-xs text-[color:var(--hk-muted)]">
-                      <input
-                        type="checkbox"
-                        checked={String(editTags || '').split(',').map(s => s.trim()).filter(Boolean).includes('reimbursable')}
-                        onChange={(e) => {
-                          const parts = String(editTags || '').split(',').map(s => s.trim()).filter(Boolean);
-                          const has = parts.includes('reimbursable');
-                          const next = e.target.checked ? (has ? parts : parts.concat(['reimbursable'])) : parts.filter(x => x !== 'reimbursable');
-                          setEditTags(next.join(','));
-                          setEditReimbStatus(e.target.checked ? 'expected' : '');
-                        }}
-                      />
-                      Reimbursable
-                    </label>
+                    <div className="mt-2 flex flex-col gap-2">
+                      <label className="inline-flex items-center gap-2 text-xs text-[color:var(--hk-muted)]">
+                        <input
+                          type="checkbox"
+                          checked={String(editTags || '').split(',').map(s => s.trim()).filter(Boolean).includes('reimbursable')}
+                          onChange={(e) => {
+                            const parts = String(editTags || '').split(',').map(s => s.trim()).filter(Boolean);
+                            const has = parts.includes('reimbursable');
+                            const next = e.target.checked ? (has ? parts : parts.concat(['reimbursable'])) : parts.filter(x => x !== 'reimbursable');
+                            setEditTags(next.join(','));
+                            setEditReimbStatus(e.target.checked ? 'expected' : '');
+                          }}
+                        />
+                        Reimbursable
+                      </label>
+
+                      <label className="inline-flex items-center gap-2 text-xs text-[color:var(--hk-muted)]">
+                        <input
+                          type="checkbox"
+                          checked={String(editTags || '').split(',').map(s => s.trim()).filter(Boolean).includes('for_others')}
+                          onChange={(e) => {
+                            const parts = String(editTags || '').split(',').map(s => s.trim()).filter(Boolean);
+                            const has = parts.includes('for_others');
+                            const next = e.target.checked ? (has ? parts : parts.concat(['for_others'])) : parts.filter(x => x !== 'for_others');
+                            setEditTags(next.join(','));
+                          }}
+                        />
+                        For someone else
+                      </label>
+                    </div>
                   </div>
                   <div>
                     <label className="text-xs text-[color:var(--hk-muted)]">Source</label>
