@@ -534,7 +534,7 @@ export default function DashboardPage() {
 
     const topCategory = (() => {
       const sums: Record<string, number> = {};
-      for (const r of expRowsMine) {
+      for (const r of expMine) {
         const k = String(r.category_name || r.category || 'Uncategorized');
         sums[k] = (sums[k] || 0) + Number(r.amount || 0);
       }
