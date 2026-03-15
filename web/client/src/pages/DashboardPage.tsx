@@ -513,15 +513,13 @@ export default function DashboardPage() {
             .filter(Boolean);
 
     const isReimb = (r: any) => getTags(r).includes('reimbursable');
-    const isForOthers = (r: any) => {
-      const tags = getTags(r);
-      const sub = String(r.subcategory || '');
-      return tags.includes('for_others') || sub === 'OTH_PAID_FOR_OTHERS';
-    };
+    // For totals, define "Paid for someone else" strictly by subcategory code.
+    // (Tag for_others can exist on other rows for context, but should not change totals.)
+    const isPaidForOthers = (r: any) => String(r.subcategory || '') === 'OTH_PAID_FOR_OTHERS';
 
     const expRowsAll = rowsForTotals.filter((r: any) => normTypeOf(r) === 'EXPENSE');
-    const expMine = expRowsAll.filter((r: any) => !isForOthers(r) && !isReimb(r));
-    const expForOthersNonReimb = expRowsAll.filter((r: any) => isForOthers(r) && !isReimb(r));
+    const expMine = expRowsAll.filter((r: any) => !isPaidForOthers(r) && !isReimb(r));
+    const expForOthersNonReimb = expRowsAll.filter((r: any) => isPaidForOthers(r) && !isReimb(r));
     const reimbRows = expRowsAll.filter((r: any) => isReimb(r));
 
     const mineExpenses = expMine.reduce((acc: number, r: any) => acc + Number(r.amount || 0), 0);
