@@ -35,8 +35,18 @@ export function SearchSelect({
   const filtered = useMemo(() => {
     const qq = q.trim().toLowerCase();
     if (!qq) return options;
+
+    // When a user opens the dropdown, we seed q with the current label so typing refines.
+    // But that can accidentally filter down to just the current option.
+    // If query exactly equals the current selection, show all options.
+    if (open && current) {
+      const cl = String(current.label || '').toLowerCase();
+      const cv = String(current.value || '').toLowerCase();
+      if (qq === cl || qq === cv) return options;
+    }
+
     return options.filter((o) => o.label.toLowerCase().includes(qq) || o.value.toLowerCase().includes(qq));
-  }, [options, q]);
+  }, [options, q, open, current]);
 
   useEffect(() => {
     function onDocDown(e: MouseEvent) {
