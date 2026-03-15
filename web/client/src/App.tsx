@@ -6,6 +6,7 @@ import ReviewPage from './pages/ReviewPage';
 import MailPage from './pages/MailPage';
 import IngestPage from './pages/IngestPage';
 import StagingPage from './pages/StagingPage';
+import StatementMatchPage from './pages/StatementMatchPage';
 import RefsPage from './pages/RefsPage';
 import SettingsPage from './pages/SettingsPage';
 import JobsPage from './pages/JobsPage';
@@ -66,6 +67,7 @@ export default function App() {
             <TabLink to="/mail" label="Mail Stats" />
             <TabLink to="/ingest" label="Ingest" />
             <TabLink to="/staging" label="Staging" />
+            <TabLink to="/statement" label="Statement" />
             <TabLink to="/refs" label="Refs" />
             <TabLink to="/jobs" label="Jobs" />
             <TabLink to="/settings" label="Settings" />
@@ -94,6 +96,7 @@ export default function App() {
           <Route path="/mail" element={<MailPage />} />
           <Route path="/ingest" element={<IngestPage />} />
           <Route path="/staging" element={<StagingPage />} />
+          <Route path="/statement" element={<StatementMatchPage />} />
           <Route path="/refs" element={<RefsPage />} />
           <Route path="/jobs" element={<JobsPage />} />
           <Route path="/settings" element={<SettingsPage />} />

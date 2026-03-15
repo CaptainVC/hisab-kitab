@@ -20,6 +20,7 @@ import { registerRefsRoutes } from './routes/refs.js';
 import { registerMailRoutes } from './routes/mail.js';
 import { registerTxnRoutes } from './routes/txns.js';
 import { registerMetaRoutes } from './routes/meta.js';
+import { registerStatementRoutes } from './routes/statement.js';
 
 import { JobRunner } from './jobs/jobRunner.js';
 
@@ -59,6 +60,7 @@ async function main() {
   await registerMailRoutes(app, { baseDir: cfg.baseDir, repoDir, stagingDir: cfg.stagingDir, runner });
   await registerTxnRoutes(app, { runner, baseDir: cfg.baseDir, repoDir, stagingDir: cfg.stagingDir });
   await registerMetaRoutes(app, { baseDir: cfg.baseDir });
+  await registerStatementRoutes(app, { baseDir: cfg.baseDir, cacheDir: cfg.cacheDir, repoDir });
 
   // Serve frontend build (once we build it)
   const clientDist = path.join(repoDir, 'web', 'client', 'dist');
