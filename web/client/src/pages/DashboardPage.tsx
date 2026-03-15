@@ -46,10 +46,9 @@ export default function DashboardPage() {
   const [editLocation, setEditLocation] = useState('');
   const [editAmount, setEditAmount] = useState('');
   const [editReimbStatus, setEditReimbStatus] = useState('');
-  const [editCounterparty, setEditCounterparty] = useState('');
 
   const [splitOpen, setSplitOpen] = useState(false);
-  const [splitLines, setSplitLines] = useState<Array<{ amount: string; raw_text: string; merchant_code: string; category: string; subcategory: string; reimbursable?: boolean; counterparty?: string }>>([]);
+  const [splitLines, setSplitLines] = useState<Array<{ amount: string; raw_text: string; merchant_code: string; category: string; subcategory: string; reimbursable?: boolean;  }>>([]);
 
   function openEditTxn(r: any) {
     setEditTxn(r);
@@ -64,12 +63,12 @@ export default function DashboardPage() {
     setEditLocation(String(r.location || ''));
     setEditAmount(String(r.amount || ''));
     setEditReimbStatus(String(r.reimb_status || ''));
-    setEditCounterparty(String(r.counterparty || ''));
+
 
     // prime split UI with 2 lines (common case)
     setSplitLines([
-      { amount: '', raw_text: '', merchant_code: String(r.merchant_code || ''), category: String(r.category || ''), subcategory: String(r.subcategory || ''), reimbursable: false, counterparty: '' },
-      { amount: '', raw_text: '', merchant_code: String(r.merchant_code || ''), category: String(r.category || ''), subcategory: String(r.subcategory || ''), reimbursable: false, counterparty: '' }
+      { amount: '', raw_text: '', merchant_code: String(r.merchant_code || ''), category: String(r.category || ''), subcategory: String(r.subcategory || ''), reimbursable: false },
+      { amount: '', raw_text: '', merchant_code: String(r.merchant_code || ''), category: String(r.category || ''), subcategory: String(r.subcategory || ''), reimbursable: false }
     ]);
 
     setEditTxnOpen(true);
@@ -709,7 +708,26 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <label className="text-xs text-[color:var(--hk-muted)]">Merchant</label>
-                    <SearchSelect value={editMerchant} onChange={setEditMerchant} options={merchantOptions.map((m) => ({ value: m.code, label: m.name }))} placeholder="(none)" />
+                    <SearchSelect
+                      value={editMerchant}
+                      onChange={(v) => {
+                        setEditMerchant(v);
+                        const m = merchantOptions.find((x: any) => x.code === v) as any;
+                        const defCat = String(m?.default?.category || m?.defaultCategory || '').trim();
+                        const defSub = String(m?.default?.subcategory || m?.defaultSubcategory || '').trim();
+                        if (defCat) {
+                          setEditCategory(defCat);
+                          if (defSub) {
+                            setEditSubcategory(defSub);
+                          } else {
+                            const first = subcategoryOptions.find((s: any) => s.category === defCat);
+                            setEditSubcategory(first ? first.code : '');
+                          }
+                        }
+                      }}
+                      options={merchantOptions.map((m: any) => ({ value: m.code, label: m.name || m.code }))}
+                      placeholder="(none)"
+                    />
                   </div>
                   <div>
                     <label className="text-xs text-[color:var(--hk-muted)]">Category</label>
@@ -717,10 +735,13 @@ export default function DashboardPage() {
                       value={editCategory}
                       onChange={(v) => {
                         setEditCategory(v);
-                        const ok = subcategoryOptions.some((s) => s.code === editSubcategory && s.category === v);
-                        if (!ok) setEditSubcategory('');
+                        const ok = subcategoryOptions.some((s: any) => s.code === editSubcategory && s.category === v);
+                        if (!ok) {
+                          const first = subcategoryOptions.find((s: any) => s.category === v);
+                          setEditSubcategory(first ? first.code : '');
+                        }
                       }}
-                      options={categoryOptions.map((c) => ({ value: c.code, label: c.name }))}
+                      options={categoryOptions.map((c: any) => ({ value: c.code, label: c.name || c.code }))}
                       placeholder="(none)"
                     />
                   </div>
@@ -746,20 +767,11 @@ export default function DashboardPage() {
                           const has = parts.includes('reimbursable');
                           const next = e.target.checked ? (has ? parts : parts.concat(['reimbursable'])) : parts.filter(x => x !== 'reimbursable');
                           setEditTags(next.join(','));
-                          if (e.target.checked && !editReimbStatus) setEditReimbStatus('expected');
-                          if (!e.target.checked && editReimbStatus === 'expected') setEditReimbStatus('');
+                          setEditReimbStatus(e.target.checked ? 'expected' : '');
                         }}
                       />
                       Reimbursable
                     </label>
-                  </div>
-                  <div>
-                    <label className="text-xs text-[color:var(--hk-muted)]">Reimb status</label>
-                    <input className="mt-1 w-full hk-input" value={editReimbStatus} onChange={(e) => setEditReimbStatus(e.target.value)} placeholder="expected/received" />
-                  </div>
-                  <div>
-                    <label className="text-xs text-[color:var(--hk-muted)]">Counterparty</label>
-                    <input className="mt-1 w-full hk-input" value={editCounterparty} onChange={(e) => setEditCounterparty(e.target.value)} placeholder="Name" />
                   </div>
                   <div>
                     <label className="text-xs text-[color:var(--hk-muted)]">Source</label>
@@ -796,7 +808,6 @@ export default function DashboardPage() {
                             location: editLocation,
                             tags: editTags,
                             reimb_status: editReimbStatus,
-                            counterparty: editCounterparty,
                             notes: editNotes
                           });
 
@@ -859,7 +870,24 @@ export default function DashboardPage() {
                             <SearchSelect
                               portal
                               value={ln.merchant_code}
-                              onChange={(v) => setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, merchant_code:v}:x))}
+                              onChange={(v) => {
+                                setSplitLines(xs => xs.map((x,i)=> {
+                                  if (i!==idx) return x;
+                                  const m = merchantOptions.find((mm:any) => mm.code === v) as any;
+                                  const defCat = String(m?.default?.category || m?.defaultCategory || '').trim();
+                                  const defSub = String(m?.default?.subcategory || m?.defaultSubcategory || '').trim();
+                                  const nextCat = defCat || x.category;
+                                  let nextSub = x.subcategory;
+                                  if (defCat) {
+                                    if (defSub) nextSub = defSub;
+                                    else {
+                                      const first = subcategoryOptions.find((s:any) => s.category === defCat);
+                                      nextSub = first ? first.code : '';
+                                    }
+                                  }
+                                  return { ...x, merchant_code: v, category: nextCat, subcategory: nextSub };
+                                }));
+                              }}
                               options={merchantOptions.map((m) => ({ value: m.code, label: m.name || m.code }))}
                               placeholder="(none)"
                             />
@@ -872,25 +900,16 @@ export default function DashboardPage() {
                               />
                               Reimbursable
                             </label>
-
-                            {ln.reimbursable ? (
-                              <div className="mt-2">
-                                <label className="text-xs text-[color:var(--hk-muted)]">Counterparty</label>
-                                <input
-                                  className="mt-1 w-full hk-input"
-                                  value={ln.counterparty || ''}
-                                  onChange={(e) => setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, counterparty:e.target.value}:x))}
-                                  placeholder="Name"
-                                />
-                              </div>
-                            ) : null}
                           </div>
                           <div>
                             <label className="text-xs text-[color:var(--hk-muted)]">Category</label>
                             <SearchSelect
                               portal
                               value={ln.category}
-                              onChange={(v) => setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, category:v, subcategory: ''}:x))}
+                              onChange={(v) => {
+                                const first = subcategoryOptions.find((s:any) => s.category === v);
+                                setSplitLines(xs => xs.map((x,i)=> i===idx?{...x, category:v, subcategory: first ? first.code : ''}:x));
+                              }}
                               options={categoryOptions.map((c) => ({ value: c.code, label: c.name || c.code }))}
                               placeholder="(none)"
                             />
@@ -912,7 +931,7 @@ export default function DashboardPage() {
                   </div>
 
                   <div className="mt-3 flex justify-between gap-2">
-                    <button className="hk-btn-secondary" onClick={() => setSplitLines(xs => xs.concat([{ amount:'', raw_text:'', merchant_code: editMerchant, category: editCategory, subcategory: editSubcategory, reimbursable: false, counterparty: '' }]))}>+ Add line</button>
+                    <button className="hk-btn-secondary" onClick={() => setSplitLines(xs => xs.concat([{ amount:'', raw_text:'', merchant_code: editMerchant, category: editCategory, subcategory: editSubcategory, reimbursable: false }]))}>+ Add line</button>
                     <button
                       className="hk-btn-primary"
                       onClick={async () => {
@@ -926,7 +945,6 @@ export default function DashboardPage() {
                               category: x.category,
                               subcategory: x.subcategory,
                               reimb_status: x.reimbursable ? 'expected' : '',
-                              counterparty: x.reimbursable ? (x.counterparty || '') : '',
                               tags: x.reimbursable ? 'reimbursable' : ''
                             }))
                             .filter((x) => Number.isFinite(x.amount) && x.amount > 0);
