@@ -308,6 +308,15 @@ export default function DashboardPage() {
     return d >= start && d < endExclusive;
   }
 
+  // Some historical rows are stored with type=EXPENSE but category=TRANSFER.
+  // Normalize the type consistently in filters + table.
+  const isTransferCatRow = (r: any) => {
+    const rowCat = String(r.category || '');
+    const rowCatName = String(r.category_name || '');
+    return rowCat === 'TRANSFER' || rowCatName === 'Transfers';
+  };
+  const normTypeOf = (r: any) => (isTransferCatRow(r) ? 'TRANSFER' : String(r.type || ''));
+
   const baseFilteredRows = rows.filter((r: any) => {
     if (!inSelectedRange(String(r.date || ''))) return false;
     if (fDate && String(r.date || '') !== fDate) return false;
