@@ -28,6 +28,7 @@ export function SearchSelect({
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
+  const [activeIdx, setActiveIdx] = useState<number>(-1);
   const ref = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -59,6 +60,10 @@ export function SearchSelect({
       setQ('');
       setTimeout(() => inputRef.current?.focus(), 0);
 
+      // Default active option = current selection, else first item (or placeholder).
+      const curIdx = options.findIndex((o) => o.value === value);
+      setActiveIdx(curIdx >= 0 ? curIdx : (placeholder ? -1 : (options.length ? 0 : -1)));
+
       const updateRect = () => {
         const el = ref.current;
         if (!el) return;
@@ -75,10 +80,18 @@ export function SearchSelect({
     } else {
       setQ('');
       setRect(null);
+      setActiveIdx(-1);
     }
-  }, [open, current]);
+  }, [open, current, options, placeholder, value]);
 
   const displayValue = open ? (q !== '' ? q : (current ? current.label : '')) : (current ? current.label : '');
+
+  useEffect(() => {
+    if (!open) return;
+    // Keep active option visible when navigating by keyboard.
+    const el = menuRef.current?.querySelector(`[data-idx="${activeIdx}"]`) as HTMLElement | null;
+    if (el) el.scrollIntoView({ block: 'nearest' });
+  }, [activeIdx, open]);
 
   return (
     <div ref={ref} className="relative">
@@ -100,9 +113,34 @@ export function SearchSelect({
             if (e.key === 'Escape') {
               setOpen(false);
               setQ('');
+              return;
             }
+
             if (e.key === 'ArrowDown') {
+              e.preventDefault();
               setOpen(true);
+              setActiveIdx((i) => {
+                const next = i < 0 ? 0 : Math.min(filtered.length - 1, i + 1);
+                return next;
+              });
+              return;
+            }
+            if (e.key === 'ArrowUp') {
+              e.preventDefault();
+              setOpen(true);
+              setActiveIdx((i) => Math.max(0, i - 1));
+              return;
+            }
+            if (e.key === 'Enter') {
+              if (!open) return;
+              e.preventDefault();
+              const opt = filtered[activeIdx];
+              if (opt) {
+                onChange(opt.value);
+                setOpen(false);
+                setQ('');
+              }
+              return;
             }
           }}
         />
@@ -128,8 +166,12 @@ export function SearchSelect({
                     ? { left: rect.left, top: rect.top, width: rect.width }
                     : undefined
                 }
+                onWheel={(e) => {
+                  // Prevent parent scroll containers from hijacking wheel events.
+                  e.stopPropagation();
+                }}
               >
-                <div className="max-h-[420px] overflow-y-auto overflow-x-hidden">
+                <div className="max-h-[420px] overflow-y-auto overflow-x-hidden overscroll-contain">
                   <button
                     type="button"
                     className={`w-full text-left px-3 py-2 hover:bg-white/5 truncate ${value === '' ? 'bg-white/10' : ''} ${!placeholder ? 'hidden' : ''}`}
@@ -141,11 +183,13 @@ export function SearchSelect({
                   >
                     {placeholder}
                   </button>
-                  {filtered.map((o) => (
+                  {filtered.map((o, idx) => (
                     <button
                       key={o.value}
                       type="button"
-                      className={`w-full text-left px-3 py-2 hover:bg-white/5 truncate ${o.value === value ? 'bg-white/10' : ''}`}
+                      data-idx={idx}
+                      className={`w-full text-left px-3 py-2 hover:bg-white/5 truncate ${o.value === value ? 'bg-white/10' : ''} ${idx === activeIdx ? 'outline outline-1 outline-white/25' : ''}`}
+                      onMouseEnter={() => setActiveIdx(idx)}
                       onClick={() => {
                         onChange(o.value);
                         setOpen(false);
