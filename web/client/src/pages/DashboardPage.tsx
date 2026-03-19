@@ -311,7 +311,8 @@ export default function DashboardPage() {
   const baseFilteredRows = rows.filter((r: any) => {
     if (!inSelectedRange(String(r.date || ''))) return false;
     if (fDate && String(r.date || '') !== fDate) return false;
-    if (fType && r.type !== fType) return false;
+    // Use normalized type so transfer-category rows don't slip into EXPENSE.
+    if (fType && normTypeOf(r) !== fType) return false;
     if (fSource) {
       if (fSource === 'Mail') {
         if (!r.messageId) return false;
@@ -1476,7 +1477,7 @@ export default function DashboardPage() {
               {pageRows.map((r) => (
                 <tr key={r.txn_id} className="">
                   <td className="px-3 py-2 whitespace-nowrap">{r.date}</td>
-                  <td className="px-3 py-2">{r.type}</td>
+                  <td className="px-3 py-2">{normTypeOf(r)}</td>
                   <td className="px-3 py-2 text-right">{formatINR(r.amount)}</td>
                   <td className="px-3 py-2">{r.merchant_known ? (r.merchant_name || '') : ''}</td>
                   <td className="px-3 py-2">{r.messageId ? 'Mail' : (r.source_name || r.source || '')}</td>
