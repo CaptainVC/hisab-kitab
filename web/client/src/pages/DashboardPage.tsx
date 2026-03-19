@@ -586,8 +586,9 @@ export default function DashboardPage() {
       return top ? { name: top[0], amount: top[1] } : { name: '—', amount: 0 };
     })();
 
-    const expenseCard = { total: mineExpenses };
-    const totalExpensesCard = { total: totalExpenses, paidForOthers: paidForOthersNonReimb, paidForOthersCount: expForOthersNonReimb.length };
+    const expenseCard = { total: mineExpenses, count: expMine.length };
+    const paidForOthersCard = { total: paidForOthersNonReimb, count: expForOthersNonReimb.length };
+    const totalExpensesCard = { total: totalExpenses, count: expMine.length + expForOthersNonReimb.length };
 
     const reimbursableCard = { total: reimbTotal, count: reimbRows.length };
 
@@ -595,16 +596,20 @@ export default function DashboardPage() {
 
     if (fType === 'EXPENSE') transfer = 0;
 
+    const transferCount = rowsForTotals.filter((r: any) => normTypeOf(r) === 'TRANSFER').length;
+
     return {
       count: rowsForTotals.length,
       sum,
       expense,
       transfer,
+      transferCount,
       expenseDays: expenseDays.size,
       byLoc,
       topCategory,
       totalExpenses,
       expenseCard,
+      paidForOthersCard,
       totalExpensesCard,
       reimbursableCard,
       needsCategorization
@@ -926,11 +931,12 @@ export default function DashboardPage() {
         <div className="p-3 hk-card min-h-[84px]">
           <div className="text-[11px] text-[color:var(--hk-muted)]">Total expenses</div>
           <div className="mt-1 text-lg font-semibold">{formatINR(totals.totalExpensesCard?.total || totals.totalExpenses || 0)}</div>
-          <div className="text-[11px] text-[color:var(--hk-faint)]">paid_for_others: {formatINR(totals.totalExpensesCard?.paidForOthers || 0)}</div>
+          <div className="text-[11px] text-[color:var(--hk-faint)]">{totals.totalExpensesCard?.count || 0} txn</div>
         </div>
         <div className="p-3 hk-card min-h-[84px]">
           <div className="text-[11px] text-[color:var(--hk-muted)]">Transfers</div>
           <div className="mt-1 text-lg font-semibold">{formatINR(totals.transfer)}</div>
+          <div className="text-[11px] text-[color:var(--hk-faint)]">{totals.transferCount || 0} txn</div>
         </div>
 
         <div className="p-3 hk-card row-span-2 min-h-[176px]">
@@ -958,18 +964,18 @@ export default function DashboardPage() {
         {/* Row 2 */}
         <div className="p-3 hk-card min-h-[84px]">
           <div className="text-[11px] text-[color:var(--hk-muted)]">Paid for others</div>
-          <div className="mt-1 text-lg font-semibold">{formatINR(totals.totalExpensesCard?.paidForOthers || 0)}</div>
-          <div className="text-[11px] text-[color:var(--hk-faint)]">{totals.totalExpensesCard?.paidForOthersCount || 0} txns • excludes reimbursable</div>
+          <div className="mt-1 text-lg font-semibold">{formatINR(totals.paidForOthersCard?.total || 0)}</div>
+          <div className="text-[11px] text-[color:var(--hk-faint)]">{totals.paidForOthersCard?.count || 0} txn</div>
         </div>
         <div className="p-3 hk-card min-h-[84px]">
           <div className="text-[11px] text-[color:var(--hk-muted)]">Expenses</div>
           <div className="mt-1 text-lg font-semibold">{formatINR(totals.expenseCard?.total || 0)}</div>
-          <div className="text-[11px] text-[color:var(--hk-faint)]">excludes reimbursable</div>
+          <div className="text-[11px] text-[color:var(--hk-faint)]">{totals.expenseCard?.count || 0} txn</div>
         </div>
         <div className="p-3 hk-card min-h-[84px]">
           <div className="text-[11px] text-[color:var(--hk-muted)]">Total reimbursable</div>
           <div className="mt-1 text-lg font-semibold">{formatINR(totals.reimbursableCard?.total || 0)}</div>
-          <div className="text-[11px] text-[color:var(--hk-faint)]">{totals.reimbursableCard?.count || 0} txns</div>
+          <div className="text-[11px] text-[color:var(--hk-faint)]">{totals.reimbursableCard?.count || 0} txn</div>
         </div>
       </div>
 
