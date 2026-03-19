@@ -587,7 +587,7 @@ export default function DashboardPage() {
     })();
 
     const expenseCard = { total: mineExpenses };
-    const totalExpensesCard = { total: totalExpenses, paidForOthers: paidForOthersNonReimb };
+    const totalExpensesCard = { total: totalExpenses, paidForOthers: paidForOthersNonReimb, paidForOthersCount: expForOthersNonReimb.length };
 
     const reimbursableCard = { total: reimbTotal, count: reimbRows.length };
 
@@ -957,9 +957,9 @@ export default function DashboardPage() {
 
         {/* Row 2 */}
         <div className="p-3 hk-card min-h-[84px]">
-          <div className="text-[11px] text-[color:var(--hk-muted)]">Top category</div>
-          <div className="mt-1 text-sm text-[color:var(--hk-muted)] truncate" title={totals.topCategory?.name || ''}>{totals.topCategory?.name || '—'}</div>
-          <div className="mt-1 text-lg font-semibold">{formatINR(totals.topCategory?.amount || 0)}</div>
+          <div className="text-[11px] text-[color:var(--hk-muted)]">Paid for others</div>
+          <div className="mt-1 text-lg font-semibold">{formatINR(totals.totalExpensesCard?.paidForOthers || 0)}</div>
+          <div className="text-[11px] text-[color:var(--hk-faint)]">{totals.totalExpensesCard?.paidForOthersCount || 0} txns • excludes reimbursable</div>
         </div>
         <div className="p-3 hk-card min-h-[84px]">
           <div className="text-[11px] text-[color:var(--hk-muted)]">Expenses</div>
