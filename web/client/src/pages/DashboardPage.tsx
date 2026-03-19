@@ -493,17 +493,6 @@ export default function DashboardPage() {
       }
     }
 
-    // Expense by location
-    const byLoc: Record<string, number> = {};
-    for (const r of rowsForTotals) {
-      const a = Number(r.amount || 0);
-      if (!Number.isFinite(a)) continue;
-      const normType = normTypeOf(r);
-      if (normType !== 'EXPENSE') continue;
-      const loc = String(r.location_name || r.location || 'Unknown') || 'Unknown';
-      byLoc[loc] = (byLoc[loc] || 0) + a;
-    }
-
     const getTags = (r: any): string[] =>
       Array.isArray(r._tags)
         ? r._tags
@@ -513,6 +502,20 @@ export default function DashboardPage() {
             .filter(Boolean);
 
     const isReimb = (r: any) => getTags(r).includes('reimbursable');
+
+    // Expense by location (should match Total expenses semantics):
+    // include mine + paid_for_others (non-reimb), exclude reimbursable.
+    const byLoc: Record<string, number> = {};
+    for (const r of rowsForTotals) {
+      const a = Number(r.amount || 0);
+      if (!Number.isFinite(a)) continue;
+      const normType = normTypeOf(r);
+      if (normType !== 'EXPENSE') continue;
+      if (isReimb(r)) continue;
+      const loc = String(r.location_name || r.location || 'Unknown') || 'Unknown';
+      byLoc[loc] = (byLoc[loc] || 0) + a;
+    }
+
     // For totals, define "Paid for someone else" strictly by subcategory code.
     // (Tag for_others can exist on other rows for context, but should not change totals.)
     const isPaidForOthers = (r: any) => String(r.subcategory || '') === 'OTH_PAID_FOR_OTHERS';
