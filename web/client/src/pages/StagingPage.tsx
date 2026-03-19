@@ -381,7 +381,25 @@ export default function StagingPage() {
                           <SearchSelect
                             portal
                             value={r.merchant_code || ''}
-                            onChange={(v) => setParseRows((xs) => xs.map((it) => it.txn_id === r.txn_id ? { ...it, merchant_code: v } : it))}
+                            onChange={(v) =>
+                              setParseRows((xs) =>
+                                xs.map((it) => {
+                                  if (it.txn_id !== r.txn_id) return it;
+                                  const m = merchRefs.find((mm: any) => mm.code === v) as any;
+                                  const defCat = String(m?.default?.category || '');
+                                  const defSub = String(m?.default?.subcategory || '');
+
+                                  // Apply merchant defaults on selection.
+                                  // If category changes, reset subcategory to the merchant default.
+                                  if (defCat) {
+                                    const nextCat = defCat;
+                                    const nextSub = defSub;
+                                    return { ...it, merchant_code: v, category: nextCat, subcategory: nextSub };
+                                  }
+                                  return { ...it, merchant_code: v };
+                                })
+                              )
+                            }
                             options={merchRefs.map((m) => ({ value: m.code, label: m.name || m.code }))}
                             placeholder="(none)"
                             className="px-1 py-0.5 rounded bg-zinc-950 border [var(--hk-border)] text-[11px]"
