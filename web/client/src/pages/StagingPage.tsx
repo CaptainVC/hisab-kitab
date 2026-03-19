@@ -8,6 +8,8 @@ import { formatINR } from '../app/format';
 import { loadRange, saveRange } from '../app/range';
 import { SearchSelect } from '../components/SearchSelect';
 
+type LocationMeta = { code: string; name: string };
+
 type ParseResp = { ok: true; dryRun: true; imported: number; rows: any[]; errors: any[] };
 
 type CommitResp = { ok: true; jobId: string; stagingFile: string };
@@ -27,11 +29,13 @@ export default function StagingPage() {
 
   const [location, setLocation] = useState<string>(() => {
     try {
-      return localStorage.getItem('hk_staging_location') || 'Bengaluru';
+      return localStorage.getItem('hk_staging_location') || 'BENGALURU';
     } catch {
-      return 'Bengaluru';
+      return 'BENGALURU';
     }
   });
+
+  const [locationMeta, setLocationMeta] = useState<LocationMeta[]>([]);
 
   const [merchRefs, setMerchRefs] = useState<MerchantRef[]>([]);
   const [catRefs, setCatRefs] = useState<CategoryRef[]>([]);
@@ -43,16 +47,21 @@ export default function StagingPage() {
   const [jobLog, setJobLog] = useState('');
 
   async function ensureRefsLoaded(force = false) {
-    if (!force && merchRefs.length && catRefs.length && subRefs.length) return;
+    if (!force && merchRefs.length && catRefs.length && subRefs.length && locationMeta.length) return;
     try {
-      const [m, c, s] = await Promise.all([
+      const [m, c, s, loc] = await Promise.all([
         apiGet<{ ok: true; merchants: any[] }>('/api/v1/refs/merchants'),
         apiGet<{ ok: true; categories: any[] }>('/api/v1/refs/categories'),
-        apiGet<{ ok: true; subcategories: any[] }>('/api/v1/refs/subcategories')
+        apiGet<{ ok: true; subcategories: any[] }>('/api/v1/refs/subcategories'),
+        apiGet<{ ok: true; locations: LocationMeta[] }>('/api/v1/meta/locations')
       ]);
       setMerchRefs((m.merchants || []).filter((x) => !x.archived));
       setCatRefs((c.categories || []).filter((x) => !x.archived));
       setSubRefs((s.subcategories || []).filter((x) => !x.archived));
+      setLocationMeta(loc.locations || []);
+
+      // If we don't have a saved location, prefer the default=true location from refs/locations.json
+      // (meta endpoint doesn't include default; so we keep fallback to BENGALURU)
     } catch {
       // non-fatal; staging can work without refs
     }
@@ -64,7 +73,18 @@ export default function StagingPage() {
     try {
       await ensureRefsLoaded();
       const r = await apiPost<ParseResp>('/api/v1/staging/parse', { text });
-      const rows = (r.rows || []).map((it: any) => ({ ...it, location: it.location || location }));
+
+      const locByName = new Map(locationMeta.map((x) => [x.name.toLowerCase(), x.code] as const));
+      const locCodes = new Set(locationMeta.map((x) => x.code));
+      const normalizeLoc = (v: any) => {
+        const s = String(v || '').trim();
+        if (!s) return '';
+        if (locCodes.has(s)) return s;
+        const code = locByName.get(s.toLowerCase());
+        return code || s;
+      };
+
+      const rows = (r.rows || []).map((it: any) => ({ ...it, location: normalizeLoc(it.location) || location }));
       setParseRows(rows);
       setParseErrors(r.errors || []);
     } catch (e: any) {
@@ -151,11 +171,13 @@ export default function StagingPage() {
   const subCodes = useMemo(() => new Map(subRefs.map((s) => [s.code, s.category] as const)), [subRefs]);
 
   const locationOptions = useMemo(() => {
-    const base = ['Bengaluru', 'Mulki', 'Ahmedabad', 'Mumbai', 'Balotra', 'Mysuru', 'Unknown'];
-    const extra = Array.from(new Set(parseRows.map((r) => String(r.location || '').trim()).filter(Boolean)));
-    const all = Array.from(new Set([...base, ...extra]));
-    return all.map((v) => ({ value: v, label: v }));
-  }, [parseRows]);
+    const base = (locationMeta || []).map((x) => ({ value: x.code, label: x.name || x.code }));
+    const baseValues = new Set(base.map((x) => x.value));
+    const extra = Array.from(new Set(parseRows.map((r) => String(r.location || '').trim()).filter(Boolean)))
+      .filter((v) => !baseValues.has(v))
+      .map((v) => ({ value: v, label: v }));
+    return [...base, ...extra];
+  }, [locationMeta, parseRows]);
 
   function isValidMerchant(code: string) {
     if (!code) return true;
