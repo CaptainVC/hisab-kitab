@@ -342,7 +342,14 @@ export default function DashboardPage() {
           .filter(Boolean);
 
   const isReimbRow = (r: any) => getTags(r).includes('reimbursable');
-  const isPaidForOthersRow = (r: any) => String(r.subcategory || '') === 'OTH_PAID_FOR_OTHERS';
+
+  // Visibility: paid-for-others can be indicated either by the explicit subcategory OR by the for_others tag.
+  // (Totals calculations may still use the strict subcategory form elsewhere.)
+  const isPaidForOthersVisRow = (r: any) => {
+    if (String(r.subcategory || '') === 'OTH_PAID_FOR_OTHERS') return true;
+    const tags = getTags(r);
+    return tags.includes('for_others');
+  };
 
   const baseFilteredRows = rows.filter((r: any) => {
     if (!inSelectedRange(String(r.date || ''))) return false;
@@ -437,7 +444,7 @@ export default function DashboardPage() {
 
     // Paid-for-others visibility controlled by global toggle.
     // Allow it if user explicitly filtered to that subcategory.
-    if (!showPaidForOthers && isPaidForOthersRow(r) && fSubcategory !== 'OTH_PAID_FOR_OTHERS') return false;
+    if (!showPaidForOthers && isPaidForOthersVisRow(r) && fSubcategory !== 'OTH_PAID_FOR_OTHERS') return false;
 
     return true;
   });
