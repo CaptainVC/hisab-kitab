@@ -283,6 +283,22 @@ export default function DashboardPage() {
   const [fSearch, setFSearch] = useState<string>('');
   const [fDate, setFDate] = useState<string>(''); // YYYY-MM-DD
 
+  // Global visibility toggles (affects table + charts + location table; NOT the KPI totals cards)
+  const [showReimbursable, setShowReimbursable] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('hk:showReimbursable') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const [showPaidForOthers, setShowPaidForOthers] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('hk:showPaidForOthers') === '1';
+    } catch {
+      return false;
+    }
+  });
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
 
@@ -316,6 +332,17 @@ export default function DashboardPage() {
     return rowCat === 'TRANSFER' || rowCatName === 'Transfers';
   };
   const normTypeOf = (r: any) => (isTransferCatRow(r) ? 'TRANSFER' : String(r.type || ''));
+
+  const getTags = (r: any): string[] =>
+    Array.isArray(r._tags)
+      ? r._tags
+      : String(r.tags || '')
+          .split(',')
+          .map((s: string) => s.trim())
+          .filter(Boolean);
+
+  const isReimbRow = (r: any) => getTags(r).includes('reimbursable');
+  const isPaidForOthersRow = (r: any) => String(r.subcategory || '') === 'OTH_PAID_FOR_OTHERS';
 
   const baseFilteredRows = rows.filter((r: any) => {
     if (!inSelectedRange(String(r.date || ''))) return false;
@@ -398,20 +425,19 @@ export default function DashboardPage() {
     return true;
   });
 
-  // Table + charts default hides
+  // Table + charts visibility rules (KPI totals cards use baseFilteredRows directly)
   const filteredRows = baseFilteredRows.filter((r: any) => {
-    const tags: string[] = Array.isArray(r._tags)
-      ? r._tags
-      : String(r.tags || '')
-          .split(',')
-          .map((s: string) => s.trim())
-          .filter(Boolean);
+    const tags = getTags(r);
 
     // Hide archived rows by default. To see them, explicitly filter by the 'archived' tag.
     if (tags.includes('archived') && !fTags.includes('archived')) return false;
 
-    // Hide reimbursable rows by default; show them when explicitly filtered.
-    if (tags.includes('reimbursable') && !fTags.includes('reimbursable')) return false;
+    // Reimbursable visibility controlled by global toggle (or explicit tag filter).
+    if (!showReimbursable && isReimbRow(r) && !fTags.includes('reimbursable')) return false;
+
+    // Paid-for-others visibility controlled by global toggle.
+    // Allow it if user explicitly filtered to that subcategory.
+    if (!showPaidForOthers && isPaidForOthersRow(r) && fSubcategory !== 'OTH_PAID_FOR_OTHERS') return false;
 
     return true;
   });
@@ -692,6 +718,34 @@ export default function DashboardPage() {
               <span className="ml-2 opacity-0 group-hover:opacity-100">✕</span>
             </button>
           ) : null}
+
+          <label className="inline-flex items-center gap-2 text-xs text-[color:var(--hk-muted)] ml-2 select-none">
+            <input
+              type="checkbox"
+              checked={showReimbursable}
+              onChange={(e) => {
+                const v = e.target.checked;
+                setShowReimbursable(v);
+                try { localStorage.setItem('hk:showReimbursable', v ? '1' : '0'); } catch {}
+                setPage(1);
+              }}
+            />
+            Include reimbursable
+          </label>
+
+          <label className="inline-flex items-center gap-2 text-xs text-[color:var(--hk-muted)] select-none">
+            <input
+              type="checkbox"
+              checked={showPaidForOthers}
+              onChange={(e) => {
+                const v = e.target.checked;
+                setShowPaidForOthers(v);
+                try { localStorage.setItem('hk:showPaidForOthers', v ? '1' : '0'); } catch {}
+                setPage(1);
+              }}
+            />
+            Include paid_for_others
+          </label>
         </div>
 
         <div className="flex gap-2 items-end">
