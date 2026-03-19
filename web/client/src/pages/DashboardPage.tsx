@@ -363,7 +363,14 @@ export default function DashboardPage() {
         return false;
       }
     }
-    if (fLocation && (r.location_name || r.location) !== fLocation && r.location !== fLocation) return false;
+    if (fLocation) {
+      if (fLocation === MISSING) {
+        const loc = String(r.location_name || r.location || '').trim();
+        if (loc) return false;
+      } else if ((r.location_name || r.location) !== fLocation && r.location !== fLocation) {
+        return false;
+      }
+    }
 
     const merch = r.merchant_known ? (r.merchant_name || '') : '';
     if (fMerchant) {
@@ -698,7 +705,7 @@ export default function DashboardPage() {
 
           {fLocation ? (
             <button className="hk-badge-good group" onClick={() => { setFLocation(''); setPage(1); }}>
-              <span>Location {fLocation}</span>
+              <span>{fLocation === MISSING ? 'Location missing' : `Location ${fLocation}`}</span>
               <span className="ml-2 opacity-0 group-hover:opacity-100">✕</span>
             </button>
           ) : null}
