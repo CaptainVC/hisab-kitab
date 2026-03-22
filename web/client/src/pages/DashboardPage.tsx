@@ -450,8 +450,9 @@ export default function DashboardPage() {
     if (!showReimbursable && isReimbRow(r) && !fTags.includes('reimbursable')) return false;
 
     // Paid-for-others visibility controlled by global toggle.
-    // Allow it if user explicitly filtered to that subcategory.
-    if (!showPaidForOthers && isPaidForOthersVisRow(r) && fSubcategory !== 'OTH_PAID_FOR_OTHERS') return false;
+    // Reimbursable rows are controlled ONLY by the reimbursable toggle.
+    // Allow paid_for_others rows if user explicitly filtered to that subcategory.
+    if (!showPaidForOthers && !isReimbRow(r) && isPaidForOthersVisRow(r) && fSubcategory !== 'OTH_PAID_FOR_OTHERS') return false;
 
     return true;
   });
