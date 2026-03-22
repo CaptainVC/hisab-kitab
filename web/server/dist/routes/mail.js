@@ -90,6 +90,85 @@ export async function registerMailRoutes(app, opts) {
         const orders = Array.isArray(j?.orders) ? j.orders : [];
         return { fp, orders };
     }
+    // Merchant list + basic stats (for UI dropdown)
+    app.get('/api/v1/mail/merchants', async (req, reply) => {
+        if (!requireAuth(req, reply))
+            return;
+        const { orders } = readMailStore();
+        const by = {};
+        for (const o of orders) {
+            const mc = String(o?.merchant_code || '').trim().toUpperCase() || 'UNKNOWN';
+            const d = String(o?.date || '').slice(0, 10);
+            if (!by[mc])
+                by[mc] = { count: 0, oldest: null, newest: null, withItems: 0 };
+            by[mc].count++;
+            if (d) {
+                if (!by[mc].oldest || d < by[mc].oldest)
+                    by[mc].oldest = d;
+                if (!by[mc].newest || d > by[mc].newest)
+                    by[mc].newest = d;
+            }
+            const items = Array.isArray(o?.items) ? o.items : [];
+            if (items.length)
+                by[mc].withItems++;
+        }
+        const merchants = Object.entries(by)
+            .map(([merchant_code, v]) => ({ merchant_code, count: v.count, oldestDate: v.oldest, newestDate: v.newest, withItems: v.withItems }))
+            .sort((a, b) => a.merchant_code.localeCompare(b.merchant_code));
+        return reply.send({ ok: true, merchants });
+    });
+    // Run reconcile report on demand (job)
+    app.post('/api/v1/mail/reconcile/run', async (req, reply) => {
+        if (!requireAuth(req, reply))
+            return;
+        const body = (req.body || {});
+        const merchant_code = String(body.merchant_code || '').trim().toUpperCase();
+        const from = String(body.from || '').trim();
+        const to = String(body.to || '').trim();
+        const bufferDays = Number(body.bufferDays ?? 3);
+        const tol = Number(body.tol ?? 10);
+        const includeRawMention = body.includeRawMention === undefined ? true : !!body.includeRawMention;
+        if (!merchant_code)
+            return reply.code(400).send({ ok: false, error: 'missing_merchant_code' });
+        if (!from || !to)
+            return reply.code(400).send({ ok: false, error: 'missing_range' });
+        const reportId = `reconcile_${merchant_code}_${from}_${to}_${Date.now()}`.replace(/[^A-Z0-9_\-]/gi, '_');
+        const script = path.join(opts.repoDir, 'web', 'server', 'dist', 'scripts', 'mail_reconcile.js');
+        const args = [
+            script,
+            '--base-dir', opts.baseDir,
+            '--merchant-code', merchant_code,
+            '--from', from,
+            '--to', to,
+            '--buffer-days', String(bufferDays),
+            '--tol', String(tol),
+            '--include-raw-mention', includeRawMention ? '1' : '0',
+            '--report-id', reportId
+        ];
+        try {
+            const job = await opts.runner.startJob('mailReconcile', { merchant_code, from, to, bufferDays, tol, includeRawMention, reportId }, process.execPath, args, { cwd: opts.repoDir });
+            return reply.send({ ok: true, jobId: job.jobId, reportId });
+        }
+        catch (e) {
+            if (String(e?.message || e) === 'job_already_running')
+                return reply.code(409).send({ ok: false, error: 'job_already_running' });
+            return reply.code(500).send({ ok: false, error: 'start_failed', detail: String(e?.message || e) });
+        }
+    });
+    // Fetch a reconcile report by id
+    app.get('/api/v1/mail/reconcile/report/:reportId', async (req, reply) => {
+        if (!requireAuth(req, reply))
+            return;
+        const { reportId } = req.params;
+        const id = String(reportId || '').trim();
+        if (!id)
+            return reply.code(400).send({ ok: false, error: 'missing_report_id' });
+        const fp = path.join(opts.baseDir, 'cache', 'reconcile', `${id}.json`);
+        const j = readJson(fp, null);
+        if (!j)
+            return reply.code(404).send({ ok: false, error: 'not_found', file: fp });
+        return reply.send(j);
+    });
     // Latest crossref report for range (if exists)
     app.get('/api/v1/mail/crossrefReport', async (req, reply) => {
         if (!requireAuth(req, reply))

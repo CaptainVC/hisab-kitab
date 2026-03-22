@@ -4,6 +4,7 @@ import { apiGet } from './api/client';
 import DashboardPage from './pages/DashboardPage';
 import ReviewPage from './pages/ReviewPage';
 import MailPage from './pages/MailPage';
+import MailMatchPage from './pages/MailMatchPage';
 import IngestPage from './pages/IngestPage';
 import StagingPage from './pages/StagingPage';
 import StatementMatchPage from './pages/StatementMatchPage';
@@ -65,6 +66,7 @@ export default function App() {
             <TabLink to="/dashboard" label="Dashboard" />
             <TabLink to="/review" label="Needs Review" />
             <TabLink to="/mail" label="Mail Stats" />
+            <TabLink to="/mail-match" label="Mail Match" />
             <TabLink to="/ingest" label="Ingest" />
             <TabLink to="/staging" label="Staging" />
             <TabLink to="/statement" label="Statement" />
@@ -94,6 +96,7 @@ export default function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/review" element={<ReviewPage />} />
           <Route path="/mail" element={<MailPage />} />
+          <Route path="/mail-match" element={<MailMatchPage />} />
           <Route path="/ingest" element={<IngestPage />} />
           <Route path="/staging" element={<StagingPage />} />
           <Route path="/statement" element={<StatementMatchPage />} />
