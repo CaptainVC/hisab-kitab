@@ -166,6 +166,16 @@ export default function StagingPage() {
 
     // Allow other pages to prefill staging text once (e.g., Mail Match → "Send to Staging").
     try {
+      const preRows = localStorage.getItem('hk_staging_prefill_rows');
+      if (preRows && parseRows.length === 0) {
+        const rows = JSON.parse(preRows);
+        if (Array.isArray(rows) && rows.length) {
+          setParseRows(rows);
+          setParseErrors([]);
+        }
+        localStorage.removeItem('hk_staging_prefill_rows');
+      }
+
       const pre = localStorage.getItem('hk_staging_prefill_text');
       if (pre && !text.trim()) {
         setText(pre);

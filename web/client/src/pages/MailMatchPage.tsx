@@ -52,6 +52,7 @@ export default function MailMatchPage() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [report, setReport] = useState<ReportResp | null>(null);
   const [tab, setTab] = useState<'unmatched' | 'ambiguous' | 'matched'>('unmatched');
+  const [selectedMsgIds, setSelectedMsgIds] = useState<Record<string, boolean>>({});
 
   async function loadMerchants() {
     const r = await apiGet<MerchantsResp>('/api/v1/mail/merchants');
@@ -104,6 +105,58 @@ export default function MailMatchPage() {
 
   const rows = report?.rows || [];
   const rowsByTab = rows.filter((r: any) => r.status === tab);
+  const selectedCount = Object.values(selectedMsgIds).filter(Boolean).length;
+
+  function toggleMsg(messageId: string, checked: boolean) {
+    setSelectedMsgIds((m) => ({ ...m, [messageId]: checked }));
+  }
+
+  function clearSelection() {
+    setSelectedMsgIds({});
+  }
+
+  async function sendSelectedToStaging() {
+    if (!report) return;
+    const ids = Object.entries(selectedMsgIds).filter(([, v]) => v).map(([k]) => k);
+    if (!ids.length) return;
+
+    const picked = rows.filter((r: any) => {
+      const mid = String(r?.mail?.messageId || '');
+      return mid && ids.includes(mid);
+    });
+
+    const stagingRows = picked.map((r: any) => {
+      const mm = r.mail || {};
+      const preview = (mm.items || []).map((x: any) => x.name).filter(Boolean).slice(0, 2).join(' | ');
+      return {
+        txn_id: '',
+        group_id: '',
+        date: String(mm.date || ''),
+        type: 'EXPENSE',
+        amount: Number(mm.total || 0),
+        source: '',
+        location: '',
+        merchant_code: String(report.merchant_code || ''),
+        category: '',
+        subcategory: '',
+        tags: '',
+        beneficiary: '',
+        reimb_status: '',
+        counterparty: '',
+        linked_txn_id: '',
+        notes: (preview ? `mail: ${preview}` : '') + (mm.messageId ? `${preview ? ' | ' : ''}msg:${mm.messageId}` : ''),
+        raw_text: `${String(report.merchant_code || '')} order`,
+        parse_status: 'mail_match_suggest',
+        parse_error: '',
+        messageId: String(mm.messageId || '')
+      };
+    });
+
+    try {
+      localStorage.setItem('hk_staging_prefill_rows', JSON.stringify(stagingRows));
+    } catch {}
+    window.location.href = '/staging';
+  }
 
   return (
     <div>
@@ -213,16 +266,28 @@ export default function MailMatchPage() {
             </div>
           </div>
 
-          <div className="mt-3 flex gap-2">
-            <button className={`hk-btn-secondary ${tab==='unmatched' ? 'ring-1 ring-white/20' : ''}`} onClick={() => setTab('unmatched')}>Unmatched ({report.summary.unmatched})</button>
-            <button className={`hk-btn-secondary ${tab==='ambiguous' ? 'ring-1 ring-white/20' : ''}`} onClick={() => setTab('ambiguous')}>Ambiguous ({report.summary.ambiguous})</button>
-            <button className={`hk-btn-secondary ${tab==='matched' ? 'ring-1 ring-white/20' : ''}`} onClick={() => setTab('matched')}>Matched ({report.summary.matched})</button>
+          <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex gap-2">
+              <button className={`hk-btn-secondary ${tab==='unmatched' ? 'ring-1 ring-white/20' : ''}`} onClick={() => { setTab('unmatched'); clearSelection(); }}>Unmatched ({report.summary.unmatched})</button>
+              <button className={`hk-btn-secondary ${tab==='ambiguous' ? 'ring-1 ring-white/20' : ''}`} onClick={() => { setTab('ambiguous'); clearSelection(); }}>Ambiguous ({report.summary.ambiguous})</button>
+              <button className={`hk-btn-secondary ${tab==='matched' ? 'ring-1 ring-white/20' : ''}`} onClick={() => { setTab('matched'); clearSelection(); }}>Matched ({report.summary.matched})</button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button className="hk-btn-secondary disabled:opacity-50" disabled={!selectedCount} onClick={() => sendSelectedToStaging()}>
+                Send selected to Staging ({selectedCount})
+              </button>
+              {selectedCount ? (
+                <button className="hk-btn-ghost" onClick={() => clearSelection()}>Clear</button>
+              ) : null}
+            </div>
           </div>
 
           <div className="mt-3 hk-card overflow-auto max-h-[520px]">
             <table className="w-full text-sm">
               <thead className="hk-table-head sticky top-0 z-10">
                 <tr>
+                  <th className="text-left px-3 py-2">Sel</th>
                   <th className="text-left px-3 py-2">Mail date</th>
                   <th className="text-right px-3 py-2">Mail total</th>
                   <th className="text-left px-3 py-2">Items (preview)</th>
@@ -235,6 +300,13 @@ export default function MailMatchPage() {
                   const items = (mail?.items || []).map((x: any) => x.name).filter(Boolean).slice(0, 2).join(' | ');
                   return (
                     <tr key={idx} className="border-t" style={{ borderColor: 'var(--hk-border)' }}>
+                      <td className="px-3 py-2">
+                        <input
+                          type="checkbox"
+                          checked={!!selectedMsgIds[String(mail?.messageId || '')]}
+                          onChange={(e) => toggleMsg(String(mail?.messageId || ''), e.target.checked)}
+                        />
+                      </td>
                       <td className="px-3 py-2 font-mono text-xs">{mail?.date}</td>
                       <td className="px-3 py-2 text-right">₹{Number(mail?.total || 0).toFixed(2)}</td>
                       <td className="px-3 py-2 text-xs text-[color:var(--hk-muted)]">{items || '—'}</td>
@@ -249,29 +321,14 @@ export default function MailMatchPage() {
                             {r.candidates?.slice(0, 5).map((c: any) => (
                               <div key={c.txn_id} className="flex items-center justify-between gap-2 flex-wrap">
                                 <div className="font-mono">{c.txn_id} • ₹{c.amount} • Δd {c.dayDelta} • Δ₹ {Number(c.amtDelta||0).toFixed(2)}</div>
-                                <a className="hk-btn-secondary px-2 py-1" href={`/dashboard?q=${encodeURIComponent(c.txn_id)}&edit=${encodeURIComponent(c.txn_id)}`}>Edit</a>
+                                <div className="flex gap-2">
+                                  <a className="hk-btn-secondary px-2 py-1" href={`/dashboard?q=${encodeURIComponent(c.txn_id)}&edit=${encodeURIComponent(c.txn_id)}`}>Edit</a>
+                                </div>
                               </div>
                             ))}
                           </div>
                         ) : (
-                          <button
-                            className="hk-btn-secondary px-2 py-1"
-                            onClick={() => {
-                              // Prefill staging with a minimal /hisab block.
-                              const mm = mail;
-                              const d = String(mm?.date || '');
-                              const [yy, mo, dd] = d.split('-');
-                              const dmy = yy && mo && dd ? `${dd}/${mo}/${String(yy).slice(2)}` : d;
-                              const amt = Math.round(Number(mm?.total || 0));
-                              const preview = (mm?.items || []).map((x: any) => x.name).filter(Boolean).slice(0, 2).join(' | ');
-                              const line = `${amt}/- ${String(selected)} ${preview ? `; ${preview}` : ''} {msg:${mm?.messageId || ''}}`;
-                              const text = `/hisab\nDay (${dmy})\n${line}`;
-                              try { localStorage.setItem('hk_staging_prefill_text', text); } catch {}
-                              window.location.href = '/staging';
-                            }}
-                          >
-                            Send to Staging
-                          </button>
+                          <div className="text-[color:var(--hk-faint)]">—</div>
                         )}
                       </td>
                     </tr>
