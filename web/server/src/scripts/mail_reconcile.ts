@@ -219,6 +219,7 @@ async function main() {
   const bufferDays = Number(getArg(args, '--buffer-days') || 3);
   const tol = Number(getArg(args, '--tol') || 10);
   const includeRawMention = String(getArg(args, '--include-raw-mention') || '1') !== '0';
+  const enableSplitSuggestions = String(getArg(args, '--enable-split-suggestions') || '0') === '1';
   const reportId = String(getArg(args, '--report-id') || '').trim();
 
   if (!baseDir) throw new Error('missing_base_dir');
@@ -249,6 +250,7 @@ async function main() {
     bufferDays,
     tol,
     includeRawMention,
+    enableSplitSuggestions,
     generatedAt: new Date().toISOString(),
     summary,
     rows

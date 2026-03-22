@@ -137,6 +137,7 @@ export async function registerMailRoutes(app: FastifyInstance, opts: { baseDir: 
     const bufferDays = Number(body.bufferDays ?? 3);
     const tol = Number(body.tol ?? 10);
     const includeRawMention = body.includeRawMention === undefined ? true : !!body.includeRawMention;
+    const enableSplitSuggestions = body.enableSplitSuggestions === undefined ? false : !!body.enableSplitSuggestions;
     if (!merchant_code) return reply.code(400).send({ ok: false, error: 'missing_merchant_code' });
     if (!from || !to) return reply.code(400).send({ ok: false, error: 'missing_range' });
 
@@ -152,11 +153,12 @@ export async function registerMailRoutes(app: FastifyInstance, opts: { baseDir: 
       '--buffer-days', String(bufferDays),
       '--tol', String(tol),
       '--include-raw-mention', includeRawMention ? '1' : '0',
+      '--enable-split-suggestions', enableSplitSuggestions ? '1' : '0',
       '--report-id', reportId
     ];
 
     try {
-      const job = await opts.runner.startJob('mailReconcile', { merchant_code, from, to, bufferDays, tol, includeRawMention, reportId }, process.execPath, args, { cwd: opts.repoDir });
+      const job = await opts.runner.startJob('mailReconcile', { merchant_code, from, to, bufferDays, tol, includeRawMention, enableSplitSuggestions, reportId }, process.execPath, args, { cwd: opts.repoDir });
       return reply.send({ ok: true, jobId: job.jobId, reportId });
     } catch (e: any) {
       if (String(e?.message || e) === 'job_already_running') return reply.code(409).send({ ok: false, error: 'job_already_running' });

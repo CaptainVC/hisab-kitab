@@ -163,6 +163,16 @@ export default function StagingPage() {
 
   useEffect(() => {
     ensureRefsLoaded().catch(() => {});
+
+    // Allow other pages to prefill staging text once (e.g., Mail Match → "Send to Staging").
+    try {
+      const pre = localStorage.getItem('hk_staging_prefill_text');
+      if (pre && !text.trim()) {
+        setText(pre);
+        localStorage.removeItem('hk_staging_prefill_text');
+      }
+    } catch {}
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

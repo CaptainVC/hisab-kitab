@@ -44,6 +44,7 @@ export default function MailMatchPage() {
   const [bufferDays, setBufferDays] = useState(3);
   const [tol, setTol] = useState(10);
   const [includeRawMention, setIncludeRawMention] = useState(true);
+  const [enableSplitSuggestions, setEnableSplitSuggestions] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -86,7 +87,8 @@ export default function MailMatchPage() {
         to,
         bufferDays,
         tol,
-        includeRawMention
+        includeRawMention,
+        enableSplitSuggestions
       });
       setJobId(r.jobId);
       await pollJob(r.jobId);
@@ -136,6 +138,22 @@ export default function MailMatchPage() {
                   <input type="checkbox" checked={includeRawMention} onChange={(e) => setIncludeRawMention(e.target.checked)} />
                   Enabled
                 </label>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs text-[color:var(--hk-muted)]">Auto-split suggestions</label>
+              <div className="mt-2">
+                <label className="inline-flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={enableSplitSuggestions}
+                    onChange={(e) => setEnableSplitSuggestions(e.target.checked)}
+                    disabled={!['AMAZON', 'BLINKIT', 'ZEPTO', 'SWIGGY_INSTAMART'].includes(String(selected || '').toUpperCase())}
+                  />
+                  Enable (Amazon/Blinkit/Zepto/Instamart)
+                </label>
+                <div className="text-[11px] text-[color:var(--hk-faint)]">Suggestions only (nothing committed until you explicitly apply).</div>
               </div>
             </div>
 
@@ -222,15 +240,38 @@ export default function MailMatchPage() {
                       <td className="px-3 py-2 text-xs text-[color:var(--hk-muted)]">{items || '—'}</td>
                       <td className="px-3 py-2 text-xs">
                         {r.status === 'matched' ? (
-                          <div className="font-mono">{r.match?.txn?.txn_id} • ₹{r.match?.txn?.amount} • Δd {r.match?.dayDelta} • Δ₹ {Number(r.match?.amtDelta||0).toFixed(2)}</div>
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="font-mono">{r.match?.txn?.txn_id} • ₹{r.match?.txn?.amount} • Δd {r.match?.dayDelta} • Δ₹ {Number(r.match?.amtDelta||0).toFixed(2)}</div>
+                            <a className="hk-btn-secondary px-2 py-1" href={`/dashboard?q=${encodeURIComponent(r.match?.txn?.txn_id || '')}&edit=${encodeURIComponent(r.match?.txn?.txn_id || '')}`}>Edit</a>
+                          </div>
                         ) : r.status === 'ambiguous' ? (
-                          <div className="space-y-1">
-                            {r.candidates?.slice(0, 3).map((c: any) => (
-                              <div key={c.txn_id} className="font-mono">{c.txn_id} • ₹{c.amount} • Δd {c.dayDelta} • Δ₹ {Number(c.amtDelta||0).toFixed(2)}</div>
+                          <div className="space-y-2">
+                            {r.candidates?.slice(0, 5).map((c: any) => (
+                              <div key={c.txn_id} className="flex items-center justify-between gap-2 flex-wrap">
+                                <div className="font-mono">{c.txn_id} • ₹{c.amount} • Δd {c.dayDelta} • Δ₹ {Number(c.amtDelta||0).toFixed(2)}</div>
+                                <a className="hk-btn-secondary px-2 py-1" href={`/dashboard?q=${encodeURIComponent(c.txn_id)}&edit=${encodeURIComponent(c.txn_id)}`}>Edit</a>
+                              </div>
                             ))}
                           </div>
                         ) : (
-                          <div className="text-[color:var(--hk-faint)]">—</div>
+                          <button
+                            className="hk-btn-secondary px-2 py-1"
+                            onClick={() => {
+                              // Prefill staging with a minimal /hisab block.
+                              const mm = mail;
+                              const d = String(mm?.date || '');
+                              const [yy, mo, dd] = d.split('-');
+                              const dmy = yy && mo && dd ? `${dd}/${mo}/${String(yy).slice(2)}` : d;
+                              const amt = Math.round(Number(mm?.total || 0));
+                              const preview = (mm?.items || []).map((x: any) => x.name).filter(Boolean).slice(0, 2).join(' | ');
+                              const line = `${amt}/- ${String(selected)} ${preview ? `; ${preview}` : ''} {msg:${mm?.messageId || ''}}`;
+                              const text = `/hisab\nDay (${dmy})\n${line}`;
+                              try { localStorage.setItem('hk_staging_prefill_text', text); } catch {}
+                              window.location.href = '/staging';
+                            }}
+                          >
+                            Send to Staging
+                          </button>
                         )}
                       </td>
                     </tr>

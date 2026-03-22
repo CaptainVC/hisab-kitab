@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { apiGet, apiPost, apiPut } from '../api/client';
 import { loadRange, saveRange } from '../app/range';
 import { formatINR } from '../app/format';
@@ -19,6 +20,7 @@ function msToAge(ms: number) {
 }
 
 export default function DashboardPage() {
+  const routeLoc = useLocation();
   const def = useMemo(() => loadRange(), []);
   const [from, setFrom] = useState(def.from);
   const [to, setTo] = useState(def.to);
@@ -281,6 +283,23 @@ export default function DashboardPage() {
   const MISSING = '__MISSING__';
   const [fTags, setFTags] = useState<string[]>([]);
   const [fSearch, setFSearch] = useState<string>('');
+
+  // Support deep-linking into dashboard from other pages.
+  // /dashboard?q=<text>&edit=<txn_id>
+  useEffect(() => {
+    try {
+      const qs = new URLSearchParams(routeLoc.search);
+      const q = String(qs.get('q') || '').trim();
+      if (q) setFSearch(q);
+
+      const editId = String(qs.get('edit') || '').trim();
+      if (editId && rows.length) {
+        const r = rows.find((x: any) => String(x.txn_id || '') === editId);
+        if (r) openEditTxn(r);
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeLoc.search, rows.length]);
   const [fDate, setFDate] = useState<string>(''); // YYYY-MM-DD
 
   // Global visibility toggles (affects table + charts + location table; NOT the KPI totals cards)
