@@ -1190,6 +1190,10 @@ export default function DashboardPage() {
                         const m = merchantOptions.find((x: any) => x.code === v) as any;
                         const defCat = String(m?.default?.category || m?.defaultCategory || '').trim();
                         const defSub = String(m?.default?.subcategory || m?.defaultSubcategory || '').trim();
+                        const defTags: string[] = Array.isArray(m?.default?.tags)
+                          ? m.default.tags.map((x: any) => String(x).trim()).filter(Boolean)
+                          : [];
+
                         if (defCat) {
                           setEditCategory(defCat);
                           if (defSub) {
@@ -1198,6 +1202,15 @@ export default function DashboardPage() {
                             const first = subcategoryOptions.find((s: any) => s.category === defCat);
                             setEditSubcategory(first ? first.code : '');
                           }
+                        }
+
+                        if (defTags.length) {
+                          const cur = String(editTags || '')
+                            .split(',')
+                            .map((s) => s.trim())
+                            .filter(Boolean);
+                          const next = Array.from(new Set(cur.concat(defTags)));
+                          setEditTags(next.join(','));
                         }
                       }}
                       options={merchantOptions.map((m: any) => ({ value: m.code, label: m.name || m.code }))}
